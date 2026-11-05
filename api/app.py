@@ -24,14 +24,29 @@ class HttpError(Exception):
 
 
 # ---------------- Redis (Upstash REST) ----------------
+def find_redis_env():
+    """Cari URL dan token REST Redis, apa pun awalan nama variabelnya (KV_, UPSTASH_REDIS_, STORAGE_, dst)."""
+    e = os.environ
+    for u, t in (("KV_REST_API_URL", "KV_REST_API_TOKEN"), ("UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN")):
+        if e.get(u) and e.get(t):
+            return e[u], e[t]
+    for k, v in e.items():
+        for suf_u, suf_t in (("_REST_API_URL", "_REST_API_TOKEN"), ("_REST_URL", "_REST_TOKEN")):
+            if k.endswith(suf_u) and v:
+                tok = e.get(k[:-len(suf_u)] + suf_t)
+                if tok:
+                    return v, tok
+    return "", ""
+
+
 class Upstash:
     def __init__(self):
-        self.url = (os.environ.get("KV_REST_API_URL") or os.environ.get("UPSTASH_REDIS_REST_URL") or "").rstrip("/")
-        self.tok = os.environ.get("KV_REST_API_TOKEN") or os.environ.get("UPSTASH_REDIS_REST_TOKEN") or ""
+        self.url, self.tok = find_redis_env()
+        self.url = self.url.rstrip("/")
 
     def _post(self, path, body):
         if not self.url:
-            raise HttpError(500, "Penyimpanan belum disambungkan (KV_REST_API_URL belum diisi).")
+            raise HttpError(500, "Penyimpanan Redis belum disambungkan. Isi KV_REST_API_URL dan KV_REST_API_TOKEN di Environment Variables, lalu Redeploy.")
         req = urllib.request.Request(self.url + path, json.dumps(body).encode(),
                                      {"Authorization": "Bearer " + self.tok, "Content-Type": "application/json"})
         with urllib.request.urlopen(req, timeout=8) as r:
