@@ -136,6 +136,40 @@ def clean(s, n):
     return re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]", "", str(s)).strip()[:n]
 
 
+STATUS_PMH = ["Diterima", "Sedang diverifikasi", "Perlu perbaikan berkas", "Disetujui", "Siap diambil", "Selesai", "Ditolak"]
+SLOTS = ["08:00", "09:00", "10:00", "11:00", "13:00", "14:00"]
+SKM_UNSUR = ["Persyaratan pelayanan", "Sistem, mekanisme, dan prosedur", "Waktu penyelesaian", "Biaya/tarif", "Produk spesifikasi jenis pelayanan",
+             "Kompetensi pelaksana", "Perilaku pelaksana", "Penanganan pengaduan, saran, dan masukan", "Sarana dan prasarana"]
+
+
+def wib():
+    return time.gmtime(time.time() + 7 * 3600)
+
+
+def fmt_wib(ms):
+    return time.strftime("%d-%m-%Y %H:%M", time.gmtime(ms / 1000 + 7 * 3600))
+
+
+def cek_tanggal(tgl, jam):
+    """Tanggal kunjungan: hari kerja, hari ini sampai 14 hari ke depan; jam belum lewat."""
+    try:
+        d = time.strptime(tgl, "%Y-%m-%d")
+    except ValueError:
+        raise HttpError(400, "Tanggal tidak valid.")
+    hari_ini = time.strftime("%Y-%m-%d", wib())
+    batas = time.strftime("%Y-%m-%d", time.gmtime(time.time() + 7 * 3600 + 14 * 86400))
+    if tgl < hari_ini or tgl > batas:
+        raise HttpError(400, "Pilih tanggal dari hari ini sampai 14 hari ke depan.")
+    if d.tm_wday >= 5:
+        raise HttpError(400, "Layanan hanya hari kerja (Senin sampai Jumat).")
+    if tgl == hari_ini and jam <= time.strftime("%H:%M", time.gmtime(time.time() + 7 * 3600 + 1800)):
+        raise HttpError(400, "Jam tersebut sudah lewat. Pilih jam lain.")
+
+
+def kategori_ikm(v):
+    return "A (Sangat Baik)" if v >= 88.31 else "B (Baik)" if v >= 76.61 else "C (Kurang Baik)" if v >= 65 else "D (Tidak Baik)"
+
+
 LOKASI = {l["id"]: l["nm"] for l in SEED["lokasi"]}
 LOKET = {"%s_%s" % (e["lokasi"], e["no"]): e for e in SEED["loket"]}
 
@@ -295,6 +329,18 @@ class handler(BaseHTTPRequestHandler):
                 return self.user_kirim(ses, b, ex)
             if path == "/nilai" and method == "POST":
                 return self.user_nilai(ses, b, ex)
+            if path == "/permohonan" and method == "GET":
+                return self.user_pmh(ses, ex)
+            if path == "/slot" and method == "GET":
+                return self.slot(q, ex)
+            if path == "/booking" and method == "GET":
+                return self.user_bk(ses, ex)
+            if path == "/booking" and method == "POST":
+                return self.user_bk_baru(ses, b, ex)
+            if path == "/booking/batal" and method == "POST":
+                return self.user_bk_batal(ses, b, ex)
+            if path == "/skm" and method == "POST":
+                return self.user_skm(ses, b, ex)
         if ses["r"] == "adm" and path.startswith("/admin/"):
             return self.admin(method, path[7:], q, b, ex)
         raise HttpError(403, "Tidak diizinkan.")
@@ -308,9 +354,10 @@ class handler(BaseHTTPRequestHandler):
             if p:
                 who = {"peran": "pemohon", "nama": p["nama"], "hp": p["hp"], "email": p.get("email", "")}
         c = cfg_all()
-        self.json({"lokasi": [{"id": k, "nama": v} for k, v in LOKASI.items()],
+        bt = sorted([parse(v, {}) for v in hall(db().cmd("HGETALL", "berita")).values()], key=lambda x: -x.get("id", 0))[:5]
+        self.json({"berita": bt, "lokasi": [{"id": k, "nama": v} for k, v in LOKASI.items()],
                    "loket": [[e["lokasi"], e["no"], e["nama"], e["uraian"], e["sistem"], e.get("zona", ""), 1 if e.get("diskusi", True) else 0] for e in SEED["loket"]],
-                   "cfg": {k: c.get(k, "") for k in ("wa", "jam", "info")}, "saya": who},
+                   "cfg": {k: c.get(k, "") for k in ("wa", "jam", "info", "kuota")}, "saya": who},
                   extra=self.refresh(ses) if ses and who else ())
 
     def daftar(self, b):
@@ -367,16 +414,94 @@ class handler(BaseHTTPRequestHandler):
     # ---- pemohon ----
     def user_pesan(self, ses, ex):
         pid = ses["id"]
-        ks = sorted(db().cmd("SMEMBERS", "pk:%s" % pid) or [])
-        res = db().pipe([["LRANGE", "msgs:%s|%s" % (pid, k), 0, -1] for k in ks] + [["HGETALL", "nilai"]])
+        ks, pids = db().pipe([["SMEMBERS", "pk:%s" % pid], ["SMEMBERS", "pmh:%s" % pid]])
+        ks = sorted(ks or [])
+        cmds = [["LRANGE", "msgs:%s|%s" % (pid, k), 0, -1] for k in ks] + [["HGETALL", "nilai"]]
+        if pids:
+            cmds.append(["HMGET", "pmh"] + list(pids))
+        res = db().pipe(cmds)
         ms = []
-        for k, lst in zip(ks, res[:-1]):
-            for s in lst or []:
-                m = parse(s)
+        for k, lst in zip(ks, res[:len(ks)]):
+            for x in lst or []:
+                m = parse(x)
                 if m:
                     ms.append({"id": m["id"], "kunci": k, "dari": m["dari"], "isi": m["isi"], "waktu": m["waktu"]})
-        nl = hall(res[-1])
-        self.json({"pesan": ms, "status": {k: {"nilai": int(nl["%s|%s" % (pid, k)])} for k in ks if "%s|%s" % (pid, k) in nl}}, extra=ex)
+        nl = hall(res[len(ks)])
+        pm = []
+        if pids:
+            for x in res[len(ks) + 1] or []:
+                o = parse(x) if x else None
+                if o:
+                    pm.append({"id": o["id"], "jenis": o["jenis"], "nomor": o["nomor"], "status": o["status"], "ubah": o["ubah"]})
+        self.json({"pesan": ms, "pmh": pm, "status": {k: {"nilai": int(nl["%s|%s" % (pid, k)])} for k in ks if "%s|%s" % (pid, k) in nl}}, extra=ex)
+
+    # ---- permohonan (pemohon) ----
+    def user_pmh(self, ses, ex):
+        ids = db().cmd("SMEMBERS", "pmh:%s" % ses["id"]) or []
+        rows = [parse(x) for x in (db().cmd("HMGET", "pmh", *ids) if ids else []) if x]
+        self.json({"daftar": sorted(rows, key=lambda o: -o["ubah"]), "status": STATUS_PMH}, extra=ex)
+
+    # ---- booking kunjungan ----
+    def slot(self, q, ex):
+        lok, tgl = (q.get("lokasi") or [""])[0], (q.get("tanggal") or [""])[0]
+        if lok not in LOKASI:
+            raise HttpError(400, "Lokasi tidak valid.")
+        try:
+            time.strptime(tgl, "%Y-%m-%d")
+        except ValueError:
+            raise HttpError(400, "Tanggal tidak valid.")
+        kuota = int(db().cmd("HGET", "cfg", "kuota") or 10)
+        cnt = db().pipe([["GET", "bks:%s|%s|%s" % (lok, tgl, j)] for j in SLOTS])
+        self.json({"kuota": kuota, "slot": [{"jam": j, "sisa": max(0, kuota - int(c or 0))} for j, c in zip(SLOTS, cnt)]}, extra=ex)
+
+    def user_bk(self, ses, ex):
+        ids = db().cmd("SMEMBERS", "bk:%s" % ses["id"]) or []
+        rows = [parse(x) for x in (db().cmd("HMGET", "bk", *ids) if ids else []) if x]
+        self.json({"daftar": sorted(rows, key=lambda o: (o["tanggal"], o["jam"]), reverse=True)}, extra=ex)
+
+    def user_bk_baru(self, ses, b, ex):
+        pid, lok, tgl, jam = ses["id"], str(b.get("lokasi", "")), str(b.get("tanggal", "")), str(b.get("jam", ""))
+        kep = clean(b.get("keperluan", ""), 200)
+        if lok not in LOKASI or jam not in SLOTS or len(kep) < 3:
+            raise HttpError(400, "Lengkapi lokasi, tanggal, jam, dan keperluan.")
+        cek_tanggal(tgl, jam)
+        ids = db().cmd("SMEMBERS", "bk:%s" % pid) or []
+        mine = [parse(x) for x in (db().cmd("HMGET", "bk", *ids) if ids else []) if x]
+        aktif = [o for o in mine if o["status"] == "Terjadwal" and o["tanggal"] >= time.strftime("%Y-%m-%d", wib())]
+        if len(aktif) >= 3:
+            raise HttpError(400, "Maksimal 3 booking aktif. Batalkan salah satu dulu.")
+        if any(o["tanggal"] == tgl for o in aktif):
+            raise HttpError(400, "Anda sudah punya booking di tanggal tersebut.")
+        kuota = int(db().cmd("HGET", "cfg", "kuota") or 10)
+        sk = "bks:%s|%s|%s" % (lok, tgl, jam)
+        if int(db().cmd("INCR", sk)) > kuota:
+            db().cmd("DECR", sk)
+            raise HttpError(409, "Jam tersebut sudah penuh. Pilih jam lain.")
+        urut = int(db().cmd("INCR", "bkn:%s|%s" % (lok, tgl)))
+        bid = int(db().cmd("INCR", "seq:booking"))
+        kode = "%s-%s-%03d" % (lok[:3].upper(), tgl[8:10] + tgl[5:7], urut)
+        o = {"id": bid, "pid": pid, "lokasi": lok, "tanggal": tgl, "jam": jam, "keperluan": kep, "kode": kode, "status": "Terjadwal", "dibuat": now_ms()}
+        db().pipe([["HSET", "bk", bid, json.dumps(o, ensure_ascii=False)], ["SADD", "bk:%s" % pid, bid], ["SADD", "bkd:%s" % tgl, bid]])
+        self.json({"ok": True, "booking": o}, extra=ex)
+
+    def user_bk_batal(self, ses, b, ex):
+        bid = str(b.get("id", ""))
+        o = parse(db().cmd("HGET", "bk", bid))
+        if not o or o["pid"] != ses["id"] or o["status"] != "Terjadwal":
+            raise HttpError(400, "Booking tidak bisa dibatalkan.")
+        o["status"] = "Batal"
+        db().pipe([["HSET", "bk", bid, json.dumps(o, ensure_ascii=False)], ["DECR", "bks:%s|%s|%s" % (o["lokasi"], o["tanggal"], o["jam"])]])
+        self.json({"ok": True}, extra=ex)
+
+    # ---- SKM ----
+    def user_skm(self, ses, b, ex):
+        lok, j = str(b.get("lokasi", "")), b.get("j")
+        if lok not in LOKASI or not isinstance(j, list) or len(j) != 9 or any(x not in (1, 2, 3, 4) for x in j):
+            raise HttpError(400, "Isi semua 9 pertanyaan dengan nilai 1 sampai 4.")
+        if limited("rl:skm:%s" % ses["id"], 3, 86400):
+            raise HttpError(429, "Anda sudah mengisi survei beberapa kali hari ini. Terima kasih.")
+        db().pipe([["RPUSH", "skm", json.dumps({"t": now_ms(), "lokasi": lok, "j": j, "saran": clean(b.get("saran", ""), 300)}, ensure_ascii=False)], ["LTRIM", "skm", -5000, -1]])
+        self.json({"ok": True}, extra=ex)
 
     def user_kirim(self, ses, b, ex):
         pid, k, isi = ses["id"], str(b.get("kunci", "")), clean(b.get("isi", ""), 800)
@@ -416,8 +541,91 @@ class handler(BaseHTTPRequestHandler):
             return self.rekap(ex)
         if r == "data.xlsx":
             return self.xlsx(ex)
+        if r == "permohonan" and method == "GET":
+            ids = sorted([int(x) for x in db().cmd("SMEMBERS", "pmhall") or []], reverse=True)[:100]
+            rows = [parse(x) for x in (db().cmd("HMGET", "pmh", *ids) if ids else []) if x]
+            pm = hall(db().cmd("HGETALL", "pemohon"))
+            for o in rows:
+                p = parse(pm.get(str(o["pid"])), {})
+                o["nama"], o["hp"] = p.get("nama", "?"), p.get("hp", "")
+            return self.json({"daftar": rows, "status": STATUS_PMH}, extra=ex)
+        if r == "booking" and method == "GET":
+            tgl = (q.get("tanggal") or [""])[0]
+            try:
+                time.strptime(tgl, "%Y-%m-%d")
+            except ValueError:
+                raise HttpError(400, "Tanggal tidak valid.")
+            ids = db().cmd("SMEMBERS", "bkd:%s" % tgl) or []
+            rows = [parse(x) for x in (db().cmd("HMGET", "bk", *ids) if ids else []) if x]
+            pm = hall(db().cmd("HGETALL", "pemohon"))
+            for o in rows:
+                p = parse(pm.get(str(o["pid"])), {})
+                o["nama"], o["hp"] = p.get("nama", "?"), p.get("hp", "")
+                o["lokasi_nama"] = LOKASI.get(o["lokasi"], o["lokasi"])
+            return self.json({"daftar": sorted(rows, key=lambda o: (o["jam"], o["kode"])), "kuota": int(db().cmd("HGET", "cfg", "kuota") or 10)}, extra=ex)
+        if r == "skm" and method == "GET":
+            rows = [parse(x) for x in db().cmd("LRANGE", "skm", 0, -1) or []]
+            rows = [o for o in rows if o]
+
+            def ringkas(rs):
+                if not rs:
+                    return None
+                av = [round(sum(o["j"][i] for o in rs) / len(rs), 2) for i in range(9)]
+                ikm = round(sum(av) / 9 * 25, 2)
+                return {"n": len(rs), "unsur": av, "ikm": ikm, "mutu": kategori_ikm(ikm)}
+            per = {}
+            for l, nm in LOKASI.items():
+                rg = ringkas([o for o in rows if o["lokasi"] == l])
+                if rg:
+                    per[l] = dict(rg, nama=nm)
+            saran = [{"lokasi": LOKASI.get(o["lokasi"], ""), "saran": o["saran"], "waktu": fmt_wib(o["t"])} for o in reversed(rows) if o.get("saran")][:20]
+            return self.json({"unsur": SKM_UNSUR, "total": ringkas(rows), "per": per, "saran": saran}, extra=ex)
         if method != "POST":
             raise HttpError(404, "Tidak ditemukan.")
+        if r == "permohonan/baru":
+            hp, jenis, nomor = norm_hp(b.get("hp", "")), clean(b.get("jenis", ""), 100), clean(b.get("nomor", ""), 40)
+            pid = db().cmd("HGET", "hp", hp) if hp else None
+            if not pid:
+                raise HttpError(400, "Nomor HP pemohon belum terdaftar di aplikasi.")
+            if len(jenis) < 3:
+                raise HttpError(400, "Isi jenis permohonan.")
+            st = b.get("status") if b.get("status") in STATUS_PMH else "Diterima"
+            pmid, t = int(db().cmd("INCR", "seq:pmh")), now_ms()
+            o = {"id": pmid, "pid": int(pid), "jenis": jenis, "nomor": nomor, "status": st, "ubah": t, "dibuat": t,
+                 "riwayat": [{"status": st, "catatan": clean(b.get("catatan", ""), 200), "waktu": t}]}
+            db().pipe([["HSET", "pmh", pmid, json.dumps(o, ensure_ascii=False)], ["SADD", "pmh:%s" % pid, pmid], ["SADD", "pmhall", pmid]])
+            return self.json({"ok": True}, extra=ex)
+        if r == "permohonan/ubah":
+            o = parse(db().cmd("HGET", "pmh", str(b.get("id", ""))))
+            if not o or b.get("status") not in STATUS_PMH:
+                raise HttpError(400, "Data tidak valid.")
+            t = now_ms()
+            o["status"], o["ubah"] = b["status"], t
+            o["riwayat"].append({"status": b["status"], "catatan": clean(b.get("catatan", ""), 200), "waktu": t})
+            db().cmd("HSET", "pmh", o["id"], json.dumps(o, ensure_ascii=False))
+            return self.json({"ok": True}, extra=ex)
+        if r == "permohonan/hapus":
+            o = parse(db().cmd("HGET", "pmh", str(b.get("id", ""))))
+            if o:
+                db().pipe([["HDEL", "pmh", o["id"]], ["SREM", "pmh:%s" % o["pid"], o["id"]], ["SREM", "pmhall", o["id"]]])
+            return self.json({"ok": True}, extra=ex)
+        if r == "booking/status":
+            o = parse(db().cmd("HGET", "bk", str(b.get("id", ""))))
+            if not o or b.get("status") not in ("Terjadwal", "Hadir", "Tidak hadir"):
+                raise HttpError(400, "Data tidak valid.")
+            o["status"] = b["status"]
+            db().cmd("HSET", "bk", o["id"], json.dumps(o, ensure_ascii=False))
+            return self.json({"ok": True}, extra=ex)
+        if r == "berita":
+            jd, isi = clean(b.get("judul", ""), 100), clean(b.get("isi", ""), 600)
+            if len(jd) < 3 or len(isi) < 3:
+                raise HttpError(400, "Isi judul dan isi berita.")
+            nid = int(db().cmd("INCR", "seq:berita"))
+            db().cmd("HSET", "berita", nid, json.dumps({"id": nid, "judul": jd, "isi": isi, "waktu": now_ms()}, ensure_ascii=False))
+            return self.json({"ok": True}, extra=ex)
+        if r == "berita/hapus":
+            db().cmd("HDEL", "berita", str(b.get("id", "")))
+            return self.json({"ok": True}, extra=ex)
         if r == "balas":
             pid, k, isi = int(b.get("pid") or 0), str(b.get("kunci", "")), clean(b.get("isi", ""), 800)
             if not valid_key(k) or not isi or not db().cmd("HGET", "pemohon", pid):
@@ -436,11 +644,22 @@ class handler(BaseHTTPRequestHandler):
             db().pipe([["DEL", "msgs:" + f], ["SREM", "pk:%s" % pid, k]] + [["HDEL", h, f] for h in ("tlu", "tla", "tlast", "sel", "nilai")])
             return self.json({"ok": True}, extra=ex)
         if r == "pengaturan":
-            wa = clean(b.get("wa", ""), 16)
-            if wa and not norm_hp(wa):
-                raise HttpError(400, "Nomor WA resmi tidak valid.")
-            db().pipe([["HSET", "cfg", "wa", norm_hp(wa) or ""], ["HSET", "cfg", "jam", clean(b.get("jam", ""), 100)],
-                       ["HSET", "cfg", "info", clean(b.get("info", ""), 300)]])
+            cmds = []
+            if "wa" in b:
+                wa = clean(b.get("wa", ""), 16)
+                if wa and not norm_hp(wa):
+                    raise HttpError(400, "Nomor WA resmi tidak valid.")
+                cmds.append(["HSET", "cfg", "wa", norm_hp(wa) or ""])
+            if "jam" in b:
+                cmds.append(["HSET", "cfg", "jam", clean(b.get("jam", ""), 100)])
+            if "info" in b:
+                cmds.append(["HSET", "cfg", "info", clean(b.get("info", ""), 300)])
+            if "kuota" in b:
+                k = int(b.get("kuota") or 0)
+                if not 1 <= k <= 200:
+                    raise HttpError(400, "Kuota per jam harus 1 sampai 200.")
+                cmds.append(["HSET", "cfg", "kuota", k])
+            db().pipe(cmds)
             return self.json({"ok": True}, extra=ex)
         if r == "password":
             h = db().cmd("HGET", "cfg", "admin_hash") or ""

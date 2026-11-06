@@ -61,16 +61,16 @@ function render(){
   return hd+'<details data-n="'+k+'"'+zst(d)+' class="row'+(first?' best':'')+'"'+(first||op[k]?' open':'')+'><summary><span class="no" aria-label="Nomor loket">'+d[0]+'</span><span class="nm">'+esc(d[1])+'</span>'+c+'<span class="tag">'+esc(d[4]||String(d[3]).split(" / ")[0])+'</span></summary><div class="body"><p>'+esc(d[2])+'</p><p class="sys">Sistem: '+esc(d[3])+'</p>'+chatHtml(k)+'</div></details>'}).join("");
  [].forEach.call(document.querySelectorAll("#list [data-k]"),function(e){var k=e.dataset.k;if(KEEP[k])e.value=KEEP[k];if(FOC&&FOC.k===k){e.focus();try{e.setSelectionRange(FOC.s,FOC.e)}catch(x){}}});
  if(OPENK){var el=document.querySelector('details[data-n="'+OPENK+'"]');OPENK=null;if(el)el.scrollIntoView({block:"start"})}}
-function openKey(k){LOC=k.split("_")[0];ZN="Semua";lc();qv="";$("q").value="";OPENK=k;MYV=false;ui()}
+function openKey(k){LOC=k.split("_")[0];ZN="Semua";lc();qv="";$("q").value="";OPENK=k;MYV=false;window.PN="";ui()}
 /* ---- Tampilan & login ---- */
 function ui(){
  $("role").textContent=S==="adm"?"Admin":S==="user"?"Pemohon: "+ME.nama:"Belum masuk";
  $("lo").hidden=S==="out";$("nb").hidden=!(S!=="out"&&window.Notification&&Notification.permission==="default");$("my").hidden=S!=="user";$("my").textContent=MYV?"Kembali ke loket":"Percakapan saya";
- $("v-adm").hidden=S!=="adm";$("v-cari").hidden=S==="adm"||MYV;$("v-my").hidden=!(S==="user"&&MYV);
+ $("v-adm").hidden=S!=="adm";$("v-cari").hidden=S==="adm"||MYV||!!window.PN;$("v-my").hidden=!(S==="user"&&MYV&&!window.PN);
  var lg=$("lg");lg.hidden=S!=="out";
  if(S==="out"&&!$("lg").dataset.on){$("lg").dataset.on="1";loginUI()}
  if(S!=="out")$("lg").dataset.on="";
- if(S==="adm")admUI();else if(S==="user"&&MYV)myList();else render()}
+ if(S==="adm")admUI();else if(S==="user"&&MYV)myList();else render();if(window.fiturUI)fiturUI()}
 function loginUI(){var reg=AUTH==="daftar";
  $("lg").innerHTML='<div class="card"><h2>Pemohon</h2><div class="hint" style="margin:0"><button type="button" class="chip" data-a="masuk" aria-pressed="'+!reg+'">Masuk</button><button type="button" class="chip" data-a="daftar" aria-pressed="'+reg+'">Daftar baru</button></div>'
  +(reg?'<input id="ln" placeholder="Nama lengkap" maxlength="60" autocomplete="name" aria-label="Nama"><input id="lh" type="tel" inputmode="tel" placeholder="Nomor HP (08xxxxxxxxxx)" maxlength="16" autocomplete="tel" aria-label="Nomor HP"><input id="le" type="email" placeholder="Email" maxlength="100" autocomplete="email" aria-label="Email"><input id="lp" type="password" inputmode="numeric" placeholder="Buat PIN 6 angka" maxlength="6" autocomplete="new-password" aria-label="PIN"><button class="send" id="ld" type="button">Daftar dan masuk</button>'
@@ -86,9 +86,9 @@ $("lg").addEventListener("click",async function(e){var id=e.target.id,a=e.target
   await startSession(await api("/api/daftar",{nama:n,hp:p2,email:em,pin:$("lp").value}))}
  if(id==="la"){await startSession(await api("/api/admin/masuk",{password:$("lw").value}))}
  }catch(x){err(x.message)}});
-function reset(msg){$("v-adm").dataset.on="";$("v-adm").innerHTML="";clearInterval(TIMER);TIMER=null;S="out";ME=null;M=[];MYST={};T=[];SEL=null;SM=[];KEEP={};SENT=[];MYV=false;SEEN=null;SEENA=null;document.title="Takok Pelayanan Suroboyo";ui();err(msg||"")}
+function reset(msg){window.PN="";$("v-adm").dataset.on="";$("v-adm").innerHTML="";clearInterval(TIMER);TIMER=null;S="out";ME=null;M=[];MYST={};T=[];SEL=null;SM=[];KEEP={};SENT=[];MYV=false;SEEN=null;SEENA=null;document.title="Takok Pelayanan Suroboyo";ui();err(msg||"")}
 $("lo").onclick=async function(){try{await api("/api/keluar",{})}catch(x){}reset()};
-$("my").onclick=function(){MYV=!MYV;ui()};
+$("my").onclick=function(){window.PN="";MYV=!MYV;ui()};
 ["click","keydown","touchstart","scroll"].forEach(function(ev){addEventListener(ev,function(){LAST=Date.now()},{passive:true})});
 setInterval(function(){if(S!=="out"&&Date.now()-LAST>(S==="adm"?600000:900000)){api("/api/keluar",{}).catch(function(){});reset("Sesi berakhir karena tidak aktif. Silakan masuk kembali.")}},20000);
 /* ---- Polling & notifikasi ---- */
@@ -96,7 +96,7 @@ function startPoll(){clearInterval(TIMER);tick();TIMER=setInterval(tick,S==="adm
 document.addEventListener("visibilitychange",function(){if(S!=="out")startPoll()});
 async function tick(){try{
  if(S==="user"){var j=await api("/api/pesan"),arr=conv(j.pesan).sort(function(a,b){return a.ts-b.ts});
-  if(SEEN)arr.forEach(function(m){if(m.by==="admin"&&!SEEN[m.id])notify("Admin membalas",label(m.n),function(){openKey(m.n)})});
+  if(window.pmhCheck)pmhCheck(j.pmh||[]);if(SEEN)arr.forEach(function(m){if(m.by==="admin"&&!SEEN[m.id])notify("Admin membalas",label(m.n),function(){openKey(m.n)})});
   SEEN={};arr.forEach(function(m){SEEN[m.id]=1});var sg=arr.length+":"+(arr.length?arr[arr.length-1].id:0)+JSON.stringify(j.status);
   if(sg!==SIG){SIG=sg;M=arr;MYST=j.status;render();if(MYV)myList()}}
  if(S==="adm"){var a=await api("/api/admin/percakapan"),cur2={};a.daftar.forEach(function(x){if(x.pend)cur2[x.pid+"|"+x.kunci+"|"+x.waktu]=x});
@@ -130,10 +130,10 @@ $("list").addEventListener("click",async function(e){err("");
 /* ---- Admin ---- */
 function pick(x){SEL={pid:x.pid,kunci:x.kunci,nama:x.nama,hp:x.hp,email:x.email};SM=[];admList();admPane();tick()}
 function admUI(){var d=$("v-adm");if(d.dataset.on==="1"){admList();return}d.dataset.on="1";
- d.innerHTML='<div class="stat" id="st"></div><div class="hint"><a class="btn" href="/api/app?p=%2Fadmin%2Frekap.csv" download>Unduh rekap (CSV)</a><a class="btn" href="/api/app?p=%2Fadmin%2Fdata.xlsx" download>Unduh database (Excel)</a></div><details class="set"><summary>Pengaturan dan pengumuman</summary><div class="qf"><input class="si" id="cw" placeholder="Nomor WA resmi PTSP (08xxxxxxxxxx)" maxlength="16" aria-label="Nomor WA resmi"><input class="si" id="cj" placeholder="Jam layanan, mis. Senin-Jumat 08.00-15.00" maxlength="100" aria-label="Jam layanan"><textarea id="ci" rows="2" maxlength="300" placeholder="Pengumuman untuk pemohon (opsional)" aria-label="Pengumuman"></textarea><button type="button" class="send" id="cs">Simpan pengaturan</button><b style="margin-top:8px">Ganti kata sandi admin</b><input class="si" id="p1" type="password" placeholder="Kata sandi lama" autocomplete="current-password"><input class="si" id="p2" type="password" placeholder="Kata sandi baru (min. 8 karakter)" autocomplete="new-password"><button type="button" class="btn" id="cp">Ganti kata sandi</button></div></details><div class="adg"><div><div class="hint" id="af"></div><input class="si" id="as" placeholder="Cari nama, nomor HP, atau email" aria-label="Cari"><select class="si" id="ls" aria-label="Lokasi"><option value="all">Semua lokasi</option>'+LOCS.map(function(l){return '<option value="'+esc(l.id)+'">'+esc(l.nm)+'</option>'}).join("")+'</select><div class="tl" id="al"></div></div><div class="pane" id="ap"></div></div>';
+ d.innerHTML='<div class="hint" id="atabs"></div><div id="a-inbox"><div class="stat" id="st"></div><div class="hint"><a class="btn" href="/api/app?p=%2Fadmin%2Frekap.csv" download>Unduh rekap (CSV)</a><a class="btn" href="/api/app?p=%2Fadmin%2Fdata.xlsx" download>Unduh database (Excel)</a></div><details class="set"><summary>Pengaturan dan pengumuman</summary><div class="qf"><input class="si" id="cw" placeholder="Nomor WA resmi PTSP (08xxxxxxxxxx)" maxlength="16" aria-label="Nomor WA resmi"><input class="si" id="cj" placeholder="Jam layanan, mis. Senin-Jumat 08.00-15.00" maxlength="100" aria-label="Jam layanan"><textarea id="ci" rows="2" maxlength="300" placeholder="Pengumuman untuk pemohon (opsional)" aria-label="Pengumuman"></textarea><button type="button" class="send" id="cs">Simpan pengaturan</button><b style="margin-top:8px">Ganti kata sandi admin</b><input class="si" id="p1" type="password" placeholder="Kata sandi lama" autocomplete="current-password"><input class="si" id="p2" type="password" placeholder="Kata sandi baru (min. 8 karakter)" autocomplete="new-password"><button type="button" class="btn" id="cp">Ganti kata sandi</button></div></details><div class="adg"><div><div class="hint" id="af"></div><input class="si" id="as" placeholder="Cari nama, nomor HP, atau email" aria-label="Cari"><select class="si" id="ls" aria-label="Lokasi"><option value="all">Semua lokasi</option>'+LOCS.map(function(l){return '<option value="'+esc(l.id)+'">'+esc(l.nm)+'</option>'}).join("")+'</select><div class="tl" id="al"></div></div><div class="pane" id="ap"></div></div></div><div id="a-x" hidden></div>';
  $("cw").value=CFG.wa||"";$("cj").value=CFG.jam||"";$("ci").value=CFG.info||"";
  $("as").oninput=function(){AF.q=this.value.toLowerCase();admList()};$("ls").onchange=function(){AF.loc=this.value;admList()};
- $("af").onclick=function(e){var b=e.target.closest("[data-s]");if(b){AF.st=b.dataset.s;admList()}};admList();admPane()}
+ $("af").onclick=function(e){var b=e.target.closest("[data-s]");if(b){AF.st=b.dataset.s;admList()}};admList();admPane();if(window.admTabs)admTabs()}
 function admList(){var el=$("al");if(!el||S!=="adm")return;title();var all=T;
  var pn=all.filter(function(x){return x.pend}).length,rs=all.filter(function(x){return x.nilai}),avg=rs.length?(rs.reduce(function(a,x){return a+x.nilai},0)/rs.length).toFixed(1):"";
  $("st").textContent=pn+" perlu dijawab dari "+all.length+" percakapan"+(rs.length?" | Kepuasan rata-rata "+avg+"/5 ("+rs.length+" penilaian)":"");
@@ -186,5 +186,5 @@ $("list").addEventListener("click",function(e){var b=e.target.closest("[data-go]
 EX.push("BPJS Kesehatan","Pajak");
 /* ---- Mulai ---- */
 (async function(){try{var j=await api("/api/info");LOCS=j.lokasi.map(function(l){return{id:l.id,nm:l.nama}});LD={};j.loket.forEach(function(r){(LD[r[0]]=LD[r[0]]||[]).push([r[1],r[2],r[3],r[4],r[5]||"",r[6]!==0])});for(var k in LD)LD[k].sort(function(a,b){return a[0]-b[0]});
- CFG=j.cfg||{};if(!LD[LOC]&&LOCS.length)LOC=LOCS[0].id;an();lc();
+ CFG=j.cfg||{};window.BERITA=j.berita||[];if(!LD[LOC]&&LOCS.length)LOC=LOCS[0].id;an();lc();
  if(j.saya){await startSession(j)}else ui()}catch(x){err("Server belum bisa dihubungi: "+x.message)}})();
