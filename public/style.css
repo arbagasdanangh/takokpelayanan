@@ -93,5 +93,4 @@ button:focus-visible,summary:focus-visible,textarea:focus-visible,input:focus-vi
 .foot svg{display:block;width:100%;height:70px;margin-top:10px;fill:var(--acc);opacity:.22}
 @media (max-width:560px){.tag{display:none}.body{padding-left:14px}.menu{gap:8px}}
 @media (prefers-reduced-motion:no-preference){.tile{transition:transform .15s}}
-
-.dn{margin:0 0 14px;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:10px;box-shadow:var(--shadow)}.dn svg{width:100%;height:auto;display:block;max-height:300px}.dn .zg{cursor:pointer}.dn .zg:focus-visible rect{stroke:var(--tick);stroke-width:4}.dn figcaption{font-size:.8rem;color:var(--mute);text-align:center;margin-top:4px}
+.zh{display:flex;align-items:center;gap:8px;margin:20px 0 8px;font-size:1.05rem;font-weight:800}.zh .zd{width:12px;height:12px;border-radius:50%;background:var(--zc)}.zh small{color:var(--mute);font-weight:600;font-size:.8rem}

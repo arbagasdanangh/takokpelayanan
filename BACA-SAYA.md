@@ -27,5 +27,6 @@ Kata sandi dan PIN di-hash (PBKDF2), cookie sesi bertanda tangan, HttpOnly, Secu
 - Nomor HP belum diverifikasi dengan OTP.
 
 ## Lokasi MPP Surabaya
-Lokasi keenam, **MPP Surabaya** (Mal Pelayanan Publik), berisi instansi per zona dan fasilitas dari denah loket. Pemohon bisa menyaring per zona atau lewat ilustrasi zona.
-Rincian layanan tiap instansi belum diisi; lengkapi di `api/_data.py` (kolom `uraian`). Fasilitas non-layanan (Musholla, Ruang Laktasi, dll.) tidak menerima diskusi (`diskusi: False`).
+Lokasi keenam, **MPP Surabaya**, berisi 17 instansi di Zona 2 sampai Zona 5. Daftar dikelompokkan per zona dan bisa disaring lewat tombol zona.
+Instansi yang sudah ada di SPP (PTSP, Dispenduk Capil, DPRKPP, DLH, Dishub) tidak diulang di MPP. Fasilitas non-layanan (Musholla, Ruang Laktasi, dst.) juga tidak dimasukkan.
+Rincian layanan tiap instansi belum diisi; lengkapi di `api/_data.py` (kolom `uraian`), lalu deploy ulang.
