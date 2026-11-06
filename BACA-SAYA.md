@@ -32,10 +32,19 @@ Instansi yang sudah ada di SPP (PTSP, Dispenduk Capil, DPRKPP, DLH, Dishub) tida
 Rincian layanan tiap instansi belum diisi; lengkapi di `api/_data.py` (kolom `uraian`), lalu deploy ulang.
 
 ## Fitur
-**Pemohon:** daftar/masuk (HP + PIN), diskusi pribadi per loket, Status Permohonan (linimasa), Booking Kunjungan (kode antrean, kuota per jam), Survei Kepuasan (SKM), Percakapan Saya, notifikasi balasan dan perubahan status, Berita & Informasi.
-**Admin:** kotak masuk, catat dan perbarui status permohonan, daftar booking per tanggal (tandai hadir) + atur kuota per jam, terbitkan berita, rekap SKM (IKM per lokasi dan per unsur, saran), unduh CSV/Excel, pengaturan WA/jam layanan/pengumuman.
+**Pemohon:** daftar/masuk (HP + PIN), diskusi pribadi per loket, Status Permohonan (linimasa), Booking Kunjungan, Survei Kepuasan (SKM), Percakapan Saya, notifikasi (balasan, perubahan status, giliran dipanggil), Berita & Informasi.
+**Admin:** Ringkasan (KPI, grafik booking 7 hari, permohonan per status, IKM), kotak masuk, permohonan, booking + panggil antrean, berita, rekap SKM, unduh CSV/Excel, pengaturan.
+
+### Booking per loket/instansi
+Setiap loket (di MPP: setiap instansi seperti BPJS, Pajak, Pengadilan) punya jadwal dan kuota sendiri. Pemohon menyusun **rencana kunjungan** berisi beberapa tujuan di tanggal yang sama (maksimal 6, jam tidak boleh bentrok), lalu membuat semua booking sekaligus. Bila salah satu slot penuh, tidak ada booking yang dibuat (semua dibatalkan otomatis).
+Loket telepon, WhatsApp/hotline, dan pengisian SKM tidak menerima booking.
+Kode tiket contoh: `MPP08-2011-001` (loket nomor 08, tanggal 20 November, antrean ke-1). Tiket bisa dicetak.
+Jam: 08.00 sampai 14.00 (jeda 12.00), hari kerja, sampai 14 hari ke depan; kuota bawaan 10 per jam per loket (ubah di tab Booking).
+
+### Layar antrean
+Buka `https://<alamat-situs>/?layar=1` di TV/layar ruang tunggu (tambahkan `&lokasi=mpp` untuk satu lokasi). Admin menekan **Panggil** di tab Booking: nomor tampil besar di layar, pemohon mendapat notifikasi, dan layar bisa mengucapkan nomor (klik "Aktifkan suara" sekali; butuh browser dengan suara bahasa Indonesia).
+Layar hanya menampilkan kode dan nama loket, tanpa data pribadi.
 
 Catatan:
-- Status permohonan diisi manual oleh petugas (bukan otomatis dari OSS/SSW). Pemohon harus sudah terdaftar di aplikasi (nomor HP) agar permohonannya bisa dicatat.
-- Booking: hari kerja, jam 08.00 sampai 14.00 (jeda 12.00), sampai 14 hari ke depan, maksimal 3 booking aktif per pemohon, kuota bawaan 10 per jam per lokasi.
-- IKM dihitung dari 9 unsur (skala 1 sampai 4): rata-rata unsur x 25. Mutu: A 88,31-100, B 76,61-88,30, C 65,00-76,60, D 25,00-64,99.
+- Status permohonan diisi manual oleh petugas (bukan otomatis dari OSS/SSW).
+- IKM = rata-rata 9 unsur (skala 1-4) x 25. Mutu: A 88,31-100, B 76,61-88,30, C 65,00-76,60, D 25,00-64,99.

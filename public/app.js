@@ -96,7 +96,7 @@ function startPoll(){clearInterval(TIMER);tick();TIMER=setInterval(tick,S==="adm
 document.addEventListener("visibilitychange",function(){if(S!=="out")startPoll()});
 async function tick(){try{
  if(S==="user"){var j=await api("/api/pesan"),arr=conv(j.pesan).sort(function(a,b){return a.ts-b.ts});
-  if(window.pmhCheck)pmhCheck(j.pmh||[]);if(SEEN)arr.forEach(function(m){if(m.by==="admin"&&!SEEN[m.id])notify("Admin membalas",label(m.n),function(){openKey(m.n)})});
+  if(window.pmhCheck)pmhCheck(j.pmh||[]);if(window.bkCheck)bkCheck(j.bk||[]);if(SEEN)arr.forEach(function(m){if(m.by==="admin"&&!SEEN[m.id])notify("Admin membalas",label(m.n),function(){openKey(m.n)})});
   SEEN={};arr.forEach(function(m){SEEN[m.id]=1});var sg=arr.length+":"+(arr.length?arr[arr.length-1].id:0)+JSON.stringify(j.status);
   if(sg!==SIG){SIG=sg;M=arr;MYST=j.status;render();if(MYV)myList()}}
  if(S==="adm"){var a=await api("/api/admin/percakapan"),cur2={};a.daftar.forEach(function(x){if(x.pend)cur2[x.pid+"|"+x.kunci+"|"+x.waktu]=x});
@@ -185,6 +185,6 @@ $("zn").onclick=function(e){var b=e.target.closest("[data-z]");if(!b)return;ZN=b
 $("list").addEventListener("click",function(e){var b=e.target.closest("[data-go]");if(b){LOC=b.dataset.go;ZN="Semua";lc();render()}});
 EX.push("BPJS Kesehatan","Pajak");
 /* ---- Mulai ---- */
-(async function(){try{var j=await api("/api/info");LOCS=j.lokasi.map(function(l){return{id:l.id,nm:l.nama}});LD={};j.loket.forEach(function(r){(LD[r[0]]=LD[r[0]]||[]).push([r[1],r[2],r[3],r[4],r[5]||"",r[6]!==0])});for(var k in LD)LD[k].sort(function(a,b){return a[0]-b[0]});
+(async function(){try{var j=await api("/api/info");LOCS=j.lokasi.map(function(l){return{id:l.id,nm:l.nama}});LD={};j.loket.forEach(function(r){(LD[r[0]]=LD[r[0]]||[]).push([r[1],r[2],r[3],r[4],r[5]||"",r[6]!==0,r[7]!==0])});for(var k in LD)LD[k].sort(function(a,b){return a[0]-b[0]});
  CFG=j.cfg||{};window.BERITA=j.berita||[];if(!LD[LOC]&&LOCS.length)LOC=LOCS[0].id;an();lc();
  if(j.saya){await startSession(j)}else ui()}catch(x){err("Server belum bisa dihubungi: "+x.message)}})();

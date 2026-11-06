@@ -1,7 +1,7 @@
 "use strict";
 /* Fitur tambahan: Status Permohonan, Booking Kunjungan, Survei Kepuasan (SKM), Berita, dan tab admin. */
 window.PN = "";
-var PSEEN = null, AT = "inbox", BJ = "";
+var PSEEN = null, AT = "ring", BJ = "", BF = "all";
 var PMH_WARNA = {"Diterima": "#64748b", "Sedang diverifikasi": "#2563eb", "Perlu perbaikan berkas": "#d97706", "Disetujui": "#16a34a", "Siap diambil": "#0d9488", "Selesai": "#15803d", "Ditolak": "#dc2626"};
 var SKM_Q = ["Persyaratan pelayanan", "Sistem, mekanisme, dan prosedur", "Waktu penyelesaian", "Biaya/tarif", "Produk spesifikasi jenis pelayanan", "Kompetensi pelaksana", "Perilaku pelaksana", "Penanganan pengaduan, saran, dan masukan", "Sarana dan prasarana"];
 function bdg(st) { return '<span class="bdg" style="background:' + (PMH_WARNA[st] || "#64748b") + '">' + esc(st) + '</span>'; }
@@ -36,7 +36,13 @@ $("v-pn").addEventListener("click", function (e) {
   if (b) { setPN(b.dataset.pn); return; }
   pnClick(e);
 });
-$("v-pn").addEventListener("change", function (e) { if (e.target.id === "bl" || e.target.id === "bt2") slots(); });
+$("v-pn").addEventListener("change", function (e) {
+  var id = e.target.id;
+  if (id === "bl") { $("bk3").innerHTML = loketOpts($("bl").value); BJ = ""; slots(); }
+  else if (id === "bk3") { BJ = ""; slots(); }
+  else if (id === "bt2") { if (CART.length && CART_TGL !== $("bt2").value) { CART = []; rencana(); toast("Tanggal diganti, rencana kunjungan dikosongkan."); } BJ = ""; slots(); }
+  else if (id === "bk2") KEP = e.target.value;
+});
 $("t7").onclick = function () { if (!needLogin()) setPN("pmh"); };
 $("t8").onclick = function () { if (!needLogin()) setPN("bk"); };
 $("t9").onclick = function () { if (!needLogin()) setPN("skm"); };
@@ -62,7 +68,10 @@ async function pPmh(el) {
     '<p class="sys">Status diperbarui manual oleh petugas PTSP, bukan otomatis dari OSS atau SSW.</p>';
 }
 
-/* ---------- Pemohon: Booking Kunjungan ---------- */
+/* ---------- Pemohon: Booking Kunjungan (per loket / instansi) ---------- */
+var CART = [], CART_TGL = "", KEP = "", BSEEN = null;
+var BK_WARNA = {"Terjadwal": "#2563eb", "Dipanggil": "#d97706", "Hadir": "#15803d", "Tidak hadir": "#dc2626", "Batal": "#64748b"};
+function bkBdg(st) { return '<span class="bdg" style="background:' + (BK_WARNA[st] || "#64748b") + '">' + esc(st) + '</span>'; }
 function tglOpts() {
   var o = "";
   for (var i = 0; i <= 14; i++) {
@@ -71,23 +80,38 @@ function tglOpts() {
   }
   return o;
 }
+function loketOpts(lok) {
+  var out = "", pz = null;
+  (LD[lok] || []).forEach(function (d) {
+    if (d[6] === false) return;
+    if (d[4] && d[4] !== pz) { if (pz !== null) out += "</optgroup>"; out += '<optgroup label="' + esc(d[4]) + '">'; pz = d[4]; }
+    out += '<option value="' + lok + "_" + d[0] + '">' + esc(d[1]) + '</option>';
+  });
+  return out + (pz !== null ? "</optgroup>" : "");
+}
 async function pBk(el) {
-  el.innerHTML = back() + '<h2 class="sec">Booking Kunjungan</h2><div class="card"><select class="si" id="bl" aria-label="Lokasi">' +
+  CART = []; BJ = ""; KEP = "";
+  el.innerHTML = back() + '<h2 class="sec">Booking Kunjungan</h2><p class="sys" style="margin:0 0 8px">Setiap loket atau instansi punya jadwal dan kuota sendiri. Anda bisa menyusun beberapa tujuan dalam satu kunjungan.</p><div class="card"><select class="si" id="bl" aria-label="Lokasi">' +
     LOCS.map(function (l) { return '<option value="' + esc(l.id) + '">' + esc(l.nm) + '</option>'; }).join("") +
-    '</select><select class="si" id="bt2" aria-label="Tanggal">' + tglOpts() + '</select><div class="hint" id="bj" role="group" aria-label="Jam"></div>' +
-    '<textarea class="si" id="bk2" rows="2" maxlength="200" placeholder="Keperluan (mis. mengurus IPT)" aria-label="Keperluan"></textarea>' +
-    '<button type="button" class="send" id="bgo">Buat booking</button><p class="sys" style="margin:0">Layanan hari kerja. Datanglah 10 menit sebelum jam booking dan tunjukkan kode booking Anda.</p></div>' +
-    '<h2 class="sec">Booking saya</h2><div id="bsaya"></div>';
+    '</select><select class="si" id="bk3" aria-label="Loket atau instansi tujuan"></select><select class="si" id="bt2" aria-label="Tanggal">' + tglOpts() + '</select><div class="hint" id="bj" role="group" aria-label="Jam"></div>' +
+    '<button type="button" class="btn" id="badd">+ Tambah ke rencana kunjungan</button></div><div class="card" id="brenc" style="margin-top:10px"></div><h2 class="sec">Booking saya</h2><div id="bsaya"></div>';
   if ($("bl").querySelector('option[value="' + LOC + '"]')) $("bl").value = LOC;
-  BJ = "";
-  await slots();
-  await bSaya();
+  $("bk3").innerHTML = loketOpts($("bl").value);
+  await slots(); rencana(); await bSaya();
+}
+function rencana() {
+  var el = $("brenc");
+  if (!el) return;
+  if (!CART.length) { el.innerHTML = '<p class="sys" style="margin:0">Rencana kunjungan masih kosong. Pilih loket dan jam, lalu tambahkan.</p>'; return; }
+  el.innerHTML = '<b>Rencana kunjungan ' + esc(CART_TGL) + '</b>' + CART.slice().sort(function (a, b) { return a.jam < b.jam ? -1 : 1; }).map(function (c) {
+    return '<div class="rc"><span><b>' + c.jam + '</b> &middot; ' + esc(label(c.kunci)) + '</span><button type="button" class="btn" data-rm="' + CART.indexOf(c) + '" aria-label="Hapus">Hapus</button></div>';
+  }).join("") + '<textarea class="si" id="bk2" rows="2" maxlength="200" placeholder="Keperluan kunjungan (mis. mengurus BPJS dan pajak)" aria-label="Keperluan">' + esc(KEP) + '</textarea><button type="button" class="send" id="bgo">Buat ' + CART.length + ' booking</button>';
 }
 async function slots() {
   var box = $("bj");
   if (!box) return;
   try {
-    var j = await api("/api/slot?lokasi=" + encodeURIComponent($("bl").value) + "&tanggal=" + encodeURIComponent($("bt2").value));
+    var j = await api("/api/slot?kunci=" + encodeURIComponent($("bk3").value) + "&tanggal=" + encodeURIComponent($("bt2").value));
     box.innerHTML = j.slot.map(function (s) {
       return '<button type="button" class="chip" data-j="' + s.jam + '" aria-pressed="' + (BJ === s.jam) + '"' + (s.sisa ? '' : ' disabled') + '>' + s.jam + ' (' + (s.sisa ? 'sisa ' + s.sisa : 'penuh') + ')</button>';
     }).join("");
@@ -96,13 +120,28 @@ async function slots() {
 async function bSaya() {
   var el = $("bsaya");
   if (!el) return;
-  var j = await api("/api/booking"), hari = iso(wibDate(0));
-  el.innerHTML = j.daftar.length ? j.daftar.map(function (o) {
-    var aktif = o.status === "Terjadwal" && o.tanggal >= hari;
-    return '<article class="card" style="margin:0 0 8px"><div class="kode">' + esc(o.kode) + '</div><div>' + esc(lokNama(o.lokasi)) + '</div><div class="sys">' + esc(o.tanggal) + ' &middot; ' + esc(o.jam) + ' WIB &middot; ' + esc(o.keperluan) + '</div><div>' +
-      '<span class="bdg" style="background:' + ({"Terjadwal": "#2563eb", "Hadir": "#15803d", "Tidak hadir": "#dc2626"}[o.status] || "#64748b") + '">' + esc(o.status) + '</span></div>' +
-      (aktif ? '<button type="button" class="btn" data-bc="' + o.id + '">Batalkan</button>' : '') + '</article>';
+  var j = await api("/api/booking"), hari = iso(wibDate(0)), g = {};
+  j.daftar.forEach(function (o) { (g[o.tanggal] = g[o.tanggal] || []).push(o); });
+  var ks = Object.keys(g).sort().reverse();
+  el.innerHTML = ks.length ? ks.map(function (t) {
+    return '<article class="card tiket" style="margin:0 0 10px"><h3 style="margin:0">Tiket kunjungan ' + esc(t) + '</h3>' + g[t].sort(function (a, b) { return a.jam < b.jam ? -1 : 1; }).map(function (o) {
+      var aktif = o.status === "Terjadwal" && o.tanggal >= hari;
+      return '<div class="rc"><span><div class="kode">' + esc(o.kode) + '</div>' + esc(label(o.kunci || o.lokasi + "_0")) + '<div class="sys">' + esc(o.jam) + ' WIB &middot; ' + esc(o.keperluan) + '</div>' + bkBdg(o.status) + '</span>' + (aktif ? '<button type="button" class="btn noprint" data-bc="' + o.id + '">Batalkan</button>' : '') + '</div>';
+    }).join("") + '<button type="button" class="btn noprint" data-print="1">Cetak tiket</button></article>';
   }).join("") : '<div class="empty">Belum ada booking.</div>';
+}
+/* Dipanggil dari polling pemohon: notifikasi saat giliran dipanggil */
+function bkCheck(arr) {
+  var cur = {}, ch = false;
+  arr.forEach(function (o) { cur[o.id] = o.status; });
+  if (BSEEN) arr.forEach(function (o) {
+    if (BSEEN[o.id] !== o.status) {
+      ch = true;
+      if (o.status === "Dipanggil") notify("Giliran Anda dipanggil", o.kode + " - " + label(o.kunci) + ". Silakan menuju loket.", function () { setPN("bk"); });
+    }
+  });
+  BSEEN = cur;
+  if (ch && window.PN === "bk" && S === "user") bSaya();
 }
 
 /* ---------- Pemohon: Survei Kepuasan ---------- */
@@ -123,14 +162,26 @@ async function pnClick(e) {
   err("");
   try {
     if (t.dataset.j) { BJ = t.dataset.j; slots(); return; }
-    if (id === "bgo") {
+    if (id === "badd") {
+      var k = $("bk3").value, tg = $("bt2").value;
+      if (!k) { err("Pilih loket tujuan."); return; }
       if (!BJ) { err("Pilih jam kunjungan dulu."); return; }
+      if (CART.length && CART_TGL !== tg) { err("Semua tujuan dalam satu rencana harus di tanggal yang sama."); return; }
+      if (CART.some(function (c) { return c.kunci === k; })) { err("Loket ini sudah ada di rencana."); return; }
+      if (CART.some(function (c) { return c.jam === BJ; })) { err("Sudah ada tujuan lain di jam " + BJ + ". Pilih jam berbeda."); return; }
+      if (CART.length >= 6) { err("Maksimal 6 tujuan per kunjungan."); return; }
+      CART.push({kunci: k, jam: BJ}); CART_TGL = tg; BJ = ""; slots(); rencana(); return;
+    }
+    if (t.dataset.rm) { CART.splice(+t.dataset.rm, 1); rencana(); return; }
+    if (id === "bgo") {
+      KEP = $("bk2").value;
       t.disabled = true;
-      var r = await api("/api/booking", {lokasi: $("bl").value, tanggal: $("bt2").value, jam: BJ, keperluan: clean($("bk2").value)});
-      toast("Booking berhasil. Kode Anda: " + r.booking.kode);
-      BJ = ""; $("bk2").value = ""; await slots(); await bSaya(); t.disabled = false; return;
+      var r = await api("/api/booking", {tanggal: CART_TGL, keperluan: clean(KEP), item: CART});
+      toast("Booking berhasil: " + r.booking.map(function (o) { return o.kode; }).join(", "));
+      CART = []; KEP = ""; BJ = ""; rencana(); await slots(); await bSaya(); return;
     }
     if (t.dataset.bc) { await api("/api/booking/batal", {id: t.dataset.bc}); toast("Booking dibatalkan."); await slots(); await bSaya(); return; }
+    if (t.dataset.print) { var a = t.closest(".tiket"); a.classList.add("print-area"); window.print(); a.classList.remove("print-area"); return; }
     if (id === "skmgo") {
       var j = [];
       for (var i = 0; i < 9; i++) {
@@ -147,7 +198,7 @@ async function pnClick(e) {
 
 /* ---------- Admin: tab tambahan ---------- */
 function admTabs() {
-  $("atabs").innerHTML = [["inbox", "Kotak masuk"], ["pmh", "Permohonan"], ["bk", "Booking"], ["bt", "Berita"], ["skm", "Rekap SKM"]].map(function (t) {
+  $("atabs").innerHTML = [["ring", "Ringkasan"], ["inbox", "Kotak masuk"], ["pmh", "Permohonan"], ["bk", "Booking"], ["bt", "Berita"], ["skm", "Rekap SKM"]].map(function (t) {
     return '<button type="button" class="chip" data-at="' + t[0] + '" aria-pressed="' + (t[0] === AT) + '">' + t[1] + '</button>';
   }).join("");
   $("atabs").onclick = function (e) { var b = e.target.closest("[data-at]"); if (b) admTab(b.dataset.at); };
@@ -164,7 +215,7 @@ async function aX(t) {
   var el = $("a-x");
   el.innerHTML = '<div class="empty">Memuat&hellip;</div>';
   try {
-    if (t === "pmh") await aPmh(el); else if (t === "bk") await aBk(el); else if (t === "bt") await aBt(el); else if (t === "skm") await aSkm(el);
+    if (t === "ring") await aRing(el); else if (t === "pmh") await aPmh(el); else if (t === "bk") await aBk(el); else if (t === "bt") await aBt(el); else if (t === "skm") await aSkm(el);
   } catch (x) { el.innerHTML = '<div class="empty">' + esc(x.message) + '</div>'; }
 }
 async function aPmh(el) {
@@ -175,13 +226,27 @@ async function aPmh(el) {
         '<select class="si" data-ps="' + o.id + '">' + opt(o.status) + '</select><input class="si" data-pc="' + o.id + '" placeholder="Catatan perubahan" maxlength="200"><div class="btns"><button type="button" class="send" data-pu="' + o.id + '">Perbarui</button><button type="button" class="btn" data-pd="' + o.id + '">Hapus</button></div></article>';
     }).join("") : '<div class="empty">Belum ada permohonan.</div>');
 }
+async function aRing(el) {
+  var j = await api("/api/admin/ringkasan"), mx = Math.max.apply(null, j.booking_7hari.map(function (x) { return x.n; }).concat([1])), bs = j.booking_hari_ini.status;
+  var kpi = function (v, t, s, at) { return '<button type="button" class="kpi" data-goat="' + at + '"><span class="kv">' + v + '</span><span>' + t + '</span><small class="sys">' + s + '</small></button>'; };
+  el.innerHTML = '<h2 class="sec">Ringkasan</h2><div class="kpis">' +
+    kpi(j.pend, "Perlu dijawab", "dari " + j.percakapan + " percakapan", "inbox") +
+    kpi(j.booking_hari_ini.total, "Booking hari ini", "Hadir " + (bs["Hadir"] || 0) + " &middot; Dipanggil " + (bs["Dipanggil"] || 0), "bk") +
+    kpi(j.pemohon, "Pemohon terdaftar", "akun aktif", "inbox") +
+    kpi(j.skm ? j.skm.ikm.toFixed(1) : "-", "IKM", j.skm ? esc(j.skm.mutu) + " &middot; " + j.skm.n + " responden" : "belum ada survei", "skm") + '</div>' +
+    '<h2 class="sec">Booking 7 hari ke depan</h2><div class="card">' + j.booking_7hari.map(function (x) {
+      var d = new Date(x.tanggal + "T00:00:00");
+      return '<div style="display:flex;align-items:center;gap:8px;margin:0 0 6px"><span style="width:96px">' + d.toLocaleDateString("id-ID", {weekday: "short", day: "numeric", month: "short"}) + '</span><div class="bar2" style="flex:1"><i style="width:' + (x.n / mx * 100) + '%"></i></div><b style="width:28px;text-align:right">' + x.n + '</b></div>';
+    }).join("") + '</div><h2 class="sec">Permohonan per status</h2><div class="card">' + (Object.keys(j.pmh).length ? Object.keys(j.pmh).map(function (k) { return '<div style="display:flex;justify-content:space-between;margin:0 0 4px">' + bdg(k) + '<b>' + j.pmh[k] + '</b></div>'; }).join("") : '<span class="sys">Belum ada permohonan tercatat.</span>') + '</div>' +
+    '<h2 class="sec">Layar antrean</h2><div class="card"><p class="sys" style="margin:0">Tampilkan nomor yang dipanggil di TV atau layar ruang tunggu. Layar mengumumkan dengan suara bila diaktifkan.</p><div class="btns"><a class="btn" href="/?layar=1" target="_blank" rel="noopener">Buka layar antrean</a></div></div>';
+}
 async function aBk(el, tgl) {
   tgl = tgl || iso(wibDate(0));
-  var j = await api("/api/admin/booking?tanggal=" + tgl);
-  el.innerHTML = '<h2 class="sec">Booking kunjungan</h2><div class="card"><input class="si" type="date" id="bd" value="' + tgl + '" aria-label="Tanggal"><div class="btns"><input class="si" id="bq" type="number" min="1" max="200" value="' + j.kuota + '" style="max-width:120px" aria-label="Kuota per jam"><button type="button" class="btn" id="bqs">Simpan kuota per jam</button></div></div>' +
-    '<p class="stat">' + j.daftar.length + ' booking pada ' + esc(tgl) + '</p>' + (j.daftar.length ? j.daftar.map(function (o) {
-      return '<article class="card" style="margin:0 0 8px"><div class="kode">' + esc(o.kode) + '</div><div>' + esc(o.jam) + ' WIB &middot; ' + esc(o.lokasi_nama) + '</div><div class="sys">' + esc(o.nama) + ' &middot; ' + esc(o.hp) + ' &middot; ' + esc(o.keperluan) + '</div><div><b>' + esc(o.status) + '</b></div>' +
-        '<div class="btns"><button type="button" class="btn" data-bs="' + o.id + '|Hadir">Hadir</button><button type="button" class="btn" data-bs="' + o.id + '|Tidak hadir">Tidak hadir</button><button type="button" class="btn" data-bs="' + o.id + '|Terjadwal">Reset</button></div></article>';
+  var j = await api("/api/admin/booking?tanggal=" + tgl), L = j.daftar.filter(function (o) { return BF === "all" || o.lokasi === BF; });
+  el.innerHTML = '<h2 class="sec">Booking kunjungan</h2><div class="card"><input class="si" type="date" id="bd" value="' + tgl + '" aria-label="Tanggal"><select class="si" id="bf" aria-label="Filter lokasi"><option value="all">Semua lokasi</option>' + LOCS.map(function (l) { return '<option value="' + esc(l.id) + '"' + (BF === l.id ? ' selected' : '') + '>' + esc(l.nm) + '</option>'; }).join("") + '</select><div class="btns"><input class="si" id="bq" type="number" min="1" max="200" value="' + j.kuota + '" style="max-width:120px" aria-label="Kuota per jam per loket"><button type="button" class="btn" id="bqs">Simpan kuota per jam per loket</button><a class="btn" href="/?layar=1' + (BF !== "all" ? "&lokasi=" + encodeURIComponent(BF) : "") + '" target="_blank" rel="noopener">Buka layar antrean</a></div></div>' +
+    '<p class="stat">' + L.length + ' booking pada ' + esc(tgl) + '</p>' + (L.length ? L.map(function (o) {
+      return '<article class="card" style="margin:0 0 8px"><div class="kode">' + esc(o.kode) + '</div><div><b>' + esc(o.loket) + '</b> &middot; ' + esc(o.jam) + ' WIB</div><div class="sys">' + esc(o.nama) + ' &middot; ' + esc(o.hp) + ' &middot; ' + esc(o.keperluan) + '</div><div>' + bkBdg(o.status) + '</div>' +
+        '<div class="btns"><button type="button" class="send" data-bs="' + o.id + '|Dipanggil">Panggil</button><button type="button" class="btn" data-bs="' + o.id + '|Hadir">Selesai dilayani</button><button type="button" class="btn" data-bs="' + o.id + '|Tidak hadir">Tidak hadir</button><button type="button" class="btn" data-bs="' + o.id + '|Terjadwal">Reset</button></div></article>';
     }).join("") : '<div class="empty">Belum ada booking di tanggal ini.</div>');
 }
 async function aBt(el) {
@@ -202,16 +267,53 @@ async function aSkm(el) {
 }
 $("v-adm").addEventListener("click", async function (e) {
   if (S !== "adm" || !$("a-x") || $("a-x").hidden) return;
-  var t = e.target, id = t.id, d = t.dataset;
+  var t = e.target.closest("button,a,input,select") || e.target, id = t.id, d = t.dataset;
+  if (d.goat) { admTab(d.goat); return; }
   err("");
   try {
     if (id === "pbaru") { await api("/api/admin/permohonan/baru", {hp: $("ph").value, jenis: $("pj").value, nomor: $("pn2").value, status: $("ps").value, catatan: $("pc").value}); toast("Permohonan dicatat."); aX("pmh"); return; }
     if (d.pu) { await api("/api/admin/permohonan/ubah", {id: d.pu, status: document.querySelector('[data-ps="' + d.pu + '"]').value, catatan: document.querySelector('[data-pc="' + d.pu + '"]').value}); toast("Status diperbarui. Pemohon akan diberi tahu."); aX("pmh"); return; }
     if (d.pd) { if (d.sure !== "1") { d.sure = "1"; t.textContent = "Yakin hapus?"; return; } await api("/api/admin/permohonan/hapus", {id: d.pd}); aX("pmh"); return; }
     if (id === "bqs") { await api("/api/admin/pengaturan", {kuota: +$("bq").value}); CFG.kuota = $("bq").value; toast("Kuota disimpan."); return; }
-    if (d.bs) { var p = d.bs.split("|"); await api("/api/admin/booking/status", {id: p[0], status: p[1]}); aBk($("a-x"), $("bd").value); return; }
+    if (d.bs) { var p = d.bs.split("|"); await api("/api/admin/booking/status", {id: p[0], status: p[1]}); if (p[1] === "Dipanggil") toast("Nomor dipanggil dan tampil di layar antrean."); aBk($("a-x"), $("bd").value); return; }
     if (id === "bpub") { await api("/api/admin/berita", {judul: $("bj2").value, isi: $("bi").value}); toast("Berita terbit."); aX("bt"); return; }
     if (d.bd) { await api("/api/admin/berita/hapus", {id: d.bd}); aX("bt"); return; }
   } catch (x) { err(x.message); }
 });
-$("v-adm").addEventListener("change", function (e) { if (e.target.id === "bd") aBk($("a-x"), e.target.value); });
+$("v-adm").addEventListener("change", function (e) { if (e.target.id === "bd") aBk($("a-x"), e.target.value); else if (e.target.id === "bf") { BF = e.target.value; aBk($("a-x"), $("bd").value); } });
+
+/* ---------- Layar antrean (buka dengan /?layar=1) ---------- */
+(function () {
+  var qs = new URLSearchParams(location.search);
+  if (!qs.has("layar")) return;
+  document.querySelector("main").hidden = true;
+  var ft = document.querySelector(".foot"); if (ft) ft.hidden = true;
+  var sec = document.createElement("section");
+  sec.id = "layar"; sec.className = "board";
+  sec.innerHTML = '<div class="bhead"><b>Antrean Pelayanan</b><span><select id="bsel" aria-label="Lokasi"><option value="">Semua lokasi</option></select> <button type="button" class="btn" id="bsuara">Aktifkan suara</button></span></div><div class="bnow" id="bnow" aria-live="assertive">Menunggu panggilan&hellip;</div><div class="bloket" id="bloket"></div><ol class="blist" id="blist"></ol>';
+  document.body.appendChild(sec);
+  var suara = false, lastKey = "", lok = qs.get("lokasi") || "";
+  document.title = "Layar Antrean";
+  api("/api/info").then(function (j) {
+    $("bsel").innerHTML = '<option value="">Semua lokasi</option>' + j.lokasi.map(function (l) { return '<option value="' + esc(l.id) + '">' + esc(l.nama) + '</option>'; }).join("");
+    $("bsel").value = lok;
+  }).catch(function () {});
+  $("bsel").onchange = function () { lok = this.value; lastKey = ""; muat(); };
+  $("bsuara").onclick = function () { suara = !suara; this.textContent = suara ? "Suara aktif" : "Aktifkan suara"; if (suara) ucap("Suara antrean diaktifkan"); };
+  function ucap(t) {
+    try { if (!window.speechSynthesis) return; var u = new SpeechSynthesisUtterance(t); u.lang = "id-ID"; u.rate = 0.9; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch (x) {}
+  }
+  async function muat() {
+    try {
+      var j = await api("/api/layar" + (lok ? "?lokasi=" + encodeURIComponent(lok) : "")), d = j.daftar;
+      if (!d.length) { $("bnow").textContent = "Menunggu panggilan…"; $("bloket").textContent = ""; $("blist").innerHTML = ""; return; }
+      var n = d[0], key = n.kode + "|" + n.waktu;
+      $("bnow").textContent = n.kode;
+      $("bloket").textContent = n.loket;
+      $("blist").innerHTML = d.slice(1, 9).map(function (x) { return '<li><b>' + esc(x.kode) + '</b> <span>' + esc(x.loket) + '</span></li>'; }).join("");
+      if (lastKey && key !== lastKey && suara) ucap("Nomor antrean " + n.kode.replace(/-/g, " ").split("").join(" ") + ", silakan menuju " + n.loket);
+      lastKey = key;
+    } catch (x) {}
+  }
+  muat(); setInterval(muat, 5000);
+})();
