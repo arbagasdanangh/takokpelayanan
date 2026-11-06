@@ -14,7 +14,7 @@ function err(s){$("em").textContent=s||""}
 function ph(s){s=String(s).replace(/[\s.\-()]/g,"");if(/^\+?62/.test(s))s=s.replace(/^\+?62/,"0");return /^08\d{7,12}$/.test(s)?s:null}
 function waLink(p,t){return p?"https://wa.me/62"+p.slice(1)+"?text="+encodeURIComponent(t):""}
 function cur(){return LD[LOC]||[]}
-function label(k){var p=String(k).split("_"),l=LOCS.filter(function(x){return x.id===p[0]})[0],e=(LD[p[0]]||[]).filter(function(x){return String(x[0])===p[1]})[0];return (l?l.nm:p[0])+" - "+(e?e[1]:"Loket "+p[1])}
+function label(k){var p=String(k).split("_"),l=LOCS.filter(function(x){return x.id===p[0]})[0],e=(LD[p[0]]||[]).filter(function(x){return String(x[0])===p[1]})[0];return (l?l.nm:p[0])+(e?" - "+e[1]:(p[1]==="0"?"":" - Loket "+p[1]))}
 function lc(){znui();$("lc").innerHTML=LOCS.map(function(l){return '<button type="button" class="chip" data-l="'+esc(l.id)+'" aria-pressed="'+(l.id===LOC)+'">'+esc(l.nm)+'</button>'}).join("")}
 async function api(path,body){var o={credentials:"same-origin",headers:{}};if(body!==undefined){o.method="POST";o.headers["Content-Type"]="application/json";o.body=JSON.stringify(body)}
  var u=path.split("?"),r=await fetch("/api/app?p="+encodeURIComponent(u[0].replace(/^\/api/,""))+(u[1]?"&"+u[1]:""),o),j={};try{j=await r.json()}catch(e){}

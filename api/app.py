@@ -186,7 +186,23 @@ def valid_key(k):
 
 def label(k):
     e = LOKET.get(k)
-    return (LOKASI.get(e["lokasi"], "") + " - " + e["nama"]) if e else k
+    if e:
+        return LOKASI.get(e["lokasi"], "") + " - " + e["nama"]
+    if str(k).endswith("_0"):
+        return LOKASI.get(str(k)[:-2], str(k))
+    return k
+
+
+def bk_norm(o):
+    """Booking versi lama (tanpa 'kunci') dianggap booking tingkat lokasi."""
+    if o and not o.get("kunci"):
+        o["kunci"] = "%s_0" % o.get("lokasi", "")
+    return o
+
+
+def slot_key(o):
+    k = o["lokasi"] if str(o["kunci"]).endswith("_0") else o["kunci"]
+    return "bks:%s|%s|%s" % (k, o["tanggal"], o["jam"])
 
 
 def limited(key, maxn, window):
@@ -449,7 +465,7 @@ class handler(BaseHTTPRequestHandler):
                     pm.append({"id": o["id"], "jenis": o["jenis"], "nomor": o["nomor"], "status": o["status"], "ubah": o["ubah"]})
         if ib is not None:
             for x in res[ib] or []:
-                o = parse(x) if x else None
+                o = bk_norm(parse(x)) if x else None
                 if o and o["status"] in ("Terjadwal", "Dipanggil"):
                     bk.append({"id": o["id"], "kode": o["kode"], "kunci": o["kunci"], "status": o["status"], "tanggal": o["tanggal"], "jam": o["jam"]})
         self.json({"pesan": ms, "pmh": pm, "bk": bk, "status": {k: {"nilai": int(nl["%s|%s" % (pid, k)])} for k in ks if "%s|%s" % (pid, k) in nl}}, extra=ex)
@@ -475,7 +491,7 @@ class handler(BaseHTTPRequestHandler):
 
     def user_bk(self, ses, ex):
         ids = db().cmd("SMEMBERS", "bk:%s" % ses["id"]) or []
-        rows = [parse(x) for x in (db().cmd("HMGET", "bk", *ids) if ids else []) if x]
+        rows = [bk_norm(parse(x)) for x in (db().cmd("HMGET", "bk", *ids) if ids else []) if x]
         self.json({"daftar": sorted(rows, key=lambda o: (o["tanggal"], o["jam"]), reverse=True)[:60]}, extra=ex)
 
     def user_bk_baru(self, ses, b, ex):
@@ -500,7 +516,7 @@ class handler(BaseHTTPRequestHandler):
             cek_tanggal(tgl, j)
             jams.add(j), keys.add(k), todo.append((k, j))
         ids = db().cmd("SMEMBERS", "bk:%s" % pid) or []
-        mine = [parse(x) for x in (db().cmd("HMGET", "bk", *ids) if ids else []) if x]
+        mine = [bk_norm(parse(x)) for x in (db().cmd("HMGET", "bk", *ids) if ids else []) if x]
         aktif = [o for o in mine if o["status"] in ("Terjadwal", "Dipanggil") and o["tanggal"] >= time.strftime("%Y-%m-%d", wib())]
         if len(aktif) + len(todo) > 6:
             raise HttpError(400, "Maksimal 6 booking aktif. Batalkan sebagian dulu.")
@@ -535,11 +551,11 @@ class handler(BaseHTTPRequestHandler):
 
     def user_bk_batal(self, ses, b, ex):
         bid = str(b.get("id", ""))
-        o = parse(db().cmd("HGET", "bk", bid))
+        o = bk_norm(parse(db().cmd("HGET", "bk", bid)))
         if not o or o["pid"] != ses["id"] or o["status"] != "Terjadwal":
             raise HttpError(400, "Booking tidak bisa dibatalkan.")
         o["status"] = "Batal"
-        db().pipe([["HSET", "bk", bid, json.dumps(o, ensure_ascii=False)], ["DECR", "bks:%s|%s|%s" % (o["kunci"], o["tanggal"], o["jam"])]])
+        db().pipe([["HSET", "bk", bid, json.dumps(o, ensure_ascii=False)], ["DECR", slot_key(o)]])
         self.json({"ok": True}, extra=ex)
 
     # ---- layar antrean (publik, tanpa data pribadi) ----
@@ -614,13 +630,13 @@ class handler(BaseHTTPRequestHandler):
             except ValueError:
                 raise HttpError(400, "Tanggal tidak valid.")
             ids = db().cmd("SMEMBERS", "bkd:%s" % tgl) or []
-            rows = [parse(x) for x in (db().cmd("HMGET", "bk", *ids) if ids else []) if x]
+            rows = [bk_norm(parse(x)) for x in (db().cmd("HMGET", "bk", *ids) if ids else []) if x]
             pm = hall(db().cmd("HGETALL", "pemohon"))
             for o in rows:
                 p = parse(pm.get(str(o["pid"])), {})
                 o["nama"], o["hp"] = p.get("nama", "?"), p.get("hp", "")
                 o["lokasi_nama"] = LOKASI.get(o["lokasi"], o["lokasi"])
-                o["loket"] = label(o["kunci"]) if o.get("kunci") in LOKET else o["lokasi_nama"]
+                o["loket"] = label(o["kunci"])
             return self.json({"daftar": sorted(rows, key=lambda o: (o["jam"], o["kode"])), "kuota": int(db().cmd("HGET", "cfg", "kuota") or 10)}, extra=ex)
         if r == "ringkasan" and method == "GET":
             hari = time.strftime("%Y-%m-%d", wib())
@@ -694,7 +710,7 @@ class handler(BaseHTTPRequestHandler):
                 db().pipe([["HDEL", "pmh", o["id"]], ["SREM", "pmh:%s" % o["pid"], o["id"]], ["SREM", "pmhall", o["id"]]])
             return self.json({"ok": True}, extra=ex)
         if r == "booking/status":
-            o = parse(db().cmd("HGET", "bk", str(b.get("id", ""))))
+            o = bk_norm(parse(db().cmd("HGET", "bk", str(b.get("id", "")))))
             if not o or b.get("status") not in ("Terjadwal", "Dipanggil", "Hadir", "Tidak hadir"):
                 raise HttpError(400, "Data tidak valid.")
             o["status"] = b["status"]
