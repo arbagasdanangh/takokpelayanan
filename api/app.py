@@ -309,7 +309,7 @@ class handler(BaseHTTPRequestHandler):
                 who = {"peran": "pemohon", "nama": p["nama"], "hp": p["hp"], "email": p.get("email", "")}
         c = cfg_all()
         self.json({"lokasi": [{"id": k, "nama": v} for k, v in LOKASI.items()],
-                   "loket": [[e["lokasi"], e["no"], e["nama"], e["uraian"], e["sistem"]] for e in SEED["loket"]],
+                   "loket": [[e["lokasi"], e["no"], e["nama"], e["uraian"], e["sistem"], e.get("zona", ""), 1 if e.get("diskusi", True) else 0] for e in SEED["loket"]],
                    "cfg": {k: c.get(k, "") for k in ("wa", "jam", "info")}, "saya": who},
                   extra=self.refresh(ses) if ses and who else ())
 
@@ -382,6 +382,8 @@ class handler(BaseHTTPRequestHandler):
         pid, k, isi = ses["id"], str(b.get("kunci", "")), clean(b.get("isi", ""), 800)
         if not valid_key(k) or not isi:
             raise HttpError(400, "Pesan tidak valid.")
+        if not LOKET[k].get("diskusi", True):
+            raise HttpError(400, "Fasilitas ini tidak menerima pertanyaan lewat aplikasi.")
         if re.search(r"\d{16}", re.sub(r"[\s.\-]", "", isi)):
             raise HttpError(400, "Demi keamanan, jangan kirim NIK/KTP lengkap di sini.")
         if limited("rl:kirim:%s" % pid, 5, 60):
@@ -493,7 +495,7 @@ class handler(BaseHTTPRequestHandler):
                     rows.append([m["id"], t["pid"], t["nama"], label(t["kunci"]), m["dari"], m["isi"], time.strftime("%d-%m-%Y %H:%M", time.gmtime(m["waktu"] / 1000 + 7 * 3600))])
         sheet("Pesan", ["id", "pid", "nama", "loket", "dari", "isi", "waktu"], rows)
         sheet("Status", ["nama", "loket", "perlu_dijawab", "nilai"], [[t["nama"], label(t["kunci"]), "ya" if t["pend"] else "tidak", t["nilai"] or ""] for t in ts])
-        sheet("Loket", ["lokasi", "no", "nama", "uraian", "sistem"], [[e["lokasi"], e["no"], e["nama"], e["uraian"], e["sistem"]] for e in SEED["loket"]])
+        sheet("Loket", ["lokasi", "no", "nama", "zona", "uraian", "sistem"], [[e["lokasi"], e["no"], e["nama"], e.get("zona", ""), e["uraian"], e["sistem"]] for e in SEED["loket"]])
         bio = io.BytesIO()
         wb.save(bio)
         self.out(200, bio.getvalue(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

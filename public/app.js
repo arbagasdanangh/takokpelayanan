@@ -15,7 +15,7 @@ function ph(s){s=String(s).replace(/[\s.\-()]/g,"");if(/^\+?62/.test(s))s=s.repl
 function waLink(p,t){return p?"https://wa.me/62"+p.slice(1)+"?text="+encodeURIComponent(t):""}
 function cur(){return LD[LOC]||[]}
 function label(k){var p=String(k).split("_"),l=LOCS.filter(function(x){return x.id===p[0]})[0],e=(LD[p[0]]||[]).filter(function(x){return String(x[0])===p[1]})[0];return (l?l.nm:p[0])+" - "+(e?e[1]:"Loket "+p[1])}
-function lc(){$("lc").innerHTML=LOCS.map(function(l){return '<button type="button" class="chip" data-l="'+esc(l.id)+'" aria-pressed="'+(l.id===LOC)+'">'+esc(l.nm)+'</button>'}).join("")}
+function lc(){znui();$("lc").innerHTML=LOCS.map(function(l){return '<button type="button" class="chip" data-l="'+esc(l.id)+'" aria-pressed="'+(l.id===LOC)+'">'+esc(l.nm)+'</button>'}).join("")}
 async function api(path,body){var o={credentials:"same-origin",headers:{}};if(body!==undefined){o.method="POST";o.headers["Content-Type"]="application/json";o.body=JSON.stringify(body)}
  var u=path.split("?"),r=await fetch("/api/app?p="+encodeURIComponent(u[0].replace(/^\/api/,""))+(u[1]?"&"+u[1]:""),o),j={};try{j=await r.json()}catch(e){}
  if(!r.ok){if(r.status===401&&S!=="out"&&path.indexOf("/masuk")<0){reset("Sesi berakhir. Silakan masuk kembali.")}throw new Error(j.error||"Terjadi kesalahan ("+r.status+")")}return j}
@@ -23,7 +23,7 @@ function toast(msg,lbl,fn){var t=$("tt");t.hidden=false;t.innerHTML="";var s=doc
 function notify(title,body,fn){toast(title+": "+body,"Lihat",fn);try{if(window.Notification&&Notification.permission==="granted"){var n=new Notification(title,{body:body});n.onclick=function(){window.focus();if(fn)fn()}}}catch(x){}try{if(navigator.vibrate)navigator.vibrate(200)}catch(x){}try{var c=new (window.AudioContext||window.webkitAudioContext)(),o=c.createOscillator();o.connect(c.destination);o.frequency.value=880;o.start();setTimeout(function(){o.stop();c.close()},160)}catch(x){}}
 function an(){var el=$("an"),t=[];if(CFG.info)t.push(clean(CFG.info).slice(0,300));if(CFG.jam)t.push("Jam layanan: "+clean(CFG.jam).slice(0,100));el.hidden=!t.length;el.textContent=t.join(" | ")}
 function toks(s){return s.toLowerCase().replace(/[^a-z0-9 ]/g," ").split(/\s+/).filter(function(w){return w.length>1}).map(function(w){return SYN[w]||w})}
-function score(d,t){var h=(d[1]+" "+d[2]).toLowerCase(),n=d[1].toLowerCase(),s=0;t.forEach(function(w){if(h.indexOf(w)>-1)s+=2;if(n.indexOf(w)>-1)s+=3});return s}
+function score(d,t){var h=(d[1]+" "+d[2]+" "+(d[4]||"")).toLowerCase(),n=d[1].toLowerCase(),s=0;t.forEach(function(w){if(h.indexOf(w)>-1)s+=2;if(n.indexOf(w)>-1)s+=3});return s}
 function sysOk(d){return fl==="Semua"||String(d[3]).indexOf(fl)>-1}
 function msgsOf(k){return M.filter(function(x){return x.n===k})}
 function bubbles(L,mine){return L.length?L.map(function(m){return '<div class="m'+(m.by===mine?' me':'')+'">'+esc(m.text)+'<small>'+(m.by==="admin"?"Admin":"Pemohon")+', '+fmt(m.ts)+'</small></div>'}).join(""):'<p class="sys">Belum ada pesan. Tulis pertanyaan Anda di bawah.</p>'}
@@ -37,7 +37,9 @@ function guard(t,k){
  if(SENT.length>=5)return "Terlalu banyak pesan dalam satu menit. Coba lagi sebentar lagi.";return ""}
 function lastBy(){var by={};M.slice().sort(function(a,b){return a.ts-b.ts}).forEach(function(m){by[m.n]=m});return by}
 function title(){var c=0;if(S==="user"){var by=lastBy();for(var k in by)if(by[k].by==="admin")c++}else if(S==="adm")c=T.filter(function(x){return x.pend}).length;document.title=(c?"("+c+") ":"")+"Takok Pelayanan Suroboyo"}
+function entryOf(k){var p=String(k).split("_"),l=LD[p[0]]||[];for(var i=0;i<l.length;i++)if(String(l[i][0])===p[1])return l[i];return null}
 function chatHtml(k){
+ var en=entryOf(k);if(en&&en[5]===false)return '<div class="qa"><p class="sys">Fasilitas ini tidak menerima pertanyaan lewat aplikasi. Silakan bertanya di Ruang Pengaduan atau Loket Informasi.</p></div>';
  if(S!=="user")return '<div class="qa"><h3>Diskusi dengan admin</h3><p class="sys">Masuk sebagai pemohon di bagian atas untuk berdiskusi secara pribadi dengan admin loket ini.</p></div>';
  var L=msgsOf(k),last=L[L.length-1],rt=(MYST[k]||{}).nilai,aw=CFG.wa||"",ex="";
  if(last&&last.by==="admin")ex+='<div class="rate"><span class="sys">Apakah jawaban membantu? '+(rt?'Penilaian Anda: '+rt+'/5':'')+'</span><span class="btns">'+[1,2,3,4,5].map(function(i){return '<button type="button" class="chip" data-act="rate" data-n="'+k+'" data-v="'+i+'" aria-label="Nilai '+i+' dari 5">'+i+'</button>'}).join("")+'</span></div>';
@@ -49,17 +51,17 @@ function render(){
  var op={};[].forEach.call(document.querySelectorAll("details.row[open]"),function(x){op[x.dataset.n]=1});if(OPENK)op[OPENK]=1;
  var ae=document.activeElement;FOC=ae&&ae.dataset&&ae.dataset.k?{k:ae.dataset.k,s:ae.selectionStart,e:ae.selectionEnd}:null;
  [].forEach.call(document.querySelectorAll("#list [data-k]"),function(e){KEEP[e.dataset.k]=e.value});
- var t=toks(qv),rows=cur().filter(sysOk).map(function(d){return{d:d,s:t.length?score(d,t):0}});
+ var t=toks(qv),rows=cur().filter(sysOk).filter(zOk).map(function(d){return{d:d,s:t.length?score(d,t):0}});
  if(t.length)rows=rows.filter(function(r){return r.s>0}).sort(function(a,b){return b.s-a.s||a.d[0]-b.d[0]});
  var ln=(LOCS.filter(function(x){return x.id===LOC})[0]||{nm:""}).nm;
  $("res").textContent=t.length?(rows.length?"Loket yang paling sesuai ("+rows.length+")":""):"Semua loket "+ln+" ("+rows.length+")";
- if(!rows.length){$("list").innerHTML='<div class="empty">Belum ada loket yang cocok. Coba kata lain, atau datangi Loket Informasi atau Loket CS untuk konsultasi.</div>';return}
+ if(!rows.length){var oth="";if(t.length)LOCS.forEach(function(l){if(l.id===LOC)return;var c=(LD[l.id]||[]).filter(function(d){return score(d,t)>0}).length;if(c)oth+='<button type="button" class="chip" data-go="'+esc(l.id)+'">'+esc(l.nm)+' ('+c+')</button> '});$("list").innerHTML='<div class="empty">Belum ada loket yang cocok di lokasi ini. Coba kata lain, atau datangi Loket Informasi atau Loket CS untuk konsultasi.'+(oth?'<p>Ada hasil di lokasi lain:</p>'+oth:'')+'</div>';return}
  $("list").innerHTML=rows.map(function(r,i){var d=r.d,k=LOC+"_"+d[0],first=t.length&&i===0,L=S==="user"?msgsOf(k):[],last=L[L.length-1];
   var c=last?(last.by==="admin"?'<span class="cnt hot">Ada balasan</span>':'<span class="cnt">Menunggu balasan</span>'):'';
-  return '<details data-n="'+k+'" class="row'+(first?' best':'')+'"'+(first||op[k]?' open':'')+'><summary><span class="no" aria-label="Nomor loket">'+d[0]+'</span><span class="nm">'+esc(d[1])+'</span>'+c+'<span class="tag">'+esc(String(d[3]).split(" / ")[0])+'</span></summary><div class="body"><p>'+esc(d[2])+'</p><p class="sys">Sistem: '+esc(d[3])+'</p>'+chatHtml(k)+'</div></details>'}).join("");
+  return '<details data-n="'+k+'"'+zst(d)+' class="row'+(first?' best':'')+'"'+(first||op[k]?' open':'')+'><summary><span class="no" aria-label="Nomor loket">'+d[0]+'</span><span class="nm">'+esc(d[1])+'</span>'+c+'<span class="tag">'+esc(d[4]||String(d[3]).split(" / ")[0])+'</span></summary><div class="body"><p>'+esc(d[2])+'</p><p class="sys">Sistem: '+esc(d[3])+'</p>'+chatHtml(k)+'</div></details>'}).join("");
  [].forEach.call(document.querySelectorAll("#list [data-k]"),function(e){var k=e.dataset.k;if(KEEP[k])e.value=KEEP[k];if(FOC&&FOC.k===k){e.focus();try{e.setSelectionRange(FOC.s,FOC.e)}catch(x){}}});
  if(OPENK){var el=document.querySelector('details[data-n="'+OPENK+'"]');OPENK=null;if(el)el.scrollIntoView({block:"start"})}}
-function openKey(k){LOC=k.split("_")[0];lc();qv="";$("q").value="";OPENK=k;MYV=false;ui()}
+function openKey(k){LOC=k.split("_")[0];ZN="Semua";lc();qv="";$("q").value="";OPENK=k;MYV=false;ui()}
 /* ---- Tampilan & login ---- */
 function ui(){
  $("role").textContent=S==="adm"?"Admin":S==="user"?"Pemohon: "+ME.nama:"Belum masuk";
@@ -112,7 +114,7 @@ $("ex").onclick=function(e){if(e.target.classList.contains("chip"))setQ(e.target
 $("fl").innerHTML=["Semua","SSW","OSS","SIMBG"].map(function(x){return '<button type="button" class="chip" aria-pressed="'+(x===fl)+'">'+(x==="Semua"?"Semua sistem":x)+'</button>'}).join("");
 $("fl").onclick=function(e){var b=e.target.closest(".chip");if(!b)return;fl=b.textContent==="Semua sistem"?"Semua":b.textContent;[].forEach.call($("fl").children,function(c){c.setAttribute("aria-pressed",c===b)});render()};
 $("th").onclick=function(){var r=document.documentElement,dk=r.getAttribute("data-theme")?r.getAttribute("data-theme")==="dark":matchMedia("(prefers-color-scheme:dark)").matches;r.setAttribute("data-theme",dk?"light":"dark")};
-$("lc").onclick=function(e){var b=e.target.closest("[data-l]");if(!b)return;LOC=b.dataset.l;qv="";$("q").value="";lc();render()};
+$("lc").onclick=function(e){var b=e.target.closest("[data-l]");if(!b)return;LOC=b.dataset.l;ZN="Semua";qv="";$("q").value="";lc();render()};
 $("nb").onclick=function(){try{Notification.requestPermission().then(function(){ui()})}catch(x){err("Browser tidak mengizinkan notifikasi di halaman ini.")}};
 /* ---- Pemohon ---- */
 function myList(){var el=$("v-my");var by=lastBy(),ks=Object.keys(by).sort(function(a,b){return by[b].ts-by[a].ts});
@@ -170,7 +172,21 @@ $("t3").onclick=function(){$("lc").scrollIntoView({block:"center"});toast("Pilih
 $("t4").onclick=function(){if(S==="user"){MYV=true;ui()}else needLogin()};
 $("t5").onclick=function(){var k=findK(/^loket (informasi|cs)$/i,LOC)||findK(/^loket (informasi|cs)$/i,"pusat");if(k)openKey(k);needLogin()};
 $("t6").onclick=function(){var k=findK(/pengaduan/i,LOC)||findK(/pengaduan/i,"pusat");if(k){if(k.indexOf(LOC+"_")!==0)toast("Loket Pengaduan tidak ada di SPP ini. Dialihkan ke SPP lain.");openKey(k)}needLogin()};
+/* ---- Zona MPP ---- */
+var ZN="Semua";
+var ZC={"Zona 1":"#0e9aa7","Zona 2":"#c026d3","Zona 3":"#84cc16","Zona 4":"#ef4444","Zona 5":"#22c55e","Fasilitas lain":"#3b82f6"};
+function zOk(d){return LOC!=="mpp"||ZN==="Semua"||d[4]===ZN}
+function zst(d){return LOC==="mpp"&&ZC[d[4]]?' style="border-left:6px solid '+ZC[d[4]]+'"':""}
+function zg(z,x,y,w,h,t,dark,fill){return '<g class="zg" data-z="'+z+'" tabindex="0" role="button" aria-label="'+z+'"><rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="8" fill="'+(fill||ZC[z])+'"'+(ZN===z?' stroke="#ffb800" stroke-width="4"':'')+'/><text x="'+(x+w/2)+'" y="'+(y+h/2+4)+'" text-anchor="middle" font-size="11" font-weight="700" fill="'+(dark?"#1b2a00":"#fff")+'">'+t+'</text></g>'}
+function znui(){var on=LOC==="mpp";$("zn").hidden=!on;$("dn").hidden=!on;if(!on)return;
+ $("zn").innerHTML=["Semua","Zona 1","Zona 2","Zona 3","Zona 4","Zona 5","Fasilitas lain"].map(function(z){return '<button type="button" class="chip" data-z="'+z+'" aria-pressed="'+(z===ZN)+'">'+(z==="Semua"?"Semua zona":z)+'</button>'}).join("");
+ $("dn").innerHTML='<figure style="margin:0"><svg viewBox="0 0 400 270" role="group" aria-label="Ilustrasi susunan zona MPP Surabaya">'+zg("Fasilitas lain",20,20,76,64,"Fasilitas",0)+zg("Zona 3",250,30,46,116,"ZONA 3",1)+zg("Zona 4",330,88,46,152,"ZONA 4",0)+zg("Zona 5",20,104,46,70,"ZONA 5",0)+zg("Zona 1",90,104,190,36,"ZONA 1",0)+zg("Zona 2",90,184,190,36,"ZONA 2",0)+zg("Fasilitas lain",20,232,260,28,"Sentra Wisata Kuliner",1,"#facc15")+'</svg><figcaption>Ilustrasi susunan zona (bukan denah resmi, tanpa skala). Ketuk zona untuk menyaring daftar.</figcaption></figure>'}
+function pilihZona(e){var b=e.target.closest("[data-z]");if(!b)return;ZN=b.dataset.z;znui();render();var l=$("res");if(l)l.scrollIntoView({block:"nearest"})}
+$("zn").onclick=pilihZona;$("dn").onclick=pilihZona;
+$("dn").addEventListener("keydown",function(e){if(e.key==="Enter"||e.key===" "){e.preventDefault();pilihZona(e)}});
+$("list").addEventListener("click",function(e){var b=e.target.closest("[data-go]");if(b){LOC=b.dataset.go;ZN="Semua";lc();render()}});
+EX.push("BPJS Kesehatan","Pajak");
 /* ---- Mulai ---- */
-(async function(){try{var j=await api("/api/info");LOCS=j.lokasi.map(function(l){return{id:l.id,nm:l.nama}});LD={};j.loket.forEach(function(r){(LD[r[0]]=LD[r[0]]||[]).push([r[1],r[2],r[3],r[4]])});for(var k in LD)LD[k].sort(function(a,b){return a[0]-b[0]});
+(async function(){try{var j=await api("/api/info");LOCS=j.lokasi.map(function(l){return{id:l.id,nm:l.nama}});LD={};j.loket.forEach(function(r){(LD[r[0]]=LD[r[0]]||[]).push([r[1],r[2],r[3],r[4],r[5]||"",r[6]!==0])});for(var k in LD)LD[k].sort(function(a,b){return a[0]-b[0]});
  CFG=j.cfg||{};if(!LD[LOC]&&LOCS.length)LOC=LOCS[0].id;an();lc();
  if(j.saya){await startSession(j)}else ui()}catch(x){err("Server belum bisa dihubungi: "+x.message)}})();

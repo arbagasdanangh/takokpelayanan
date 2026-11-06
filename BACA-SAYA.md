@@ -25,3 +25,7 @@ Kata sandi dan PIN di-hash (PBKDF2), cookie sesi bertanda tangan, HttpOnly, Secu
 - WhatsApp/email otomatis belum ada; admin memakai tombol WhatsApp/Email yang sudah terisi pesan.
 - Paket gratis Vercel (Hobby) ditujukan untuk pemakaian pribadi/non-komersial. Untuk layanan instansi, periksa ketentuan dan pertimbangkan paket Pro.
 - Nomor HP belum diverifikasi dengan OTP.
+
+## Lokasi MPP Surabaya
+Lokasi keenam, **MPP Surabaya** (Mal Pelayanan Publik), berisi instansi per zona dan fasilitas dari denah loket. Pemohon bisa menyaring per zona atau lewat ilustrasi zona.
+Rincian layanan tiap instansi belum diisi; lengkapi di `api/_data.py` (kolom `uraian`). Fasilitas non-layanan (Musholla, Ruang Laktasi, dll.) tidak menerima diskusi (`diskusi: False`).
