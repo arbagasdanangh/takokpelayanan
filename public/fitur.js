@@ -70,7 +70,7 @@ async function pPmh(el) {
 
 /* ---------- Pemohon: Booking Kunjungan (per loket / instansi) ---------- */
 var CART = [], CART_TGL = "", KEP = "", BSEEN = null;
-var BK_WARNA = {"Terjadwal": "#2563eb", "Dipanggil": "#d97706", "Hadir": "#15803d", "Tidak hadir": "#dc2626", "Batal": "#64748b"};
+var BK_WARNA = {"Terjadwal": "#2563eb", "Sudah tiba": "#0d9488", "Dipanggil": "#d97706", "Hadir": "#15803d", "Tidak hadir": "#dc2626", "Batal": "#64748b"};
 function bkBdg(st) { return '<span class="bdg" style="background:' + (BK_WARNA[st] || "#64748b") + '">' + esc(st) + '</span>'; }
 function tglOpts() {
   var o = "";
@@ -93,7 +93,7 @@ async function pBk(el) {
   CART = []; BJ = ""; KEP = "";
   el.innerHTML = back() + '<h2 class="sec">Booking Kunjungan</h2><p class="sys" style="margin:0 0 8px">Setiap loket atau instansi punya jadwal dan kuota sendiri. Anda bisa menyusun beberapa tujuan dalam satu kunjungan.</p><div class="card"><select class="si" id="bl" aria-label="Lokasi">' +
     LOCS.map(function (l) { return '<option value="' + esc(l.id) + '">' + esc(l.nm) + '</option>'; }).join("") +
-    '</select><select class="si" id="bk3" aria-label="Loket atau instansi tujuan"></select><select class="si" id="bt2" aria-label="Tanggal">' + tglOpts() + '</select><div class="hint" id="bj" role="group" aria-label="Jam"></div>' +
+    '</select><select class="si" id="bk3" aria-label="Loket atau instansi tujuan"></select><select class="si" id="bt2" aria-label="Tanggal">' + tglOpts() + '</select><div class="hint" id="bj" role="group" aria-label="Jam"></div><p class="sys" id="brek" style="margin:0"></p>' +
     '<button type="button" class="btn" id="badd">+ Tambah ke rencana kunjungan</button></div><div class="card" id="brenc" style="margin-top:10px"></div><h2 class="sec">Booking saya</h2><div id="bsaya"></div>';
   if ($("bl").querySelector('option[value="' + LOC + '"]')) $("bl").value = LOC;
   $("bk3").innerHTML = loketOpts($("bl").value);
@@ -111,25 +111,66 @@ async function slots() {
   var box = $("bj");
   if (!box) return;
   try {
-    var j = await api("/api/slot?kunci=" + encodeURIComponent($("bk3").value) + "&tanggal=" + encodeURIComponent($("bt2").value));
+    var j = await api("/api/slot?kunci=" + encodeURIComponent($("bk3").value) + "&tanggal=" + encodeURIComponent($("bt2").value)), best = null;
     box.innerHTML = j.slot.map(function (s) {
-      return '<button type="button" class="chip" data-j="' + s.jam + '" aria-pressed="' + (BJ === s.jam) + '"' + (s.sisa ? '' : ' disabled') + '>' + s.jam + ' (' + (s.sisa ? 'sisa ' + s.sisa : 'penuh') + ')</button>';
+      var r = s.sisa / j.kuota, c = !s.sisa ? "" : r >= 0.7 ? " sepi" : r <= 0.3 ? " ramai" : "", t = !s.sisa ? "penuh" : r >= 0.7 ? "sepi" : r <= 0.3 ? "ramai" : "sisa " + s.sisa;
+      if (s.sisa && (!best || s.sisa > best.sisa)) best = s;
+      return '<button type="button" class="chip' + c + '" data-j="' + s.jam + '" aria-pressed="' + (BJ === s.jam) + '"' + (s.sisa ? '' : ' disabled') + '>' + s.jam + ' &middot; ' + t + '</button>';
     }).join("");
+    $("brek").textContent = best ? "Jam paling lengang: " + best.jam + " (sisa " + best.sisa + " dari " + j.kuota + ")." : "Semua jam pada tanggal ini sudah penuh.";
   } catch (x) { box.textContent = x.message; }
+}
+var C39 = {"0": "nnnwwnwnn", "1": "wnnwnnnnw", "2": "nnwwnnnnw", "3": "wnwwnnnnn", "4": "nnnwwnnnw", "5": "wnnwwnnnn", "6": "nnwwwnnnn", "7": "nnnwnnwnw", "8": "wnnwnnwnn", "9": "nnwwnnwnn",
+  "A": "wnnnnwnnw", "B": "nnwnnwnnw", "C": "wnwnnwnnn", "D": "nnnnwwnnw", "E": "wnnnwwnnn", "F": "nnwnwwnnn", "G": "nnnnnwwnw", "H": "wnnnnwwnn", "I": "nnwnnwwnn", "J": "nnnnwwwnn",
+  "K": "wnnnnnnww", "L": "nnwnnnnww", "M": "wnwnnnnwn", "N": "nnnnwnnww", "O": "wnnnwnnwn", "P": "nnwnwnnwn", "Q": "nnnnnnwww", "R": "wnnnnnwwn", "S": "nnwnnnwwn", "T": "nnnnwnwwn",
+  "U": "wwnnnnnnw", "V": "nwwnnnnnw", "W": "wwwnnnnnn", "X": "nwnnwnnnw", "Y": "wwnnwnnnn", "Z": "nwwnwnnnn", "-": "nwnnnnwnw", "*": "nwnnwnwnn"};
+function barcode(t) {
+  var s = "*" + String(t).toUpperCase().replace(/[^0-9A-Z\-]/g, "") + "*", x = 10, h = 46, r = "";
+  for (var i = 0; i < s.length; i++) {
+    var p = C39[s[i]];
+    for (var k = 0; k < 9; k++) { var w = p[k] === "w" ? 5 : 2; if (k % 2 === 0) r += '<rect x="' + x + '" y="0" width="' + w + '" height="' + h + '"/>'; x += w; }
+    x += 2;
+  }
+  return '<svg class="bc" viewBox="0 0 ' + (x + 8) + ' ' + h + '" role="img" aria-label="Barcode ' + esc(t) + '"><g fill="#000">' + r + '</g></svg>';
+}
+function icsTxt(t) { return String(t).replace(/[\\;,]/g, function (m) { return "\\" + m; }).replace(/\n/g, " "); }
+function unduhIcs(o) {
+  var p = o.tanggal.split("-"), h = o.jam.split(":"), st = new Date(Date.UTC(+p[0], +p[1] - 1, +p[2], +h[0] - 7, +h[1])), en = new Date(st.getTime() + 30 * 60000);
+  var f = function (d) { return d.toISOString().replace(/[-:]/g, "").replace(/\.\d+/, ""); };
+  var txt = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Takok Pelayanan Suroboyo//ID", "BEGIN:VEVENT", "UID:" + o.kode + "@takok", "DTSTAMP:" + f(new Date()), "DTSTART:" + f(st), "DTEND:" + f(en),
+    "SUMMARY:" + icsTxt(label(o.kunci)) + " (" + o.kode + ")", "DESCRIPTION:Kode antrean " + o.kode + ". Keperluan: " + icsTxt(o.keperluan), "BEGIN:VALARM", "TRIGGER:-PT60M", "ACTION:DISPLAY", "DESCRIPTION:Kunjungan pelayanan 1 jam lagi", "END:VALARM", "END:VEVENT", "END:VCALENDAR"].join("\r\n");
+  var a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([txt], {type: "text/calendar"})); a.download = o.kode + ".ics";
+  document.body.appendChild(a); a.click(); a.remove();
+}
+var BKL = [];
+function namaLoket(o) { return label(o.kunci).split(" - ").slice(1).join(" - ") || lokNama(o.lokasi); }
+function tiketHtml(o, hari) {
+  var aktif = ["Terjadwal", "Sudah tiba", "Dipanggil"].indexOf(o.status) > -1, today = o.tanggal === hari, btn = "", info = "";
+  var d = new Date(o.tanggal + "T00:00:00").toLocaleDateString("id-ID", {weekday: "long", day: "numeric", month: "long", year: "numeric"});
+  if (o.status === "Terjadwal" && today) btn += '<button type="button" class="send" data-tiba="' + o.id + '">Saya sudah tiba</button>';
+  if (o.status === "Terjadwal" && o.tanggal >= hari) btn += '<button type="button" class="btn" data-bc="' + o.id + '">Batalkan</button>';
+  if (aktif) btn += '<button type="button" class="btn" data-ics="' + o.id + '">Tambah ke kalender</button>';
+  btn += '<button type="button" class="btn" data-print="1">Cetak / simpan PDF</button>';
+  if (o.status === "Dipanggil") info = '<div class="tk-call">Giliran Anda! Silakan menuju loket.</div>';
+  else if (today && aktif && o.depan != null) info = '<div class="tk-depan">Di depan Anda: <b>' + o.depan + '</b> antrean</div>';
+  return '<article class="tkt tiket' + (aktif ? '' : ' tk-off') + '"><div class="tk-head"><span>TIKET ANTREAN</span><span>' + esc(lokNama(o.lokasi)) + '</span></div><div class="tk-no">' + esc(o.kode) + '</div><div class="tk-loket">' + esc(namaLoket(o)) + '</div>' +
+    '<div class="tk-row"><span>Tanggal</span><b>' + esc(d) + '</b></div><div class="tk-row"><span>Jam</span><b>' + esc(o.jam) + ' WIB</b></div><div class="tk-row"><span>Keperluan</span><b>' + esc(o.keperluan) + '</b></div>' +
+    '<div class="tk-sep"></div><div class="tk-bc">' + barcode(o.kode) + '</div><div class="tk-st">' + bkBdg(o.status) + info + '</div><div class="btns noprint">' + btn + '</div></article>';
 }
 async function bSaya() {
   var el = $("bsaya");
   if (!el) return;
   var j = await api("/api/booking"), hari = iso(wibDate(0)), g = {};
+  BKL = j.daftar;
   j.daftar.forEach(function (o) { (g[o.tanggal] = g[o.tanggal] || []).push(o); });
   var ks = Object.keys(g).sort().reverse();
   el.innerHTML = ks.length ? ks.map(function (t) {
-    return '<article class="card tiket" style="margin:0 0 10px"><h3 style="margin:0">Tiket kunjungan ' + esc(t) + '</h3>' + g[t].sort(function (a, b) { return a.jam < b.jam ? -1 : 1; }).map(function (o) {
-      var aktif = o.status === "Terjadwal" && o.tanggal >= hari;
-      return '<div class="rc"><span><div class="kode">' + esc(o.kode) + '</div>' + esc(label(o.kunci || o.lokasi + "_0")) + '<div class="sys">' + esc(o.jam) + ' WIB &middot; ' + esc(o.keperluan) + '</div>' + bkBdg(o.status) + '</span>' + (aktif ? '<button type="button" class="btn noprint" data-bc="' + o.id + '">Batalkan</button>' : '') + '</div>';
-    }).join("") + '<button type="button" class="btn noprint" data-print="1">Cetak tiket</button></article>';
+    return '<h3 class="dh">' + esc(new Date(t + "T00:00:00").toLocaleDateString("id-ID", {weekday: "long", day: "numeric", month: "long", year: "numeric"})) + '</h3><div class="tkgrid">' +
+      g[t].sort(function (a, b) { return a.jam < b.jam ? -1 : 1; }).map(function (o) { return tiketHtml(o, hari); }).join("") + '</div>';
   }).join("") : '<div class="empty">Belum ada booking.</div>';
 }
+setInterval(function () { if (S === "user" && window.PN === "bk" && !document.hidden && $("bsaya")) bSaya().catch(function () {}); }, 15000);
 /* Dipanggil dari polling pemohon: notifikasi saat giliran dipanggil */
 function bkCheck(arr) {
   var cur = {}, ch = false;
@@ -180,6 +221,8 @@ async function pnClick(e) {
       toast("Booking berhasil: " + r.booking.map(function (o) { return o.kode; }).join(", "));
       CART = []; KEP = ""; BJ = ""; rencana(); await slots(); await bSaya(); return;
     }
+    if (t.dataset.tiba) { await api("/api/booking/tiba", {id: t.dataset.tiba}); toast("Check-in berhasil. Petugas akan memanggil Anda sesuai urutan."); await bSaya(); return; }
+    if (t.dataset.ics) { var bo = BKL.filter(function (x) { return String(x.id) === t.dataset.ics; })[0]; if (bo) unduhIcs(bo); return; }
     if (t.dataset.bc) { await api("/api/booking/batal", {id: t.dataset.bc}); toast("Booking dibatalkan."); await slots(); await bSaya(); return; }
     if (t.dataset.print) { var a = t.closest(".tiket"); a.classList.add("print-area"); window.print(); a.classList.remove("print-area"); return; }
     if (id === "skmgo") {
@@ -240,13 +283,24 @@ async function aRing(el) {
     }).join("") + '</div><h2 class="sec">Permohonan per status</h2><div class="card">' + (Object.keys(j.pmh).length ? Object.keys(j.pmh).map(function (k) { return '<div style="display:flex;justify-content:space-between;margin:0 0 4px">' + bdg(k) + '<b>' + j.pmh[k] + '</b></div>'; }).join("") : '<span class="sys">Belum ada permohonan tercatat.</span>') + '</div>' +
     '<h2 class="sec">Layar antrean</h2><div class="card"><p class="sys" style="margin:0">Tampilkan nomor yang dipanggil di TV atau layar ruang tunggu. Layar mengumumkan dengan suara bila diaktifkan.</p><div class="btns"><a class="btn" href="/?layar=1" target="_blank" rel="noopener">Buka layar antrean</a></div></div>';
 }
+var BKA = [];
 async function aBk(el, tgl) {
   tgl = tgl || iso(wibDate(0));
-  var j = await api("/api/admin/booking?tanggal=" + tgl), L = j.daftar.filter(function (o) { return BF === "all" || o.lokasi === BF; });
-  el.innerHTML = '<h2 class="sec">Booking kunjungan</h2><div class="card"><input class="si" type="date" id="bd" value="' + tgl + '" aria-label="Tanggal"><select class="si" id="bf" aria-label="Filter lokasi"><option value="all">Semua lokasi</option>' + LOCS.map(function (l) { return '<option value="' + esc(l.id) + '"' + (BF === l.id ? ' selected' : '') + '>' + esc(l.nm) + '</option>'; }).join("") + '</select><div class="btns"><input class="si" id="bq" type="number" min="1" max="200" value="' + j.kuota + '" style="max-width:120px" aria-label="Kuota per jam per loket"><button type="button" class="btn" id="bqs">Simpan kuota per jam per loket</button><a class="btn" href="/?layar=1' + (BF !== "all" ? "&lokasi=" + encodeURIComponent(BF) : "") + '" target="_blank" rel="noopener">Buka layar antrean</a></div></div>' +
-    '<p class="stat">' + L.length + ' booking pada ' + esc(tgl) + '</p>' + (L.length ? L.map(function (o) {
-      return '<article class="card" style="margin:0 0 8px"><div class="kode">' + esc(o.kode) + '</div><div><b>' + esc(o.loket) + '</b> &middot; ' + esc(o.jam) + ' WIB</div><div class="sys">' + esc(o.nama) + ' &middot; ' + esc(o.hp) + ' &middot; ' + esc(o.keperluan) + '</div><div>' + bkBdg(o.status) + '</div>' +
-        '<div class="btns"><button type="button" class="send" data-bs="' + o.id + '|Dipanggil">Panggil</button><button type="button" class="btn" data-bs="' + o.id + '|Hadir">Selesai dilayani</button><button type="button" class="btn" data-bs="' + o.id + '|Tidak hadir">Tidak hadir</button><button type="button" class="btn" data-bs="' + o.id + '|Terjadwal">Reset</button></div></article>';
+  var j = await api("/api/admin/booking?tanggal=" + tgl), L = j.daftar.filter(function (o) { return BF === "all" || o.lokasi === BF; }), g = {};
+  BKA = j.daftar;
+  L.forEach(function (o) { (g[o.kunci] = g[o.kunci] || []).push(o); });
+  var urut = {"Sudah tiba": 0, "Terjadwal": 1, "Dipanggil": 2, "Hadir": 3, "Tidak hadir": 4};
+  el.innerHTML = '<h2 class="sec">Booking kunjungan</h2><div class="card"><input class="si" type="date" id="bd" value="' + tgl + '" aria-label="Tanggal"><select class="si" id="bf" aria-label="Filter lokasi"><option value="all">Semua lokasi</option>' + LOCS.map(function (l) { return '<option value="' + esc(l.id) + '"' + (BF === l.id ? ' selected' : '') + '>' + esc(l.nm) + '</option>'; }).join("") + '</select>' +
+    '<input class="si" id="bscan" placeholder="Scan barcode atau ketik kode tiket, lalu Enter untuk memanggil" autocomplete="off" aria-label="Scan kode tiket"><div class="btns"><input class="si" id="bq" type="number" min="1" max="200" value="' + j.kuota + '" style="max-width:120px" aria-label="Kuota per jam per loket"><button type="button" class="btn" id="bqs">Simpan kuota per jam per loket</button><a class="btn" href="/?layar=1' + (BF !== "all" ? "&lokasi=" + encodeURIComponent(BF) : "") + '" target="_blank" rel="noopener">Buka layar antrean</a></div></div>' +
+    '<p class="stat">' + L.length + ' booking pada ' + esc(tgl) + '</p>' +
+    (Object.keys(g).length ? Object.keys(g).sort().map(function (k) {
+      var G = g[k].sort(function (a, b) { return (urut[a.status] - urut[b.status]) || (a.jam < b.jam ? -1 : 1) || (a.kode < b.kode ? -1 : 1); }), tunggu = G.filter(function (o) { return o.status === "Terjadwal" || o.status === "Sudah tiba"; }).length;
+      return '<div class="zh" style="--zc:var(--acc)"><span class="zd"></span>' + esc(G[0].loket) + ' <small>' + tunggu + ' menunggu</small></div>' +
+        '<div class="btns" style="margin:0 0 8px"><button type="button" class="send" data-nx="' + esc(k) + '"' + (tunggu ? '' : ' disabled') + '>Panggil berikutnya</button></div>' +
+        G.map(function (o) {
+          return '<article class="card" style="margin:0 0 8px"><div class="kode">' + esc(o.kode) + '</div><div>' + esc(o.jam) + ' WIB</div><div class="sys">' + esc(o.nama) + ' &middot; ' + esc(o.hp) + ' &middot; ' + esc(o.keperluan) + '</div><div>' + bkBdg(o.status) + '</div>' +
+            '<div class="btns"><button type="button" class="send" data-bs="' + o.id + '|Dipanggil">Panggil</button><button type="button" class="btn" data-bs="' + o.id + '|Hadir">Selesai dilayani</button><button type="button" class="btn" data-bs="' + o.id + '|Tidak hadir">Tidak hadir</button><button type="button" class="btn" data-bs="' + o.id + '|Terjadwal">Reset</button></div></article>';
+        }).join("");
     }).join("") : '<div class="empty">Belum ada booking di tanggal ini.</div>');
 }
 async function aBt(el) {
@@ -274,6 +328,7 @@ $("v-adm").addEventListener("click", async function (e) {
     if (id === "pbaru") { await api("/api/admin/permohonan/baru", {hp: $("ph").value, jenis: $("pj").value, nomor: $("pn2").value, status: $("ps").value, catatan: $("pc").value}); toast("Permohonan dicatat."); aX("pmh"); return; }
     if (d.pu) { await api("/api/admin/permohonan/ubah", {id: d.pu, status: document.querySelector('[data-ps="' + d.pu + '"]').value, catatan: document.querySelector('[data-pc="' + d.pu + '"]').value}); toast("Status diperbarui. Pemohon akan diberi tahu."); aX("pmh"); return; }
     if (d.pd) { if (d.sure !== "1") { d.sure = "1"; t.textContent = "Yakin hapus?"; return; } await api("/api/admin/permohonan/hapus", {id: d.pd}); aX("pmh"); return; }
+    if (d.nx) { var r = await api("/api/admin/booking/berikut", {tanggal: $("bd").value, kunci: d.nx}); toast("Memanggil " + r.kode + " (" + r.nama + ")."); aBk($("a-x"), $("bd").value); return; }
     if (id === "bqs") { await api("/api/admin/pengaturan", {kuota: +$("bq").value}); CFG.kuota = $("bq").value; toast("Kuota disimpan."); return; }
     if (d.bs) { var p = d.bs.split("|"); await api("/api/admin/booking/status", {id: p[0], status: p[1]}); if (p[1] === "Dipanggil") toast("Nomor dipanggil dan tampil di layar antrean."); aBk($("a-x"), $("bd").value); return; }
     if (id === "bpub") { await api("/api/admin/berita", {judul: $("bj2").value, isi: $("bi").value}); toast("Berita terbit."); aX("bt"); return; }
@@ -317,3 +372,12 @@ $("v-adm").addEventListener("change", function (e) { if (e.target.id === "bd") a
   }
   muat(); setInterval(muat, 5000);
 })();
+
+$("v-adm").addEventListener("keydown", async function (e) {
+  if (e.key !== "Enter" || e.target.id !== "bscan") return;
+  var kode = e.target.value.trim().toUpperCase(), o = BKA.filter(function (x) { return x.kode.toUpperCase() === kode; })[0];
+  e.target.value = "";
+  if (!o) { toast("Kode " + kode + " tidak ditemukan pada tanggal ini."); return; }
+  if (o.status !== "Terjadwal" && o.status !== "Sudah tiba") { toast(o.kode + " berstatus " + o.status + "."); return; }
+  try { await api("/api/admin/booking/status", {id: o.id, status: "Dipanggil"}); toast("Memanggil " + o.kode + " (" + o.nama + ")."); aBk($("a-x"), $("bd").value); } catch (x) { err(x.message); }
+});

@@ -48,3 +48,12 @@ Layar hanya menampilkan kode dan nama loket, tanpa data pribadi.
 Catatan:
 - Status permohonan diisi manual oleh petugas (bukan otomatis dari OSS/SSW).
 - IKM = rata-rata 9 unsur (skala 1-4) x 25. Mutu: A 88,31-100, B 76,61-88,30, C 65,00-76,60, D 25,00-64,99.
+
+## Tiket antrean (versi 4)
+- **Satu tiket per loket.** Booking beberapa instansi menghasilkan beberapa tiket terpisah, masing-masing dengan kode, jam, dan barcode Code 39 sendiri.
+- **Check-in "Saya sudah tiba"** (dibuka 60 menit sebelum jam booking, hanya pada hari kunjungan). Pemohon yang sudah tiba didahulukan oleh "Panggil berikutnya".
+- **Posisi antrean:** tiket hari ini menampilkan jumlah antrean di depan (diperbarui tiap 15 detik saat halaman booking dibuka).
+- **Tambah ke kalender** (file .ics dengan pengingat 1 jam sebelumnya) dan **Cetak / simpan PDF** per tiket.
+- **Penanda jam sepi/ramai** dan rekomendasi jam paling lengang saat memilih jam.
+- **Admin:** booking dikelompokkan per loket dengan tombol **Panggil berikutnya**; kolom **scan/ketik kode tiket** lalu Enter untuk memanggil (cocok dengan alat pemindai barcode USB yang mengetik kode ke kolom).
+- Barcode memakai standar Code 39 yang dibuat sendiri; belum diuji dengan alat pemindai fisik. Kode juga bisa diketik manual.

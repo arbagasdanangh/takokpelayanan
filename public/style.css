@@ -111,3 +111,19 @@ button:focus-visible,summary:focus-visible,textarea:focus-visible,input:focus-vi
 .board .blist{list-style:none;margin:16px auto 0;padding:0;width:min(900px,100%);display:grid;gap:8px}
 .board .blist li{display:flex;justify-content:space-between;gap:12px;background:rgba(255,255,255,.1);border-radius:14px;padding:10px 16px;font-size:1.2rem}
 @media print{body *{visibility:hidden}.print-area,.print-area *{visibility:visible}.print-area{position:absolute;left:0;top:0;width:100%;box-shadow:none}.noprint{display:none!important}}
+.tkgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin:0 0 14px}
+.tkt{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:0 16px 14px;box-shadow:var(--shadow);overflow:hidden}
+.tk-head{display:flex;justify-content:space-between;gap:8px;margin:0 -16px;padding:10px 16px;background:linear-gradient(135deg,#1b4fc4,#0c2a86);color:#fff;font-size:.78rem;font-weight:800;letter-spacing:.06em}
+.tk-no{font-size:1.7rem;font-weight:800;letter-spacing:.03em;color:var(--acc);margin-top:10px;line-height:1.15}
+.tk-loket{font-weight:700;margin:0 0 8px}
+.tk-row{display:flex;justify-content:space-between;gap:10px;font-size:.88rem;padding:2px 0}.tk-row span{color:var(--mute)}.tk-row b{text-align:right}
+.tk-sep{position:relative;border-top:2px dashed var(--line);margin:14px -16px}
+.tk-sep::before,.tk-sep::after{content:"";position:absolute;top:-11px;width:20px;height:20px;border-radius:50%;background:var(--bg)}
+.tk-sep::before{left:-10px}.tk-sep::after{right:-10px}
+.tk-bc{display:grid;justify-items:center}.bc{width:100%;max-width:280px;height:auto;background:#fff;padding:6px;border-radius:8px}
+.tk-st{display:grid;gap:6px;margin:10px 0;justify-items:start}
+.tk-call{background:var(--tick);color:var(--tickink);font-weight:800;padding:8px 12px;border-radius:10px}
+.tk-off{opacity:.68}
+.chip.sepi{border-color:#16a34a;box-shadow:inset 0 -3px 0 #16a34a}.chip.ramai{border-color:#d97706;box-shadow:inset 0 -3px 0 #d97706}
+.dh{margin:18px 0 8px;font-size:1rem}
+@media print{.print-area{background:#fff!important;color:#000!important}.print-area *{color:#000!important}.print-area .tk-head{background:#fff!important;border-bottom:2px solid #000}}
