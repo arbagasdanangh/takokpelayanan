@@ -94,3 +94,27 @@ Tab admin **Kata cari chatbot** kini punya:
 - **Editor jawaban**: tombol Tebal, Poin, Langkah, dan "Kerangka jawaban" (Syarat, Langkah, Biaya, Jam layanan, Catatan), plus **pratinjau langsung** persis seperti tampilan di chatbot. Format yang didukung: `**tebal**`, baris diawali `- ` (poin), baris diawali `1. ` (langkah), dan label `Syarat:`, `Biaya:`, dst. dibuat tebal.
 - **Chatbot**: jawaban admin tampil sebagai kartu informasi berformat, dengan tombol Salin, Bagikan ke WhatsApp, dan pertanyaan "Jawaban ini membantu?" (bila 👎, ada tombol Teruskan ke admin).
 - Pencatatan pemakaian dibatasi 60 per IP per jam; hanya kata kunci yang ada di aturan yang diterima.
+
+## Versi 8: Takok Admin lebih canggih, analisis chat
+Semua analisis dibuat di server dari kata kunci bahasa Indonesia (`api/_analisa.py`): tanpa AI luar, tanpa biaya, tanpa mengirim data ke pihak ketiga. Hasilnya perkiraan, bukan keputusan akhir. Ubah daftar kata di `_analisa.py` (TOPIK, NEG_RE, POS_RE, URG2_RE, TEMPLAT_TOPIK) sesuai kebiasaan warga Surabaya.
+
+**Kotak masuk pintar (tab Kotak masuk)**
+- Tiap percakapan otomatis diberi **topik**, **nada** (keluhan/netral/puas), **urgensi**, dan **skor prioritas 0-100** (urgensi + nada + lama menunggu + label Mendesak/Eskalasi). Lencana menunjukkan lama menunggu (merah bila > 24 jam).
+- Urutkan: Prioritas / Terbaru / Menunggu terlama. Filter: perlu dijawab, prioritas tinggi, tindak lanjut jatuh tempo, topik, nada, lokasi, nama/HP/petugas.
+- **Cari isi percakapan** di seluruh pesan (cuplikan kata disorot).
+- **Aksi massal**: centang beberapa percakapan lalu "Tandai selesai".
+- Pintasan: `J`/`K` pindah percakapan, `Ctrl+Enter` kirim jawaban.
+
+**Panel percakapan**
+- **Analisis otomatis**: pertanyaan awal, jumlah pesan, topik, nada, urgensi, lama menunggu.
+- **Saran balasan**: jawaban dari aturan "Kata cari chatbot" yang cocok + templat per topik; tombol Pakai mengisi kotak balasan (variabel `{nama}` dan `{loket}` diisi otomatis, juga pada templat cepat).
+- **Label** (Mendesak, Tindak lanjut, Eskalasi, Menunggu berkas, Kasus khusus), **petugas penanggung jawab**, dan **tanggal tindak lanjut**.
+- **Kirim & selesai**, unduh percakapan (.txt), salin ringkasan.
+
+**Tab Analitik Chat (baru)**
+Insight otomatis (jam tersibuk, topik terbanyak, topik paling banyak keluhan, tren pekan ini); KPI (waktu balas median/P90, % dibalas dalam 1 jam dan 24 jam, belum dibalas, kepuasan); usia antrean belum dibalas dan daftar yang menunggu terlama (tombol Buka); grafik pesan per hari; **peta panas jam x hari**; topik dan nada pesan; **pertanyaan yang berulang** (tombol "Buat aturan chatbot" membuka tab Kata cari dengan kata kunci terisi); loket paling banyak ditanya; awan kata; sebaran penilaian; pemohon paling aktif. Rentang 7/14/30/90 hari. Tombol **Unduh laporan analisis chat (Excel)** (5 lembar). CSV rekap kini memuat topik, nada, urgensi, prioritas, label, petugas.
+Cakupan: hingga 200 percakapan terbaru (agar muat di batas 10 detik fungsi Vercel).
+
+**Sisi pemohon**: saat mengetik pertanyaan ke admin, bila cocok dengan aturan Kata cari chatbot, jawabannya muncul langsung ("Mungkin ini sudah menjawab pertanyaan Anda") sehingga mengurangi beban admin.
+
+Data baru di Redis: hash `tmeta` (agregat analisis per percakapan) dan `ttag` (label/petugas/tindak lanjut). Percakapan lama tetap berfungsi: analisisnya dihitung ulang dari pesan yang ada.

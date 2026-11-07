@@ -13,6 +13,7 @@ from html.parser import HTMLParser
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _data import SEED, SKM_MPP  # noqa: E402
+import _analisa as AN  # noqa: E402
 
 SECRET = (os.environ.get("SESSION_SECRET") or "").encode()
 SECURE = os.environ.get("COOKIE_SECURE", "1") != "0"
@@ -296,9 +297,11 @@ def parse(s, d=None):
 
 # ---------------- Logika data ----------------
 def threads():
-    r = db().pipe([["HGETALL", "tlu"], ["HGETALL", "tla"], ["HGETALL", "tlast"], ["HGETALL", "sel"], ["HGETALL", "nilai"], ["HGETALL", "pemohon"]])
-    tlu, tla, tlast, sel, nilai, pem = [hall(x) for x in r]
+    r = db().pipe([["HGETALL", "tlu"], ["HGETALL", "tla"], ["HGETALL", "tlast"], ["HGETALL", "sel"], ["HGETALL", "nilai"], ["HGETALL", "pemohon"],
+                   ["HGETALL", "ttag"], ["HGETALL", "tmeta"]])
+    tlu, tla, tlast, sel, nilai, pem, ttag, tmeta = [hall(x) for x in r]
     pem = {k: parse(v, {}) for k, v in pem.items()}
+    now = now_ms()
     out = []
     for f, last in tlast.items():
         pid, kunci = f.split("|", 1)
@@ -307,9 +310,14 @@ def threads():
             continue
         l = parse(last, {})
         lu, la, sl = int(tlu.get(f, 0)), int(tla.get(f, 0)), int(sel.get(f, 0))
+        pend = lu > max(la, sl)
+        mt = parse(tmeta.get(f), None)
+        meta = AN.meta_ringkas(mt if mt else AN.meta_gabung({}, AN.analyze(l.get("teks", ""))))
+        tag = parse(ttag.get(f), {}) or {}
         out.append({"pid": int(pid), "kunci": kunci, "nama": p["nama"], "hp": p["hp"], "email": p.get("email", ""),
-                    "teks": l.get("teks", ""), "waktu": l.get("waktu", 0), "pend": lu > max(la, sl),
-                    "nilai": int(nilai[f]) if f in nilai else None})
+                    "teks": l.get("teks", ""), "waktu": l.get("waktu", 0), "pend": pend, "lu": lu,
+                    "nilai": int(nilai[f]) if f in nilai else None, "meta": meta, "tag": tag, "selesai": sl > 0 and not pend,
+                    "skor": AN.skor_prioritas(meta, tag, pend, lu, now)})
     return sorted(out, key=lambda x: (not x["pend"], -x["waktu"]))
 
 
@@ -318,9 +326,33 @@ def add_msg(pid, kunci, dari, isi):
     mid = int(db().cmd("INCR", "seq:pesan"))
     t = now_ms()
     m = {"id": mid, "dari": dari, "isi": isi, "waktu": t}
-    db().pipe([["RPUSH", "msgs:" + f, json.dumps(m, ensure_ascii=False)], ["SADD", "pk:%s" % pid, kunci],
-               ["HSET", "tlu" if dari == "pemohon" else "tla", f, t],
-               ["HSET", "tlast", f, json.dumps({"teks": isi[:100], "waktu": t}, ensure_ascii=False)]])
+    cmds = [["RPUSH", "msgs:" + f, json.dumps(m, ensure_ascii=False)], ["SADD", "pk:%s" % pid, kunci],
+            ["HSET", "tlu" if dari == "pemohon" else "tla", f, t],
+            ["HSET", "tlast", f, json.dumps({"teks": isi[:100], "waktu": t}, ensure_ascii=False)]]
+    if dari == "pemohon":  # simpan agregat analisis (topik, sentimen, urgensi) per percakapan
+        try:
+            mt = parse(db().cmd("HGET", "tmeta", f), {})
+            cmds.append(["HSET", "tmeta", f, json.dumps(AN.meta_gabung(mt, AN.analyze(isi)), ensure_ascii=False)])
+        except Exception as e:
+            print("META", repr(e))
+    db().pipe(cmds)
+
+
+def muat_semua(limit=200):
+    """Muat percakapan terbaru beserta seluruh pesannya untuk analisis (dibatasi agar muat dalam 10 detik)."""
+    r = db().pipe([["HGETALL", "tlast"], ["HGETALL", "pemohon"], ["HGETALL", "nilai"], ["HGETALL", "sel"], ["HGETALL", "tla"]])
+    tlast, pem, nilai, sel, tla = [hall(x) for x in r]
+    pem = {k: parse(v, {}) for k, v in pem.items()}
+    fs = sorted(tlast, key=lambda f: -(parse(tlast[f], {}).get("waktu", 0)))
+    fs = [f for f in fs if f.split("|", 1)[0] in pem][:limit]
+    lists = db().pipe([["LRANGE", "msgs:" + f, 0, -1] for f in fs]) if fs else []
+    rows = []
+    for f, lst in zip(fs, lists):
+        pid, kunci = f.split("|", 1)
+        msgs = [m for m in (parse(x) for x in lst or []) if m]
+        rows.append({"pid": int(pid), "kunci": kunci, "nama": pem[pid].get("nama", "?"), "hp": pem[pid].get("hp", ""), "msgs": msgs,
+                     "nilai": int(nilai[f]) if f in nilai else None, "selesai": int(sel.get(f, 0))})
+    return rows
 
 
 # ---------------- Handler ----------------
@@ -851,8 +883,34 @@ class handler(BaseHTTPRequestHandler):
             if not valid_key(k):
                 raise HttpError(400, "Data tidak valid.")
             f = "%s|%s" % (pid, k)
-            res = db().pipe([["LRANGE", "msgs:" + f, 0, -1], ["HSET", "rd", f, now_ms()], ["HGET", "cat", f]])
-            return self.json({"pesan": [m for m in (parse(x) for x in res[0] or []) if m], "catatan": res[2] or ""}, extra=ex)
+            res = db().pipe([["LRANGE", "msgs:" + f, 0, -1], ["HSET", "rd", f, now_ms()], ["HGET", "cat", f], ["HGET", "ttag", f],
+                             ["HGET", "cfg", "kata"], ["HGET", "pemohon", pid]])
+            msgs = [m for m in (parse(x) for x in res[0] or []) if m]
+            nama = (parse(res[5], {}) or {}).get("nama", "")
+            analisa = AN.ringkas_percakapan(msgs, now_ms(), fmt_wib)
+            aturan = parse(res[4], [])
+            saran = AN.saran_balasan(msgs, aturan if isinstance(aturan, list) else [], nama, label(k), label) if msgs and msgs[-1]["dari"] == "pemohon" else []
+            return self.json({"pesan": msgs, "catatan": res[2] or "", "tag": parse(res[3], {}) or {}, "analisa": analisa, "saran": saran}, extra=ex)
+        if r == "analitik" and method == "GET":
+            hari = int((q.get("hari") or ["30"])[0] or 30)
+            return self.json(AN.statistik(muat_semua(), now_ms(), hari, label), extra=ex)
+        if r == "cari" and method == "GET":
+            kata = clean((q.get("q") or [""])[0], 60).lower()
+            if len(kata) < 2:
+                raise HttpError(400, "Ketik minimal 2 huruf untuk mencari.")
+            hasil = []
+            for row in muat_semua():
+                for m in sorted(row["msgs"], key=lambda x: -x.get("waktu", 0)):
+                    i = m["isi"].lower().find(kata)
+                    if i >= 0:
+                        a = max(0, i - 40)
+                        hasil.append({"pid": row["pid"], "kunci": row["kunci"], "nama": row["nama"], "hp": row["hp"], "loket": label(row["kunci"]), "dari": m["dari"],
+                                      "waktu": m["waktu"], "cuplikan": ("…" if a else "") + m["isi"][a:i + len(kata) + 80], "mulai": i - a + (1 if a else 0), "panjang": len(kata)})
+                        break
+            hasil.sort(key=lambda x: -x["waktu"])
+            return self.json({"daftar": hasil[:40], "total": len(hasil)}, extra=ex)
+        if r == "analisis.xlsx":
+            return self.analisis_xlsx(ex)
         if r == "templat" and method == "GET":
             t = parse(db().cmd("HGET", "cfg", "qr"), None)
             return self.json({"daftar": t if isinstance(t, list) else ["Terima kasih, pertanyaan Anda sudah kami terima dan sedang kami proses.", "Silakan datang ke loket terkait dengan membawa dokumen asli dan fotokopi persyaratan.", "Mohon lengkapi berkas yang kurang, lalu ajukan kembali melalui sistem yang sesuai.", "Untuk penjelasan lebih lanjut, kami akan menghubungi Anda melalui WhatsApp."]}, extra=ex)
@@ -1097,10 +1155,36 @@ class handler(BaseHTTPRequestHandler):
                 raise HttpError(400, "Data tidak valid.")
             db().cmd("HSET", "sel", "%s|%s" % (pid, k), now_ms())
             return self.json({"ok": True}, extra=ex)
+        if r == "label":
+            pid, k = int(b.get("pid") or 0), str(b.get("kunci", ""))
+            if not valid_key(k) or not db().cmd("HGET", "pemohon", pid):
+                raise HttpError(400, "Data tidak valid.")
+            tags = [t for t in dict.fromkeys(b.get("tags") or []) if isinstance(t, str) and t in AN.TAGS]
+            tl = str(b.get("tl", ""))[:10]
+            try:
+                time.strptime(tl, "%Y-%m-%d")
+            except ValueError:
+                tl = ""
+            d = {"tags": tags, "pic": clean(b.get("pic", ""), 40), "tl": tl}
+            f = "%s|%s" % (pid, k)
+            if d["tags"] or d["pic"] or d["tl"]:
+                db().cmd("HSET", "ttag", f, json.dumps(d, ensure_ascii=False))
+            else:
+                db().cmd("HDEL", "ttag", f)
+            return self.json({"ok": True, "tag": d}, extra=ex)
+        if r == "selesai-massal":
+            its = [x for x in (b.get("items") or []) if isinstance(x, dict)][:60]
+            cmds = []
+            for x in its:
+                k = str(x.get("kunci", ""))
+                if valid_key(k):
+                    cmds.append(["HSET", "sel", "%s|%s" % (int(x.get("pid") or 0), k), now_ms()])
+            db().pipe(cmds)
+            return self.json({"ok": True, "n": len(cmds)}, extra=ex)
         if r == "hapus":
             pid, k = int(b.get("pid") or 0), str(b.get("kunci", ""))
             f = "%s|%s" % (pid, k)
-            db().pipe([["DEL", "msgs:" + f], ["SREM", "pk:%s" % pid, k]] + [["HDEL", h, f] for h in ("tlu", "tla", "tlast", "sel", "nilai")])
+            db().pipe([["DEL", "msgs:" + f], ["SREM", "pk:%s" % pid, k]] + [["HDEL", h, f] for h in ("tlu", "tla", "tlast", "sel", "nilai", "tmeta", "ttag", "cat", "rd")])
             return self.json({"ok": True}, extra=ex)
         if r == "pengaturan":
             cmds = []
@@ -1137,12 +1221,60 @@ class handler(BaseHTTPRequestHandler):
             return "'" + v if v[:1] in ("=", "+", "-", "@", "\t", "\r") else v
         buf = io.StringIO()
         w = csv.writer(buf)
-        w.writerow(["Nama", "Nomor HP", "Email", "Lokasi dan loket", "Pesan terakhir", "Waktu", "Status", "Nilai"])
+        w.writerow(["Nama", "Nomor HP", "Email", "Lokasi dan loket", "Pesan terakhir", "Waktu", "Status", "Nilai", "Topik", "Sentimen", "Urgensi", "Prioritas", "Label", "Petugas"])
         for t in threads():
             w.writerow([c(t["nama"]), c(t["hp"]), c(t["email"]), c(label(t["kunci"])), c(t["teks"]),
                         time.strftime("%d-%m-%Y %H:%M", time.gmtime(t["waktu"] / 1000 + 7 * 3600)),
-                        "Perlu dijawab" if t["pend"] else "Sudah dijawab", t["nilai"] or ""])
+                        "Perlu dijawab" if t["pend"] else "Sudah dijawab", t["nilai"] or "",
+                        c(", ".join(t["meta"]["topik"])), AN.SENTI_NAMA[t["meta"]["senti"]], AN.URG_NAMA[t["meta"]["urg"]], t["skor"],
+                        c(", ".join(t["tag"].get("tags", []))), c(t["tag"].get("pic", ""))])
         self.out(200, "\ufeff" + buf.getvalue(), "text/csv; charset=utf-8", [("Content-Disposition", 'attachment; filename="rekap.csv"')] + ex)
+
+    def analisis_xlsx(self, ex):
+        """Laporan analisis chat (Excel): ringkasan KPI, percakapan, topik, loket, dan pertanyaan berulang."""
+        from openpyxl import Workbook
+        from openpyxl.styles import Alignment, Font, PatternFill
+        rows, t = muat_semua(), now_ms()
+        st = AN.statistik(rows, t, 90, label)
+        wb = Workbook()
+        wb.remove(wb.active)
+
+        def sheet(name, head, data, widths):
+            ws = wb.create_sheet(name)
+            ws.append(head)
+            for i, r in enumerate(data, start=2):
+                for j, v in enumerate(r, start=1):
+                    c = ws.cell(row=i, column=j, value=v)
+                    if isinstance(v, str):
+                        c.data_type = "s"
+                    c.alignment = Alignment(wrap_text=True, vertical="top")
+            for c in ws[1]:
+                c.font, c.fill = Font(bold=True, color="FFFFFF"), PatternFill("solid", fgColor="1A46B5")
+            for n, w in enumerate(widths):
+                ws.column_dimensions[chr(65 + n)].width = w
+            ws.freeze_panes = "A2"
+        k = st["kpi"]
+        sheet("Ringkasan", ["Indikator", "Nilai"], [
+            ["Periode", "90 hari terakhir (dibuat %s WIB)" % fmt_wib(t)], ["Percakapan aktif", k["thread"]], ["Pesan pemohon", k["pesan_pemohon"]],
+            ["Pesan admin", k["pesan_admin"]], ["Belum dibalas saat ini", k["menunggu"]], ["Waktu balas tengah (menit)", k["median_menit"] if k["median_menit"] is not None else "-"],
+            ["Dibalas <= 1 jam (%)", k["sla1"] if k["sla1"] is not None else "-"], ["Dibalas <= 24 jam (%)", k["sla24"] if k["sla24"] is not None else "-"],
+            ["Kepuasan rata-rata (1-5)", k["csat"] if k["csat"] is not None else "-"]] + [["Insight", i["teks"]] for i in st["insight"]], [44, 90])
+        data = []
+        for r in rows:
+            a = AN.ringkas_percakapan(r["msgs"], t, fmt_wib)
+            last = r["msgs"][-1] if r["msgs"] else {"isi": ""}
+            data.append([r["nama"], r["hp"], label(r["kunci"]), ", ".join(a["topik"]), AN.SENTI_NAMA[a["senti"]], AN.URG_NAMA[a["urg"]], len(r["msgs"]),
+                         "Menunggu balasan" if a["tunggu_menit"] is not None else "Sudah dibalas", round(a["tunggu_menit"]) if a["tunggu_menit"] is not None else "",
+                         r["nilai"] or "", last["isi"]])
+        sheet("Percakapan", ["Nama", "HP", "Loket", "Topik", "Sentimen", "Urgensi", "Jumlah pesan", "Status", "Menunggu (menit)", "Nilai", "Pesan terakhir"], data, [24, 16, 36, 30, 12, 16, 10, 18, 12, 8, 70])
+        sheet("Topik", ["Topik", "Jumlah pesan", "Bernada keluhan"], [[x["topik"], x["n"], x["neg"]] for x in st["topik"]], [34, 14, 16])
+        sheet("Per loket", ["Loket", "Percakapan", "Pesan", "Belum dibalas", "Keluhan (%)", "Waktu balas tengah (menit)", "Nilai"],
+              [[x["nama"], x["thread"], x["pesan"], x["pend"], x["neg_pct"], x["resp"] if x["resp"] is not None else "", x["nilai"] or ""] for x in st["loket"]], [44, 12, 10, 14, 12, 22, 8])
+        sheet("Pertanyaan berulang", ["Contoh pertanyaan", "Jumlah", "Topik", "Kata kunci saran"], [[x["contoh"], x["n"], x["topik"], ", ".join(x["kata"])] for x in st["faq"]], [80, 10, 26, 40])
+        bio = io.BytesIO()
+        wb.save(bio)
+        self.out(200, bio.getvalue(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                 [("Content-Disposition", 'attachment; filename="analisis-chat-takok.xlsx"')] + ex)
 
     def kata_xlsx(self, ex, templat):
         from openpyxl import Workbook
