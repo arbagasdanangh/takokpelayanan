@@ -480,7 +480,8 @@ $("v-adm").addEventListener("paste", function (e) {
 });
 
 /* ---------- Admin: kata cari chatbot ---------- */
-var KR = [], KDIRTY = false, KMISS = [], KIMP = null, KF = "", KMAX = 100;
+var KR = [], KDIRTY = false, KMISS = [], KIMP = null, KF = "", KMAX = 100, KST = null;
+var KTPL = "**Syarat:**\n- \n- \n\n**Langkah:**\n1. \n2. \n\n**Biaya:** \n**Jam layanan:** \n**Catatan:** ";
 var KSTOP = {yang: 1, dan: 1, di: 1, ke: 1, dari: 1, untuk: 1, saya: 1, aku: 1, mau: 1, ingin: 1, bagaimana: 1, gimana: 1, cara: 1, apa: 1, apakah: 1, bisa: 1, boleh: 1, dong: 1, tidak: 1, nggak: 1, atau: 1, dengan: 1, pada: 1, ada: 1, dimana: 1, tolong: 1, minta: 1, mohon: 1, tanya: 1, info: 1, itu: 1, ini: 1, sudah: 1, belum: 1, kalau: 1, kalo: 1, bikin: 1, buat: 1};
 function ktWords(v) { return String(v).split(/[,;\n]/).map(function (w) { return clean(w).toLowerCase().slice(0, 40); }).filter(function (w) { return w.length >= 2; }).slice(0, 10); }
 function ktSaran(q) {
@@ -509,7 +510,8 @@ function ktRead() {
 function ktCard(r, i) {
   return '<details class="row kt' + (r._n ? " kn" : "") + '"' + (r._o ? " open" : "") + (r._n ? ' data-n="1"' : "") + '><summary></summary><div class="kt-body">' +
     '<label class="kt-l" for="kw' + i + '">Kata kunci <small>(pisahkan dengan koma)</small></label><input class="si" id="kw' + i + '" data-kw maxlength="400" placeholder="mis. skck, surat kelakuan baik" value="' + esc((r.k || []).join(", ")) + '">' +
-    '<label class="kt-l" for="kj' + i + '">Jawaban untuk pengunjung <small data-cn></small></label><textarea class="si" id="kj' + i + '" data-kj rows="5" maxlength="1500" placeholder="Cara mengurus, langkah-langkah, syarat, biaya, jam, dll. Boleh beberapa baris.">' + esc(r.j || "") + '</textarea>' +
+    '<label class="kt-l" for="kj' + i + '">Jawaban untuk pengunjung <small data-cn></small></label><div class="ktfmt"><button type="button" class="btn" data-kf="b" data-i="' + i + '" title="Tebalkan teks terpilih"><b>B</b></button><button type="button" class="btn" data-kf="ul" data-i="' + i + '">&bull; Poin</button><button type="button" class="btn" data-kf="ol" data-i="' + i + '">1. Langkah</button><button type="button" class="btn" data-kf="tpl" data-i="' + i + '">&#10024; Kerangka jawaban</button></div><textarea class="si" id="kj' + i + '" data-kj rows="6" maxlength="1500" placeholder="Cara mengurus, langkah-langkah, syarat, biaya, jam, dll. Gunakan tombol di atas untuk poin, langkah, dan huruf tebal.">' + esc(r.j || "") + '</textarea>' +
+    '<div class="ktprev"><small class="sys">Pratinjau di chatbot</small><div class="bans"><div class="bans-h"><span class="bans-i">i</span>Informasi layanan</div><div class="bans-b" data-pv></div></div></div>' +
     '<label class="kt-l" for="kt' + i + '">Loket tujuan <small>(opsional)</small></label><select class="si" id="kt' + i + '" data-kt></select>' +
     (r.cat ? '<p class="em" style="margin:0">' + esc(r.cat) + ' (aturan tetap diimpor tanpa loket)</p>' : "") +
     '<div class="btns"><button type="button" class="btn" data-ka="up" data-i="' + i + '">&uarr; Naik</button><button type="button" class="btn" data-ka="down" data-i="' + i + '">&darr; Turun</button><button type="button" class="btn" data-ka="dup" data-i="' + i + '">Gandakan</button><button type="button" class="btn" data-ka="del" data-i="' + i + '">Hapus aturan</button></div></div></details>';
@@ -521,12 +523,35 @@ function ktMissHtml() {
     return '<div class="ktm"><span class="ktq">&ldquo;' + esc(m.q) + '&rdquo;</span><span class="tag">' + m.n + '&times;</span><button type="button" class="btn" data-km="' + i + '">Buat aturan</button><button type="button" class="btn" data-kx="' + i + '">Abaikan</button></div>';
   }).join("") + '<div class="btns" style="margin-top:6px">' + (KMISS.length > 10 ? '<span class="sys">Menampilkan 10 teratas dari ' + KMISS.length + '.</span>' : "") + '<button type="button" class="btn" id="kt-xa">Abaikan semua</button></div></div>';
 }
+function ktStat(ks) { var x = KST || {}, o = {h: 0, u: 0, n: 0}; (ks || []).forEach(function (k) { o.h += (x.hit || {})[k] || 0; o.u += (x.up || {})[k] || 0; o.n += (x.dn || {})[k] || 0; }); return o; }
+function ktHero() {
+  var d = (KST && KST.days) || [], th = 0, tm = 0, nk = 0, mx = 1;
+  d.forEach(function (x) { th += x.hit; tm += x.miss; mx = Math.max(mx, x.hit + x.miss); });
+  KR.forEach(function (r) { nk += (r.k || []).length; });
+  var rate = th + tm ? Math.round(th * 100 / (th + tm)) : null;
+  return '<div class="kth"><div class="kth-t"><div><div class="kth-k">Pusat kendali</div><h2>Kata cari chatbot</h2><p>Ajari chatbot menjawab pertanyaan warga dengan jawaban lengkap dan loket tujuan. Aturan di sini didahulukan dari aturan bawaan.</p></div><div class="kth-ring" style="--p:' + (rate === null ? 0 : rate) + '" title="Persentase pertanyaan warga yang terjawab (7 hari)"><span><b>' + (rate === null ? "\u2013" : rate + "%") + '</b><small>terjawab</small></span></div></div>' +
+    '<div class="kth-g"><div class="kth-s"><b id="kth-n">' + KR.length + '</b><span>aturan</span></div><div class="kth-s"><b id="kth-k">' + nk + '</b><span>kata kunci</span></div><div class="kth-s"><b>' + th + '</b><span>terjawab 7 hari</span></div><div class="kth-s w"><b>' + tm + '</b><span>belum terjawab 7 hari</span></div></div>' +
+    (d.length ? '<div class="kth-c" role="img" aria-label="Grafik pemakaian 7 hari">' + d.map(function (x) {
+      return '<div class="kth-d" title="' + esc(x.d) + ': ' + x.hit + ' terjawab, ' + x.miss + ' belum terjawab"><div class="kth-b"><i class="r" style="height:' + Math.round(x.miss * 100 / mx) + '%"></i><i class="y" style="height:' + Math.round(x.hit * 100 / mx) + '%"></i></div><small>' + esc(x.d) + '</small></div>';
+    }).join("") + '</div><div class="kth-lg"><span><i class="y"></i>Terjawab aturan Anda</span><span><i class="r"></i>Belum terjawab</span></div>' : "") + '</div>';
+}
+function ktInsight() {
+  var rows = KR.map(function (r, i) { var s = ktStat(r.k); return {i: i, k: (r.k || [])[0], h: s.h, u: s.u, n: s.n}; }).filter(function (x) { return x.k; });
+  var top = rows.filter(function (x) { return x.h > 0; }).sort(function (a, b) { return b.h - a.h; }).slice(0, 5), mx = top.length ? top[0].h : 1;
+  var unused = rows.filter(function (x) { return x.h === 0; }).length, bad = rows.filter(function (x) { return x.n > x.u && x.n >= 2; });
+  var h = '<div class="card" style="margin:0 0 12px"><b>Aturan terpopuler</b>';
+  if (!top.length) h += '<p class="sys" style="margin:0">Belum ada data pemakaian. Statistik muncul setelah warga memakai chatbot.</p>';
+  else h += top.map(function (x) { return '<div class="kti"><span class="kti-n">#' + (x.i + 1) + ' ' + esc(x.k) + '</span><div class="kti-b"><i style="width:' + Math.max(6, Math.round(x.h * 100 / mx)) + '%"></i></div><b>' + x.h + '&times;</b>' + (x.u + x.n ? '<small>\uD83D\uDC4D ' + x.u + ' \uD83D\uDC4E ' + x.n + '</small>' : "") + '</div>'; }).join("");
+  if (rows.length) h += '<p class="sys" style="margin:4px 0 0">' + unused + ' dari ' + rows.length + ' aturan belum pernah dipakai.' + (bad.length ? ' <span class="kt-w">&#9888; Perlu diperbaiki: aturan #' + bad.map(function (x) { return x.i + 1; }).slice(0, 5).join(", #") + ' (lebih banyak \uD83D\uDC4E).</span>' : "") + '</p>';
+  if (top.length) h += '<div class="btns"><button type="button" class="btn" id="kt-rst">Reset statistik</button></div>';
+  return h + '</div>';
+}
 function ktDraw() {
   var el = $("a-x");
-  el.innerHTML = '<h2 class="sec">Kata cari chatbot</h2><p class="sys" style="margin:0 0 10px">Atur kata atau frasa yang diketik warga agar chatbot langsung memberi jawaban lengkap dan menampilkan loket tertentu. Aturan di sini diprioritaskan di atas aturan bawaan. Maksimal ' + KMAX + ' aturan.</p>' +
-    '<div class="card kt-tools"><div class="btns"><button type="button" class="btn" id="kt-add">+ Tambah aturan</button><label class="btn kt-file" for="kt-file">Impor Excel/CSV</label><input type="file" id="kt-file" accept=".xlsx,.csv,.tsv,.txt" hidden><button type="button" class="btn" id="kt-pastebtn">Tempel dari spreadsheet</button><a class="btn" href="/api/app?p=%2Fadmin%2Fkata.xlsx" download>Ekspor Excel</a><a class="btn" href="/api/app?p=%2Fadmin%2Fkata-templat.xlsx" download>Unduh templat</a></div>' +
-    '<div id="kt-paste" hidden><p class="sys" style="margin:0">Salin sel dari Excel atau Google Sheets (kolom: Kata kunci, Jawaban, Loket tujuan; baris judul boleh ada), lalu tempel di sini.</p><textarea class="si" id="kt-pt" rows="5" placeholder="Tempel di sini"></textarea><div class="btns"><button type="button" class="send" id="kt-pgo">Baca tabel</button><button type="button" class="btn" id="kt-pclose">Tutup</button></div></div></div>' +
-    '<div id="kt-imp"></div>' + ktMissHtml() +
+  el.innerHTML = ktHero() +
+    '<div class="kt-act"><button type="button" class="kta" id="kt-add"><span class="kta-i">&#10133;</span><b>Tambah aturan</b><small>tulis manual</small></button><label class="kta" for="kt-file"><span class="kta-i">&#128229;</span><b>Impor Excel/CSV</b><small>unggah berkas</small></label><input type="file" id="kt-file" accept=".xlsx,.csv,.tsv,.txt" hidden><button type="button" class="kta" id="kt-pastebtn"><span class="kta-i">&#128203;</span><b>Tempel tabel</b><small>dari Excel/Sheets</small></button><a class="kta" href="/api/app?p=%2Fadmin%2Fkata.xlsx" download><span class="kta-i">&#128228;</span><b>Ekspor Excel</b><small>cadangan & edit</small></a><a class="kta" href="/api/app?p=%2Fadmin%2Fkata-templat.xlsx" download><span class="kta-i">&#128196;</span><b>Unduh templat</b><small>format siap isi</small></a></div>' +
+    '<div class="card" id="kt-paste" hidden style="margin:0 0 12px"><p class="sys" style="margin:0">Salin sel dari Excel atau Google Sheets (kolom: Kata kunci, Jawaban, Loket tujuan; baris judul boleh ada), lalu tempel di sini.</p><textarea class="si" id="kt-pt" rows="5" placeholder="Tempel di sini"></textarea><div class="btns"><button type="button" class="send" id="kt-pgo">Baca tabel</button><button type="button" class="btn" id="kt-pclose">Tutup</button></div></div>' +
+    '<div id="kt-imp"></div>' + ktInsight() + ktMissHtml() +
     '<div class="kt-filter"><input class="si" id="kt-f" placeholder="Cari aturan (kata kunci atau jawaban)" aria-label="Cari aturan" value="' + esc(KF) + '"><span class="sys" id="kt-cnt"></span></div>' +
     '<div id="ktl">' + (KR.length ? KR.map(ktCard).join("") : '<div class="empty">Belum ada aturan khusus. Tekan "Tambah aturan" atau impor dari Excel.</div>') + '</div><div class="empty" id="kt-fc" hidden>Tidak ada aturan yang cocok dengan pencarian.</div>' +
     '<div class="card" style="margin-top:12px"><b>Coba kata</b><p class="sys" style="margin:0">Menguji daftar yang sedang Anda edit, termasuk yang belum disimpan.</p><input class="si" id="kt-q" maxlength="100" placeholder="Ketik pertanyaan warga untuk menguji" aria-label="Uji pertanyaan"><button type="button" class="btn" id="kt-try">Uji</button><div id="kt-r"></div></div>' +
@@ -552,11 +577,13 @@ function ktSumAll() {
     d.ks.forEach(function (k) { idx[k].forEach(function (o) { if (o !== i) dup[o + 1] = 1; }); });
     var dn = Object.keys(dup); if (dn.length) w.push("Kata kunci sama dengan aturan #" + dn.slice(0, 3).join(", #"));
     chips = d.ks.slice(0, 4).map(function (k) { return '<span class="tag">' + esc(k) + '</span>'; }).join("") + (d.ks.length > 4 ? '<span class="tag">+' + (d.ks.length - 4) + '</span>' : "");
-    c.querySelector("summary").innerHTML = '<span class="no">' + (i + 1) + '</span><span class="kt-s"><span class="kt-chips">' + (chips || '<i class="sys">(kosong)</i>') + '</span><span class="kt-m">' + (d.t ? esc(ktName(d.t)) : "Hanya jawaban") + (c.dataset.n ? " &middot; <b>Baru</b>" : "") + '</span>' + (w.length ? '<span class="kt-w">&#9888; ' + esc(w.join(" \u00b7 ")) + '</span>' : "") + '</span><span class="sys kt-cv">&#9662;</span>';
+    c.querySelector("summary").innerHTML = '<span class="no">' + (i + 1) + '</span><span class="kt-s"><span class="kt-chips">' + (chips || '<i class="sys">(kosong)</i>') + '</span><span class="kt-m">' + (d.t ? esc(ktName(d.t)) : "Hanya jawaban") + (function () { var st = ktStat(d.ks); return st.h ? " &middot; " + st.h + "\u00d7 dipakai" + (st.u + st.n ? " (\uD83D\uDC4D" + st.u + " \uD83D\uDC4E" + st.n + ")" : "") : ""; })() + (c.dataset.n ? " &middot; <b>Baru</b>" : "") + '</span>' + (w.length ? '<span class="kt-w">&#9888; ' + esc(w.join(" \u00b7 ")) + '</span>' : "") + '</span><span class="sys kt-cv">&#9662;</span>';
     c.querySelector("[data-cn]").textContent = d.j.length + "/1500";
+    c.querySelector("[data-pv]").innerHTML = d.j ? (window.fmtJawab ? window.fmtJawab(d.j) : esc(d.j)) : '<p class="sys">(jawaban masih kosong)</p>';
     var hit = !q || (d.ks.join(" ") + " " + d.j).toLowerCase().indexOf(q) >= 0;
     c.hidden = !hit; if (hit) shown++;
   });
+  if ($("kth-n")) $("kth-n").textContent = cs.length; if ($("kth-k")) $("kth-k").textContent = nk;
   if ($("kt-cnt")) $("kt-cnt").textContent = cs.length + " aturan \u00b7 " + nk + " kata kunci";
   if ($("kt-fc")) $("kt-fc").hidden = !(cs.length && !shown);
 }
@@ -618,6 +645,7 @@ async function ktSave() {
   var gone = KMISS.filter(function (m) { var h = window.kataHit ? window.kataHit(m.q, KR) : null; return h && (h.k.length || h.j.length); }).map(function (m) { return m.q; });
   if (gone.length) { try { await api("/api/admin/miss/hapus", {qs: gone}); KMISS = KMISS.filter(function (m) { return gone.indexOf(m.q) < 0; }); } catch (x) {} }
   ktDirty(false); ktDraw();
+  var bar = document.querySelector(".ktbar"); if (bar) { bar.classList.add("ok"); setTimeout(function () { bar.classList.remove("ok"); }, 1600); }
   toast("Tersimpan (" + r.daftar.length + " aturan)" + (gone.length ? "; " + gone.length + " pertanyaan belum terjawab sudah tertangani" : "") + ". Warga memakainya saat halaman dimuat ulang.");
 }
 function ktTry() {
@@ -636,11 +664,12 @@ async function aKt() {
   window.KATA = j.kata || [];
   KR = JSON.parse(JSON.stringify(window.KATA)); KDIRTY = false; KIMP = null;
   try { KMISS = (await api("/api/admin/miss")).daftar || []; } catch (x) { KMISS = []; }
+  try { KST = await api("/api/admin/kstat"); } catch (x) { KST = null; }
   ktDraw();
 }
 $("v-adm").addEventListener("click", async function (e) {
   if (S !== "adm" || AT !== "kt" || !$("ktl")) return;
-  var t = e.target, a = t.closest("[data-ka]"), m = t.closest("[data-km]"), x = t.closest("[data-kx]"), id = t.id;
+  var t = e.target, a = t.closest("[data-ka]"), m = t.closest("[data-km]"), x = t.closest("[data-kx]"), id = (t.closest("[id]") || {}).id;
   try {
     if (a) {
       ktRead(); var i = +a.dataset.i, k = a.dataset.ka;
@@ -650,6 +679,15 @@ $("v-adm").addEventListener("click", async function (e) {
       else if (k === "del") { var rm = KR.splice(i, 1)[0]; toast("Aturan #" + (i + 1) + " dihapus.", "Urungkan", function () { ktRead(); KR.splice(i, 0, rm); ktDirty(true); ktDraw(); }); }
       ktDirty(true); ktDraw();
     }
+    else if (t.closest("[data-kf]")) {
+      var fb = t.closest("[data-kf]"), cd = fb.closest(".kt"), ta = cd.querySelector("[data-kj]"), v = ta.value, a0 = ta.selectionStart, a1 = ta.selectionEnd, sel = v.slice(a0, a1), k2 = fb.dataset.kf, ins;
+      if (k2 === "tpl") { ta.value = v.trim() ? v.replace(/\s+$/, "") + "\n\n" + KTPL : KTPL; a0 = a1 = ta.value.length; }
+      else if (k2 === "b") { ins = "**" + (sel || "teks tebal") + "**"; ta.value = v.slice(0, a0) + ins + v.slice(a1); a0 = a0 + 2; a1 = a0 + (sel || "teks tebal").length; }
+      else { var lines = (sel || "").split("\n"); ins = (sel ? lines : [""]).map(function (l, n) { return (k2 === "ol" ? (n + 1) + ". " : "- ") + l.replace(/^\s*(?:[-\u2022*]|\d+[.)])\s+/, ""); }).join("\n"); var pre = a0 > 0 && v[a0 - 1] !== "\n" ? "\n" : ""; ta.value = v.slice(0, a0) + pre + ins + v.slice(a1); a0 = a1 = a0 + pre.length + ins.length; }
+      ta.focus(); try { ta.setSelectionRange(a0, a1); } catch (y) {}
+      ta.dispatchEvent(new Event("input", {bubbles: true}));
+    }
+    else if (id === "kt-rst") { if (confirm("Hapus semua statistik pemakaian chatbot?")) { await api("/api/admin/kstat/reset", {}); KST = null; ktRead(); ktDraw(); try { KST = await api("/api/admin/kstat"); ktDraw(); } catch (y) {} } }
     else if (m) { var q = KMISS[+m.dataset.km]; if (q) ktAdd(ktSaran(q.q)); }
     else if (x) { var z = KMISS[+x.dataset.kx]; if (z) { await api("/api/admin/miss/hapus", {qs: [z.q]}); ktRead(); KMISS.splice(+x.dataset.kx, 1); ktDraw(); } }
     else if (id === "kt-xa") { if (confirm("Abaikan semua pertanyaan yang tercatat?")) { await api("/api/admin/miss/hapus", {semua: true}); ktRead(); KMISS = []; ktDraw(); } }

@@ -506,6 +506,8 @@ class handler(BaseHTTPRequestHandler):
             return self.layar(q)
         if path == "/bot/miss" and method == "POST":
             return self.bot_miss(b)
+        if path == "/bot/hit" and method == "POST":
+            return self.bot_hit(b)
         if path == "/keluar" and method == "POST":
             return self.json({"ok": True}, extra=self.cookie("", 0))
         ses = self.session()
@@ -548,7 +550,25 @@ class handler(BaseHTTPRequestHandler):
         n, ada = db().pipe([["HLEN", "miss"], ["HEXISTS", "miss", t]])
         if int(n or 0) >= 300 and not int(ada or 0):
             return self.json({"ok": True})
-        db().pipe([["HINCRBY", "miss", t, 1], ["HSET", "missw", t, now_ms()]])
+        db().pipe([["HINCRBY", "miss", t, 1], ["HSET", "missw", t, now_ms()], ["HINCRBY", "kmd", time.strftime("%Y%m%d", wib()), 1]])
+        return self.json({"ok": True})
+
+    def bot_hit(self, b):
+        """Catat pemakaian aturan kata cari (v=0) atau umpan balik warga (v=1 membantu, v=-1 belum)."""
+        ks = [clean(x, 40).lower() for x in (b.get("ks") or []) if isinstance(x, str)][:3]
+        v = b.get("v")
+        v = v if v in (0, 1, -1) else 0
+        if not ks or limited("rl:hit:" + self.ip(), 60, 3600):
+            return self.json({"ok": True})
+        daftar = parse(db().cmd("HGET", "cfg", "kata"), [])
+        ada = set((x.get("k") or [""])[0] for x in daftar if isinstance(x, dict))
+        ks = [k for k in ks if k in ada]
+        if ks:
+            h = "khit" if v == 0 else ("kup" if v == 1 else "kdn")
+            cmds = [["HINCRBY", h, k, 1] for k in ks]
+            if v == 0:
+                cmds.append(["HINCRBY", "khd", time.strftime("%Y%m%d", wib()), 1])
+            db().pipe(cmds)
         return self.json({"ok": True})
 
     def info(self, ses):
@@ -856,6 +876,18 @@ class handler(BaseHTTPRequestHandler):
                 raise HttpError(400, "Berkas tidak bisa dibaca. Pastikan berformat .xlsx atau .csv yang valid.")
             ok, lewat = kata_dari_baris(rows)
             return self.json({"aturan": ok[:300], "lewat": lewat[:40], "total_lewat": len(lewat)}, extra=ex)
+        if r == "kstat" and method == "GET":
+            res = db().pipe([["HGETALL", "khit"], ["HGETALL", "kup"], ["HGETALL", "kdn"], ["HGETALL", "khd"], ["HGETALL", "kmd"]])
+            hit, up, dn, khd, kmd = [{k: int(float(v)) for k, v in hall(x).items()} for x in res]
+            days = []
+            for i in range(6, -1, -1):
+                t = time.gmtime(time.time() + 7 * 3600 - i * 86400)
+                d = time.strftime("%Y%m%d", t)
+                days.append({"d": time.strftime("%d/%m", t), "hit": khd.get(d, 0), "miss": kmd.get(d, 0)})
+            return self.json({"hit": hit, "up": up, "dn": dn, "days": days}, extra=ex)
+        if r == "kstat/reset" and method == "POST":
+            db().pipe([["DEL", k] for k in ("khit", "kup", "kdn", "khd", "kmd")])
+            return self.json({"ok": True}, extra=ex)
         if r == "miss" and method == "GET":
             c, w = [hall(x) for x in db().pipe([["HGETALL", "miss"], ["HGETALL", "missw"]])]
             d = sorted([{"q": k, "n": int(v), "w": int(w.get(k) or 0)} for k, v in c.items()], key=lambda x: (-x["n"], -x["w"]))[:100]

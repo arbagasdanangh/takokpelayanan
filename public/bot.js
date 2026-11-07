@@ -30,11 +30,11 @@ function add(w, h, plain) {
   if (plain) { d.dataset.t = plain; d.insertAdjacentHTML("beforeend", '<button type="button" class="bsp" data-b="say">Dengarkan</button>'); }
   m.appendChild(d); m.scrollTop = m.scrollHeight; return d;
 }
-function bot(txt, extra, delay, raw) {
+function bot(txt, extra, delay, raw, plain) {
   return new Promise(function (r) {
     var m = $b("bm"), t = document.createElement("div");
     t.className = "bmsg b typ"; t.innerHTML = "<i></i><i></i><i></i>"; m.appendChild(t); m.scrollTop = m.scrollHeight;
-    setTimeout(function () { t.remove(); var p = raw ? (txt || "") : tone(txt || ""); add("b", (p ? "<p>" + esc(p) + "</p>" : "") + (extra || ""), p); if (AUTO && p) speak(p); r(); }, delay || 420);
+    setTimeout(function () { t.remove(); var p = raw ? (txt || "") : tone(txt || ""), sp = plain || p; add("b", (p ? "<p>" + esc(p) + "</p>" : "") + (extra || ""), sp); if (AUTO && sp) speak(sp); r(); }, delay || 420);
   });
 }
 function needIn(t) { return bot(t, '<div class="bch">' + btn("Masuk / daftar", "login") + '</div>'); }
@@ -94,11 +94,32 @@ function kataHit(s, R) {
   return o;
 }
 function kataCocok(s, R) { return kataHit(s, R).k; }
+/* Pemformat jawaban admin: **tebal**, "- " daftar poin, "1. " daftar langkah, "Syarat:" dst. diberi label tebal. Aman: semua teks di-escape dulu. */
+function fmtJawab(t) {
+  var o = "", lst = null;
+  function close() { if (lst) { o += "</" + lst + ">"; lst = null; } }
+  function inl(x) { return esc(x).replace(/\*\*([^*\n]+)\*\*/g, "<b>$1</b>"); }
+  String(t || "").split("\n").forEach(function (l) {
+    var m;
+    if ((m = l.match(/^\s*[-\u2022*]\s+(.*)$/))) { if (lst !== "ul") { close(); o += "<ul>"; lst = "ul"; } o += "<li>" + inl(m[1]) + "</li>"; }
+    else if ((m = l.match(/^\s*\d+[.)]\s+(.*)$/))) { if (lst !== "ol") { close(); o += "<ol>"; lst = "ol"; } o += "<li>" + inl(m[1]) + "</li>"; }
+    else if (!l.trim()) close();
+    else { close(); m = l.match(/^\s*(Syarat|Langkah|Biaya|Jam layanan|Jam|Catatan|Lokasi|Durasi|Waktu|Dokumen)\s*:\s*(.*)$/i); o += "<p>" + (m ? "<b>" + esc(m[1]) + ":</b> " + inl(m[2]) : inl(l)) + "</p>"; }
+  });
+  close(); return o;
+}
+function plainJ(t) { return String(t || "").replace(/\*\*/g, ""); }
+function ansCard(j, hdr) {
+  return '<div class="bans" data-a="' + esc(plainJ(j)) + '"><div class="bans-h"><span class="bans-i">i</span>' + esc(hdr || "Informasi layanan") + '</div><div class="bans-b">' + fmtJawab(j) + '</div><div class="bans-a"><button type="button" data-b="cp">Salin</button><button type="button" data-b="sh">Bagikan ke WhatsApp</button></div></div>';
+}
 function kataKartu(s) {
   var h = kataHit(s); if (!h.k.length && !h.j.length) return null;
+  var R = window.KATA || [], ks = h.i.map(function (i) { return (R[i].k || [])[0]; }).filter(Boolean).slice(0, 3);
+  if (ks.length) { try { api("/api/bot/hit", {ks: ks, v: 0}).catch(function () {}); } catch (x) {} }
   var kb = KB.filter(function (x) { return x.re.test(s); })[0];
   var cards = h.k.slice(0, 4).map(function (k) { var l = LOCS.filter(function (x) { return x.id === k.split("_")[0]; })[0] || {id: "", nm: ""}; return lk(l, entryOf(k)); }).join("");
-  return bot(h.j.length ? h.j.join("\n\n") : "Ini layanan yang cocok dengan pertanyaan Anda:", cards + (kb ? '<div class="bch">' + btn("Daftar dokumen: " + kb.t, "ck:" + kb.id) + '</div>' : ""), 0, h.j.length > 0);
+  var fb = ks.length && h.j.length ? '<div class="bfb" data-ks="' + esc(ks.join("|")) + '" data-q="' + esc(s.slice(0, 150)) + '"><span>Jawaban ini membantu?</span><button type="button" data-b="fb:1">\uD83D\uDC4D Ya</button><button type="button" data-b="fb:-1">\uD83D\uDC4E Belum</button></div>' : "";
+  return bot(h.j.length ? "" : "Ini layanan yang cocok dengan pertanyaan Anda:", h.j.map(function (j) { return ansCard(j); }).join("") + cards + (kb ? '<div class="bch">' + btn("Daftar dokumen: " + kb.t, "ck:" + kb.id) + '</div>' : "") + fb, 0, h.j.length > 0, h.j.length ? plainJ(h.j.join("\n\n")) : undefined);
 }
 function mppRow(d) { return '<li>' + d[0] + '. <b>' + esc(d[1]) + '</b> ' + btn("Buka", "open:mpp_" + d[0]) + (d[6] !== false ? " " + btn("Booking", "bk:mpp_" + d[0]) : "") + '</li>'; }
 function zchips() { var z = []; (LD.mpp || []).forEach(function (d) { if (d[4] && z.indexOf(d[4]) < 0) z.push(d[4]); }); return '<div class="bch">' + z.map(function (x) { return btn(x, "q:" + x.toLowerCase() + " mpp"); }).join("") + '</div>'; }
@@ -240,6 +261,16 @@ function init() {
     }
     else if (c === "ck") { var kb = KB.filter(function (x) { return x.id === a; })[0]; if (kb) { add("u", esc(kb.t)); ckShow(kb); } }
     else if (c === "wa") ckWa(a);
+    else if (c === "cp") {
+      var cd = b.closest(".bans"), tx = cd ? cd.dataset.a : "";
+      try { navigator.clipboard.writeText(tx); b.textContent = "Tersalin \u2713"; setTimeout(function () { b.textContent = "Salin"; }, 1800); } catch (x) { b.textContent = "Tidak bisa menyalin"; }
+    }
+    else if (c === "sh") { var cs = b.closest(".bans"); if (cs) window.open("https://wa.me/?text=" + encodeURIComponent(cs.dataset.a + "\n\nTakok Pelayanan Suroboyo: " + location.origin), "_blank", "noopener"); }
+    else if (c === "fb") {
+      var w = b.closest(".bfb"); if (!w) return;
+      try { api("/api/bot/hit", {ks: w.dataset.ks.split("|"), v: +a}).catch(function () {}); } catch (x) {}
+      w.innerHTML = +a > 0 ? "<span>Terima kasih! Senang bisa membantu.</span>" : "<span>Terima kasih masukannya.</span>" + btn("Teruskan ke admin", "fw:" + esc(w.dataset.q));
+    }
     else if (c === "wk") { add("u", esc(a)); wz1(a); }
     else if (c === "ws") wzSend();
     else if (c === "wz0") wzStart();
@@ -254,7 +285,7 @@ function init() {
     var w = e.target.closest("[data-kb]"); if (w) w.querySelector(".ckp").outerHTML = ckp(kb);
   });
   setInterval(function () { var m = document.title.match(/^\((\d+)\)/), n = $b("bn"); n.hidden = !m; n.textContent = m ? m[1] : ""; }, 3000);
-  window.openAsisten = openB; window.askAsisten = ask; window.kataCocok = kataCocok; window.kataHit = kataHit;
+  window.openAsisten = openB; window.askAsisten = ask; window.kataCocok = kataCocok; window.kataHit = kataHit; window.fmtJawab = fmtJawab;
 }
 init();
 })();

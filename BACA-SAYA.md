@@ -87,3 +87,10 @@ Tab admin **Kata cari chatbot** kini punya:
 - **Pertanyaan warga yang belum terjawab**: pertanyaan yang tidak bisa dijawab chatbot dicatat anonim di Redis (hash `miss`; angka 6 digit ke atas, nomor HP, dan email dibuang; maksimal 300 entri; 20 catatan per IP per jam). Tombol "Buat aturan" membuat aturan dengan kata kunci saran; pertanyaan yang sudah tertangani hilang otomatis saat Simpan.
 - Aturan tampil sebagai kartu ringkas (kata kunci, loket, peringatan), dengan **pencarian**, penghitung karakter, **peringatan kata kunci ganda**, tombol naik/turun/gandakan, **urungkan hapus**, penanda "belum disimpan" (dengan konfirmasi saat pindah tab), dan tombol Simpan yang menempel di bawah.
 - **Coba kata** menguji daftar yang sedang diedit dan menunjukkan aturan mana yang cocok beserta kata pemicunya; bila tidak cocok, ada tombol "Buat aturan dari kalimat ini".
+
+### Versi 7 (lanjutan): tampilan dan statistik
+- **Pusat kendali** di tab Kata cari chatbot: kartu gradien berisi jumlah aturan dan kata kunci, cincin persentase pertanyaan yang terjawab, dan grafik batang 7 hari (terjawab vs belum terjawab).
+- **Aturan terpopuler**: statistik pemakaian tiap aturan dan umpan balik warga (👍/👎); aturan yang lebih banyak 👎 diberi peringatan. Data disimpan di Redis (hash `khit`, `kup`, `kdn`, `khd`, `kmd`), dikaitkan ke kata kunci pertama aturan. Tombol "Reset statistik" tersedia.
+- **Editor jawaban**: tombol Tebal, Poin, Langkah, dan "Kerangka jawaban" (Syarat, Langkah, Biaya, Jam layanan, Catatan), plus **pratinjau langsung** persis seperti tampilan di chatbot. Format yang didukung: `**tebal**`, baris diawali `- ` (poin), baris diawali `1. ` (langkah), dan label `Syarat:`, `Biaya:`, dst. dibuat tebal.
+- **Chatbot**: jawaban admin tampil sebagai kartu informasi berformat, dengan tombol Salin, Bagikan ke WhatsApp, dan pertanyaan "Jawaban ini membantu?" (bila 👎, ada tombol Teruskan ke admin).
+- Pencatatan pemakaian dibatasi 60 per IP per jam; hanya kata kunci yang ada di aturan yang diterima.
