@@ -1,0 +1,214 @@
+"use strict";
+/* Asisten Takok: chatbot pemandu layanan. Jalan di browser dari data loket yang sudah ada;
+   tidak ada AI luar dan tidak ada data yang dikirim ke pihak ketiga. */
+(function () {
+var $b = function (i) { return document.getElementById(i); };
+var ICO = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/><path d="M8.5 10.5h7"/></svg>';
+var MENU = [["Izin usaha / NIB", "mau bikin NIB"], ["Dokumen yang dibawa", "syarat dokumen"], ["Status permohonan", "status permohonan saya"], ["Antrean & tiket saya", "tiket saya"], ["Booking kunjungan", "booking kunjungan"], ["Lokasi & jam", "lokasi dan jam buka"], ["Buat pengaduan", "buat pengaduan"], ["Berita terbaru", "berita terbaru"]];
+var KAT = ["Pelayanan lambat", "Petugas kurang ramah", "Pungutan tidak wajar", "Sistem/aplikasi bermasalah", "Informasi tidak jelas", "Lainnya"];
+var KB = [
+ {id: "nib", t: "Membuat NIB / izin usaha", re: /\b(nib|kbli|oss|umkm|usaha|toko|warung|kopi|restoran|dagang)/, a: [/^loket cs$/i, /analisa/i, /pengambilan/i], d: ["KTP pemilik usaha", "NPWP (pribadi atau badan usaha)", "Email dan nomor HP aktif", "Alamat lokasi usaha", "Pilihan KBLI (jenis kegiatan usaha)", "Perkiraan modal dan jumlah tenaga kerja"]},
+ {id: "sip", t: "SIP dokter, bidan, perawat, apoteker, klinik", re: /\b(sip|dokter|bidan|perawat|apoteker|klinik|praktik)/, a: [/^loket cs$/i, /analisa/i, /pengambilan/i], d: ["KTP", "STR yang masih berlaku", "Ijazah / sertifikat kompetensi", "Pas foto terbaru", "Rekomendasi organisasi profesi", "Alamat atau denah tempat praktik"]},
+ {id: "pbg", t: "PBG / IMB / SLF bangunan", re: /\b(pbg|imb|slf|bangunan|renovasi|rumah)/, a: [/^loket cs$/i, /analisa/i, /pengambilan/i], d: ["KTP pemilik bangunan", "Bukti kepemilikan atau penguasaan tanah", "Gambar rencana (arsitektur dan struktur)", "Data lokasi dan peruntukan ruang", "NPWP", "Surat pernyataan yang diminta sistem SIMBG"]},
+ {id: "reklame", t: "Izin reklame", re: /\b(reklame|baliho|iklan|billboard|spanduk)/, a: [/^loket cs$/i, /analisa/i], d: ["KTP / identitas pemohon", "Desain dan ukuran reklame", "Titik lokasi pemasangan", "Persetujuan pemilik lahan atau bangunan", "NIB / NPWP usaha"]},
+ {id: "ipt", t: "IPT dan retribusi IPT", re: /\b(ipt|retribusi)/, a: [/retribusi ipt/i], d: ["KTP", "Dokumen IPT lama (bila perpanjangan)", "Data lokasi dan luas tanah", "NPWP", "Bukti pembayaran sebelumnya (bila ada)"]},
+ {id: "amdal", t: "Izin lingkungan (AMDAL, UKL-UPL, SPPL)", re: /\b(amdal|ukl|upl|sppl|limbah|lingkungan)/, a: [/^loket cs$/i, /dlh/i], d: ["NIB atau data usaha", "Uraian kegiatan dan proses produksi", "Lokasi dan luas lahan", "Jenis dan perkiraan limbah", "Denah atau tata letak"]},
+ {id: "kop", t: "Koperasi", re: /\b(koperasi)/, a: [/dinkoperdag/i], d: ["KTP para pendiri", "Daftar pendiri / anggota", "Rencana usaha dan anggaran", "Alamat sekretariat"]}
+];
+var SBY = [[/\bHalo\b/g, "Piye kabare"], [/\bSilakan\b/g, "Monggo"], [/\bTerima kasih\b/g, "Matur nuwun"], [/\bAnda\b/g, "sampeyan"], [/\bsaya\b/g, "aku"], [/\btidak\b/g, "gak"], [/\bbelum\b/g, "durung"], [/\bsudah\b/g, "wis"], [/\bada\b/g, "onok"], [/\bbisa\b/g, "iso"]];
+var AUTO = false, SBYM = false, WZ = null, REC = null, SR = window.SpeechRecognition || window.webkitSpeechRecognition, CK = {};
+try { CK = JSON.parse(localStorage.getItem("tkb_ck") || "{}"); } catch (x) {}
+function save() { try { localStorage.setItem("tkb_ck", JSON.stringify(CK)); } catch (x) {} }
+function tone(s) { if (!SBYM) return s; SBY.forEach(function (r) { s = s.replace(r[0], r[1]); }); return s; }
+function sapa() { var h = wibDate(0).getHours(), w = h < 11 ? "pagi" : h < 15 ? "siang" : h < 18 ? "sore" : "malam"; return "Selamat " + w + (S === "user" && ME ? ", " + ME.nama.split(" ")[0] : "") + "!"; }
+function speak(t) { try { speechSynthesis.cancel(); var u = new SpeechSynthesisUtterance(t); u.lang = "id-ID"; speechSynthesis.speak(u); } catch (x) {} }
+function chips(a) { return '<div class="bch">' + a.map(function (x) { return '<button type="button" data-b="q:' + esc(x[1]) + '">' + esc(x[0]) + '</button>'; }).join("") + '</div>'; }
+function btn(l, c) { return '<button type="button" data-b="' + c + '">' + esc(l) + '</button>'; }
+function add(w, h, plain) {
+  var m = $b("bm"), d = document.createElement("div");
+  d.className = "bmsg " + w; d.innerHTML = h;
+  if (plain) { d.dataset.t = plain; d.insertAdjacentHTML("beforeend", '<button type="button" class="bsp" data-b="say">Dengarkan</button>'); }
+  m.appendChild(d); m.scrollTop = m.scrollHeight; return d;
+}
+function bot(txt, extra, delay) {
+  return new Promise(function (r) {
+    var m = $b("bm"), t = document.createElement("div");
+    t.className = "bmsg b typ"; t.innerHTML = "<i></i><i></i><i></i>"; m.appendChild(t); m.scrollTop = m.scrollHeight;
+    setTimeout(function () { t.remove(); var p = tone(txt || ""); add("b", (p ? "<p>" + esc(p) + "</p>" : "") + (extra || ""), p); if (AUTO && p) speak(p); r(); }, delay || 420);
+  });
+}
+function needIn(t) { return bot(t, '<div class="bch">' + btn("Masuk / daftar", "login") + '</div>'); }
+function lk(l, d) {
+  var k = l.id + "_" + d[0];
+  return '<div class="bc2"><b>' + esc(d[1]) + '</b> <span class="btag">' + esc(l.nm) + '</span><p>' + esc(d[2].slice(0, 140)) + (d[2].length > 140 ? "…" : "") + '</p><div class="ba">' + btn("Buka loket", "open:" + k) + (d[6] !== false ? btn("Booking", "bk:" + k) : "") +
+    '<a target="_blank" rel="noopener noreferrer" href="https://www.google.com/maps/search/?api=1&amp;query=' + encodeURIComponent(l.nm + " Surabaya") + '">Peta</a></div></div>';
+}
+function cari(t) {
+  var tk = toks(t), R = [];
+  if (tk.length) LOCS.forEach(function (l) { (LD[l.id] || []).forEach(function (d) { var sc = score(d, tk); if (sc > 0) R.push({l: l, d: d, s: sc + (l.id === LOC ? 1 : 0)}); }); });
+  R.sort(function (a, b) { return b.s - a.s; });
+  var fw = '<div class="bch">' + btn("Teruskan ke admin", "fw:" + t.slice(0, 150)) + '</div>';
+  if (!R.length) return bot("Maaf, saya belum menemukan layanan yang cocok dengan \"" + t + "\". Coba kata lain (misalnya NIB, SIP dokter, reklame), atau teruskan pertanyaan ini ke admin.", fw + chips(MENU.slice(0, 4)));
+  return bot("Ini loket yang paling sesuai (" + R.length + " ditemukan):", R.slice(0, 3).map(function (r) { return lk(r.l, r.d); }).join("") + fw);
+}
+function lokasi() {
+  return bot((CFG.jam ? "Jam layanan: " + clean(CFG.jam) + ". " : "") + "Booking tersedia hari kerja pukul 08.00-14.00 (jeda 12.00). Pilih lokasi untuk membuka peta:",
+    '<div class="bch">' + LOCS.map(function (l) { return '<a target="_blank" rel="noopener noreferrer" href="https://www.google.com/maps/search/?api=1&amp;query=' + encodeURIComponent(l.nm + " Surabaya") + '">' + esc(l.nm) + '</a>'; }).join("") + '</div>');
+}
+async function stat() {
+  if (S !== "user") return needIn("Masuk dulu supaya saya bisa menampilkan status permohonan Anda.");
+  try {
+    var j = await api("/api/permohonan");
+    if (!j.daftar.length) return bot("Belum ada permohonan yang tercatat atas nama Anda. Petugas mencatatnya setelah berkas diajukan di loket.");
+    return bot("Permohonan Anda (" + j.daftar.length + "):", j.daftar.slice(0, 3).map(function (o) { return '<div class="bc2"><b>' + esc(o.jenis) + '</b><small>No. ' + esc(o.nomor || "-") + ' &middot; ' + fmt(o.ubah) + '</small>' + bdg(o.status) + '</div>'; }).join("") + '<div class="bch">' + btn("Lihat linimasa lengkap", "pn:pmh") + '</div>');
+  } catch (x) { return bot(x.message); }
+}
+async function antre() {
+  if (S !== "user") return needIn("Masuk dulu supaya saya bisa menampilkan tiket antrean Anda.");
+  try {
+    var j = await api("/api/booking"), h = iso(wibDate(0)),
+      a = j.daftar.filter(function (o) { return o.tanggal >= h && /Terjadwal|Sudah tiba|Dipanggil/.test(o.status); }).sort(function (x, y) { return (x.tanggal + x.jam) < (y.tanggal + y.jam) ? -1 : 1; });
+    if (!a.length) return bot("Anda belum punya booking aktif. Mau buat sekarang?", '<div class="bch">' + btn("Buat booking", "pn:bk") + '</div>');
+    return bot("Tiket aktif Anda (" + a.length + "):", a.slice(0, 4).map(function (o) { return '<div class="bc2"><b>' + esc(o.kode) + '</b><small>' + esc(label(o.kunci)) + '</small><p>' + esc(tglId(new Date(o.tanggal + "T00:00:00").getTime())) + ', pukul ' + esc(o.jam) + ' ' + bkBdg(o.status) + '</p></div>'; }).join("") + '<div class="bch">' + btn("Buka tiket & barcode", "pn:bk") + '</div>');
+  } catch (x) { return bot(x.message); }
+}
+function bk0() { return bot("Setiap loket atau instansi punya jadwal dan kuota sendiri. Anda bisa menyusun beberapa tujuan dalam satu kunjungan, dan sistem menandai jam yang sepi.", '<div class="bch">' + btn("Mulai booking", "pn:bk") + btn("Cek dokumen dulu", "q:syarat dokumen") + '</div>'); }
+function berita() {
+  var b = window.BERITA || [];
+  if (!b.length) return bot("Belum ada berita atau pengumuman terbaru.");
+  return bot("Berita & informasi terbaru:", b.slice(0, 3).map(function (x) { return '<div class="bc2"><b>' + esc(x.judul) + '</b><small>' + esc(x.kategori || "Berita") + ' &middot; ' + tglId(x.waktu) + '</small></div>'; }).join("") + '<div class="bch">' + btn("Baca di beranda", "home") + '</div>');
+}
+/* ---- Daftar dokumen interaktif ---- */
+function ckp(kb) {
+  var c = CK[kb.id] || {}, n = 0; kb.d.forEach(function (_, i) { if (c[i]) n++; });
+  return '<div class="ckp"><div class="bar2"><i style="width:' + Math.round(n * 100 / kb.d.length) + '%"></i></div><small>' + n + ' dari ' + kb.d.length + ' siap' + (n === kb.d.length ? " - lengkap, siap berangkat!" : "") + '</small></div>';
+}
+function ckShow(kb) {
+  var c = CK[kb.id] || {}, st = kb.a.map(function (rx) { var k = findK(rx, "pusat"), e = k && entryOf(k); return e ? '<li><b>' + esc(e[1]) + '</b> ' + btn("Booking", "bk:" + k) + '</li>' : ""; }).join("");
+  return bot("Panduan umum untuk: " + kb.t + ". Centang dokumen yang sudah siap; centangan tersimpan di perangkat Anda.",
+    '<div class="bc2" data-kb="' + kb.id + '">' + ckp(kb) + kb.d.map(function (x, i) { return '<label class="ckl"><input type="checkbox" data-c="' + kb.id + ':' + i + '"' + (c[i] ? " checked" : "") + '><span>' + esc(x) + '</span></label>'; }).join("") + '</div>' +
+    (st ? '<div class="bc2"><b>Alur yang disarankan (SPP Pusat)</b><ol class="tlx">' + st + '</ol></div>' : "") +
+    '<p class="bnote">Ini panduan umum, bukan daftar resmi. Syarat bisa berbeda menurut jenis usaha atau layanan; pastikan ke Loket CS atau Analisa Kesesuaian Berkas.</p><div class="bch">' + btn("Kirim daftar ke WhatsApp", "wa:" + kb.id) + '</div>');
+}
+function ckWa(id) {
+  var kb = KB.filter(function (k) { return k.id === id; })[0], c = CK[id] || {};
+  if (!kb) return;
+  var t = "Daftar dokumen: " + kb.t + "\n" + kb.d.map(function (x, i) { return (c[i] ? "[v] " : "[ ] ") + x; }).join("\n") + "\n\nDicek lewat Takok Pelayanan Suroboyo: " + location.origin;
+  window.open("https://wa.me/?text=" + encodeURIComponent(t), "_blank", "noopener");
+}
+/* ---- Pengaduan terpandu ---- */
+function wzStart() { WZ = {s: 1}; return bot("Baik, saya bantu menyusun pengaduan. Pengaduan tentang apa?", '<div class="bch">' + KAT.map(function (k) { return btn(k, "wk:" + k); }).join("") + '</div><div class="bch">' + btn("Batal", "wx") + '</div>'); }
+function wz1(k) { WZ = {s: 2, kat: k}; return bot("Ceritakan kejadiannya: kapan, di loket atau instansi mana, dan apa yang terjadi. Jangan tulis NIK, kata sandi, atau kode OTP."); }
+function wz2(t) {
+  WZ.s = 3; WZ.txt = ("[Pengaduan - " + WZ.kat + "] " + t).slice(0, 780);
+  return bot("Ini draf pengaduan Anda. Kirim ke loket pengaduan?", '<div class="bc2"><p>' + esc(WZ.txt) + '</p></div><div class="bch">' + btn("Kirim sekarang", "ws") + btn("Ulangi", "wz0") + btn("Batal", "wx") + '</div>');
+}
+function wiz(t) {
+  if (/^(batal|cancel|tidak jadi)$/i.test(t)) { WZ = null; return bot("Pengaduan dibatalkan.", chips(MENU.slice(0, 4))); }
+  return WZ.s === 2 || WZ.s === 3 ? wz2(t) : wz1(t);
+}
+async function wzSend() {
+  if (!WZ || !WZ.txt) return;
+  if (S !== "user") return needIn("Untuk mengirim pengaduan, masuk dulu sebagai pemohon. Draf Anda tetap tersimpan di sini.");
+  var k = findK(/pengaduan/i, LOC) || findK(/pengaduan/i, "pusat") || findK(/^loket (informasi|cs)$/i, "pusat"), g = k ? guard(WZ.txt, k) : "Loket pengaduan tidak ditemukan.";
+  if (g) return bot(g);
+  SENT.push(Date.now());
+  try { await api("/api/pesan", {kunci: k, isi: WZ.txt}); WZ = null; SIG = ""; tick(); return bot("Pengaduan terkirim ke " + label(k) + ". Admin akan membalas di Percakapan Saya, dan Anda mendapat notifikasi.", '<div class="bch">' + btn("Lihat percakapan", "open:" + k) + '</div>'); }
+  catch (x) { return bot("Gagal mengirim: " + x.message); }
+}
+/* ---- Pemahaman pertanyaan ---- */
+function ask(t) {
+  t = clean(t).slice(0, 700); if (!t) return;
+  add("u", esc(t)); var s = t.toLowerCase();
+  if (WZ) {
+    if (WZ.s === 1) { var kt = KAT.filter(function (k) { return k.toLowerCase() === s; })[0]; if (kt) return wz1(kt); WZ = null; }
+    else if (WZ.s === 3 && t.length < 25 && !/^(batal|cancel|tidak jadi)$/i.test(t)) WZ = null;
+    else return wiz(t);
+  }
+  if (/^(halo|hai|hi|hello|permisi|selamat|assalam)/.test(s) && s.length < 30) return bot(sapa() + " Ada yang bisa saya bantu?", chips(MENU));
+  if (/terima kasih|makasih|thanks|matur nuwun/.test(s)) return bot("Sama-sama! Kalau ada yang masih bingung, tanya lagi kapan saja.");
+  if (/darurat|kebakaran|ambulans|kecelakaan|polisi/.test(s)) return bot("Untuk keadaan darurat, segera hubungi 112. Asisten ini khusus informasi pelayanan publik.");
+  if (/status|progres|perkembangan|sudah jadi/.test(s)) return stat();
+  if (/antre|antri|tiket saya|jadwal saya/.test(s)) return antre();
+  if (/\b(adu|pengaduan|komplain|keluhan|lapor|pungli)/.test(s)) return wzStart();
+  if (/\b(jam|buka|tutup|lokasi|alamat|dimana|maps|terdekat)\b|di mana/.test(s)) return lokasi();
+  var kb = KB.filter(function (k) { return k.re.test(s); })[0];
+  if (kb) return ckShow(kb);
+  if (/syarat|dokumen|berkas|bawa|persyaratan/.test(s)) return bot("Dokumen untuk urusan apa? Pilih salah satu:", '<div class="bch">' + KB.map(function (k) { return btn(k.t, "ck:" + k.id); }).join("") + '</div>');
+  if (/booking|reservasi|kunjung/.test(s)) return bk0();
+  if (/survei|skm|kepuasan/.test(s)) return bot("Penilaian Anda membantu kami memperbaiki layanan. Survei Kepuasan hanya butuh satu menit.", '<div class="bch">' + btn("Isi survei", "pn:skm") + '</div>');
+  if (/berita|pengumuman|terbaru/.test(s)) return berita();
+  if (/bantu|bisa apa|menu|fitur/.test(s)) return bot("Saya bisa mencarikan loket, menyiapkan daftar dokumen, mengecek status dan antrean, membantu booking, serta menyusun pengaduan.", chips(MENU));
+  return cari(t);
+}
+/* ---- Tampilan ---- */
+function build() {
+  var el = document.createElement("div");
+  el.innerHTML = '<button class="bfab" id="bf" type="button" aria-label="Buka Asisten Takok">' + ICO + '<span>Tanya Asisten</span><span class="bdot" id="bn" hidden></span></button>' +
+    '<section class="bot" id="bp" role="dialog" aria-label="Asisten Takok" hidden><header><div class="bav">' + ICO + '</div><div class="bti"><b>Asisten Takok</b><small>Pemandu layanan publik Surabaya</small></div><span class="bhb"><button type="button" id="b-v" aria-pressed="false" title="Bacakan jawaban otomatis">Suara</button><button type="button" id="b-a" aria-pressed="false" title="Huruf besar">A+</button><button type="button" id="b-c" aria-pressed="false" title="Gaya bahasa Suroboyoan">Cak</button><button type="button" id="b-x" aria-label="Tutup">&times;</button></span></header>' +
+    '<div class="bmsgs" id="bm" role="log" aria-live="polite"></div><div class="bch bq" id="bq">' + MENU.map(function (x) { return btn(x[0], "q:" + x[1]); }).join("") + '</div>' +
+    '<div class="bin"><button type="button" id="b-m" aria-label="Bicara" title="Bicara"' + (SR ? "" : " hidden") + '><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3"/></svg></button><input id="bi" maxlength="700" placeholder="Tulis pertanyaan Anda..." autocomplete="off" aria-label="Pesan untuk asisten"><button type="button" class="bsend" id="b-s">Kirim</button></div></section>';
+  while (el.firstChild) document.body.appendChild(el.firstChild);
+  var h = document.querySelector(".hero .tag2");
+  if (h) h.insertAdjacentHTML("afterend", '<button class="heroask" id="hb" type="button">Ngobrol dengan Asisten Takok</button>');
+}
+function openB() { $b("bp").hidden = false; $b("bf").hidden = true; if (!$b("bm").children.length) bot(sapa() + " Saya Asisten Takok. Tanyakan layanan apa saja: saya carikan loketnya, siapkan daftar dokumen, cek status dan antrean, sampai bantu menyusun pengaduan.", chips(MENU.slice(0, 5)), 600); setTimeout(function () { $b("bi").focus(); }, 60); }
+function closeB() { $b("bp").hidden = true; $b("bf").hidden = false; try { speechSynthesis.cancel(); } catch (x) {} }
+function toggle(id, fn) { var b = $b(id), on = b.getAttribute("aria-pressed") !== "true"; b.setAttribute("aria-pressed", on); fn(on); }
+function init() {
+  build();
+  $b("bf").onclick = openB; $b("b-x").onclick = closeB; if ($b("hb")) $b("hb").onclick = openB;
+  $b("b-s").onclick = function () { var i = $b("bi"), v = i.value; i.value = ""; ask(v); };
+  $b("bi").addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); $b("b-s").click(); } });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !$b("bp").hidden) closeB(); });
+  $b("b-v").onclick = function () { toggle("b-v", function (on) { AUTO = on; bot(on ? "Suara otomatis aktif. Setiap jawaban akan dibacakan." : "Suara otomatis dimatikan."); }); };
+  $b("b-a").onclick = function () { toggle("b-a", function (on) { $b("bp").classList.toggle("xl", on); }); };
+  $b("b-c").onclick = function () { toggle("b-c", function (on) { SBYM = on; bot(on ? "Halo Cak dan Ning! Mode Suroboyoan nyala. Silakan takok apa saja." : "Halo! Bahasa baku aktif kembali."); }); };
+  $b("b-m").onclick = function () {
+    if (REC) { REC.stop(); return; }
+    try {
+      REC = new SR(); REC.lang = "id-ID"; REC.interimResults = false; $b("b-m").classList.add("on");
+      REC.onresult = function (e) { ask(e.results[0][0].transcript); };
+      REC.onend = REC.onerror = function () { REC = null; $b("b-m").classList.remove("on"); };
+      REC.start();
+    } catch (x) { REC = null; $b("b-m").classList.remove("on"); }
+  };
+  $b("bp").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-b]"); if (!b) return;
+    var s = b.dataset.b, i = s.indexOf(":"), c = i < 0 ? s : s.slice(0, i), a = i < 0 ? "" : s.slice(i + 1);
+    if (c === "q") ask(a);
+    else if (c === "say") speak(b.parentNode.dataset.t || "");
+    else if (c === "open") { closeB(); openKey(a); }
+    else if (c === "bk") {
+      if (needLogin()) { closeB(); return; }
+      closeB(); setPN("bk");
+      var n = 0, iv = setInterval(function () {
+        if ($("bl") && $("bk3")) { clearInterval(iv); $("bl").value = a.split("_")[0]; $("bl").dispatchEvent(new Event("change", {bubbles: true})); $("bk3").value = a; $("bk3").dispatchEvent(new Event("change", {bubbles: true})); }
+        else if (++n > 30) clearInterval(iv);
+      }, 200);
+    }
+    else if (c === "pn") { if (needLogin()) { closeB(); return; } closeB(); setPN(a); }
+    else if (c === "fw") {
+      var k = findK(/^loket (informasi|cs)$/i, LOC) || findK(/^loket (informasi|cs)$/i, "pusat");
+      if (k) { KEEP["q:" + k] = "Pertanyaan: " + a; closeB(); openKey(k); needLogin(); }
+    }
+    else if (c === "ck") { var kb = KB.filter(function (x) { return x.id === a; })[0]; if (kb) { add("u", esc(kb.t)); ckShow(kb); } }
+    else if (c === "wa") ckWa(a);
+    else if (c === "wk") { add("u", esc(a)); wz1(a); }
+    else if (c === "ws") wzSend();
+    else if (c === "wz0") wzStart();
+    else if (c === "wx") { WZ = null; bot("Dibatalkan. Ada lagi yang bisa saya bantu?", chips(MENU.slice(0, 4))); }
+    else if (c === "login") { closeB(); var l = $("lg"); if (l && !l.hidden) l.scrollIntoView({block: "center"}); }
+    else if (c === "home") { closeB(); var bt = $("bt"); (bt && !bt.hidden ? bt : document.body).scrollIntoView({block: "start"}); }
+  });
+  $b("bp").addEventListener("change", function (e) {
+    var c = e.target.dataset && e.target.dataset.c; if (!c) return;
+    var p = c.split(":"), kb = KB.filter(function (x) { return x.id === p[0]; })[0]; if (!kb) return;
+    (CK[p[0]] = CK[p[0]] || {})[p[1]] = e.target.checked; save();
+    var w = e.target.closest("[data-kb]"); if (w) w.querySelector(".ckp").outerHTML = ckp(kb);
+  });
+  setInterval(function () { var m = document.title.match(/^\((\d+)\)/), n = $b("bn"); n.hidden = !m; n.textContent = m ? m[1] : ""; }, 3000);
+  window.openAsisten = openB; window.askAsisten = ask;
+}
+init();
+})();

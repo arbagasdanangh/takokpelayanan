@@ -64,3 +64,14 @@ Catatan:
 **Tanya admin:**
 - Pemohon: tanda "Terkirim" lalu "Dibaca admin", pemisah tanggal, pertanyaan cepat (chip) saat percakapan kosong, penghitung karakter, Enter untuk kirim (Shift+Enter baris baru), dan perkiraan waktu balas admin (median dari balasan sebelumnya, tampil setelah minimal 3 data).
 - Admin: balasan cepat yang bisa diatur sendiri (Pengaturan > Templat balasan, maksimal 12) dan catatan internal per percakapan yang tidak terlihat pemohon.
+
+## Versi 6: Asisten Takok (chatbot)
+Tombol melayang "Tanya Asisten" di kanan bawah (juga tombol di banner beranda). Semua jawaban dibuat di browser dari data loket yang sudah ada: tanpa AI luar, tanpa biaya, dan tidak ada data yang dikirim ke pihak ketiga. File: `public/bot.js` (+ gaya di `style.css`).
+- **Cari loket dengan bahasa sehari-hari** ("mau bikin NIB", "SIP dokter", "bpjs"): kartu loket dengan tombol Buka loket, Booking (langsung terisi loketnya), dan Peta.
+- **Daftar dokumen interaktif** (NIB, SIP, PBG/IMB/SLF, reklame, IPT, izin lingkungan, koperasi): centang, bilah progres, tersimpan di perangkat, alur loket yang disarankan, kirim daftar ke WhatsApp. Ini panduan umum, bukan daftar resmi: ubah/lengkapi `KB` di awal `bot.js` sesuai ketentuan resmi.
+- **Cek status permohonan dan tiket antrean** langsung dari chat (perlu masuk).
+- **Pengaduan terpandu**: pilih kategori, ceritakan kejadian, lihat draf, kirim ke Loket Pengaduan (memakai penjaga NIK dan batas kirim yang sudah ada).
+- **Teruskan ke admin**: pertanyaan yang tidak terjawab dibawa ke Loket CS/Informasi dengan kolom pesan terisi.
+- **Aksesibilitas**: input suara (mikrofon, id-ID), jawaban dibacakan (tombol Dengarkan / Suara otomatis), huruf besar (A+), dan mode bahasa Suroboyoan (Cak).
+- Lencana angka di tombol bila ada balasan admin yang belum dibaca; bisa ditutup dengan Esc.
+- Suara memerlukan browser yang mendukung Web Speech (Chrome/Edge/Safari); tombol mikrofon otomatis tersembunyi bila tidak didukung.

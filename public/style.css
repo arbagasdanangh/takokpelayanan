@@ -140,3 +140,48 @@ button:focus-visible,summary:focus-visible,textarea:focus-visible,input:focus-vi
 .mppz{margin:0 0 8px;font-size:.88rem}.mppz summary{cursor:pointer;color:var(--acc);font-weight:600}
 .fs label.opt{display:block;margin:0!important}.opt span{width:100%}.fs .opts{width:100%}
 .fs .opts{align-items:stretch}.opt{height:100%}.opt span{height:100%;display:flex;align-items:center;justify-content:center;font-size:.84rem;padding:8px 4px;line-height:1.2}
+/* ---- Asisten Takok (chatbot) ---- */
+.bfab{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:70;display:flex;align-items:center;gap:8px;border:0;border-radius:99px;padding:12px 18px 12px 14px;font:inherit;font-weight:800;color:#fff;cursor:pointer;background:linear-gradient(135deg,#1b4fc4,#0c2a86);box-shadow:0 10px 28px rgba(12,42,134,.45)}
+.bfab svg{width:26px;height:26px;fill:none;stroke:#ffc933;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.bfab::before{content:"";position:absolute;inset:0;border-radius:inherit;animation:bpulse 2.4s infinite}
+@keyframes bpulse{0%{box-shadow:0 0 0 0 rgba(255,184,0,.55)}70%,100%{box-shadow:0 0 0 16px rgba(255,184,0,0)}}
+.bdot{position:absolute;top:-5px;right:-2px;min-width:22px;height:22px;border-radius:99px;background:var(--warn);color:#fff;font-size:.75rem;display:grid;place-items:center;padding:0 6px}
+.bot{position:fixed;z-index:80;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));width:min(410px,calc(100vw - 32px));height:min(660px,calc(100dvh - 32px));display:flex;flex-direction:column;background:var(--bg);border:1px solid var(--line);border-radius:24px;overflow:hidden;box-shadow:0 20px 60px rgba(8,28,90,.4);animation:bin .25s ease-out}
+@keyframes bin{from{transform:translateY(24px) scale(.97);opacity:0}}
+@media (max-width:560px){.bot{inset:0;width:auto;height:auto;border-radius:0;padding-top:env(safe-area-inset-top,0px)}}
+.bot header{display:flex;align-items:center;gap:10px;padding:12px 12px;color:#fff;background:linear-gradient(135deg,#1b4fc4,#0c2a86)}
+.bav{width:42px;height:42px;border-radius:50%;background:#fff;display:grid;place-items:center;flex:none;box-shadow:0 0 0 3px #ffc933}
+.bav svg{width:24px;height:24px;fill:none;stroke:#1a46b5;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.bti{flex:1;min-width:0}.bti b{display:block;line-height:1.1}.bti small{opacity:.85;font-size:.74rem}
+.bhb{display:flex;gap:4px}.bhb button{border:1px solid rgba(255,255,255,.4);background:rgba(255,255,255,.12);color:#fff;border-radius:99px;min-width:34px;height:32px;padding:0 9px;font:inherit;font-size:.78rem;font-weight:700;cursor:pointer}
+.bhb button[aria-pressed="true"]{background:#ffc933;color:#3a2a00;border-color:#ffc933}
+.bmsgs{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
+.bmsg{max-width:92%;padding:10px 13px;border-radius:18px;overflow-wrap:anywhere;animation:bmin .22s ease-out}
+@keyframes bmin{from{transform:translateY(8px);opacity:0}}
+.bmsg.b{align-self:flex-start;background:var(--surface);border:1px solid var(--line);border-bottom-left-radius:5px;box-shadow:var(--shadow)}
+.bmsg.u{align-self:flex-end;background:var(--acc);color:var(--onacc);border-bottom-right-radius:5px}
+.bmsg p{margin:0 0 6px;white-space:pre-line}
+.typ{display:flex;gap:5px;padding:14px 16px}.typ i{width:8px;height:8px;border-radius:50%;background:var(--mute);animation:bdot 1s infinite}.typ i:nth-child(2){animation-delay:.15s}.typ i:nth-child(3){animation-delay:.3s}
+@keyframes bdot{0%,60%,100%{transform:translateY(0);opacity:.4}30%{transform:translateY(-5px);opacity:1}}
+.bc2{margin:8px 0 0;padding:10px 12px;border:1px solid var(--line);border-left:5px solid var(--tick);border-radius:14px;background:var(--bg)}
+.bc2 p{margin:4px 0}.bc2 small{display:block;color:var(--mute)}.btag{font-size:.72rem;color:var(--acc);background:var(--accsoft);padding:1px 8px;border-radius:99px;font-weight:700}
+.bot .bch{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 0}.ba{display:flex;flex-wrap:wrap;gap:6px}
+.bot .bch button,.bot .bch a,.bot .ba button,.bot .ba a,.bc2 li button{border:1px solid var(--acc);background:var(--surface);color:var(--acc);font:inherit;font-size:.82rem;font-weight:700;padding:5px 12px;border-radius:99px;cursor:pointer;text-decoration:none}
+.bot .bch button:hover,.bot .ba button:hover,.bot .bch a:hover{background:var(--acc);color:var(--onacc)}
+.bsp{display:block;margin-top:6px;border:0;background:none;color:var(--mute);font:inherit;font-size:.75rem;cursor:pointer;padding:0;text-decoration:underline}
+.bnote{font-size:.78rem;color:var(--mute);margin:8px 0 0}
+.bot .bq{flex-wrap:nowrap;overflow-x:auto;margin:0;padding:8px 12px;border-top:1px solid var(--line);background:var(--surface)}.bq button{white-space:nowrap;flex:none}
+.bin{display:flex;gap:6px;align-items:center;padding:8px 10px calc(10px + env(safe-area-inset-bottom,0px));background:var(--surface)}
+.bin input{flex:1;min-width:0;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:99px;padding:10px 14px}
+.bin #b-m{width:42px;height:42px;border-radius:50%;border:1px solid var(--line);background:var(--bg);color:var(--acc);display:grid;place-items:center;cursor:pointer;flex:none}
+.bin #b-m svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
+.bin #b-m.on{background:var(--warn);color:#fff;animation:bpulse 1.2s infinite}
+.bsend{border:0;background:var(--acc);color:var(--onacc);font:inherit;font-weight:700;border-radius:99px;padding:10px 16px;cursor:pointer}
+.ckl{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px dashed var(--line);cursor:pointer}
+.ckl input{width:22px;height:22px;flex:none;accent-color:var(--acc);margin:0}.ckl input:checked+span{text-decoration:line-through;color:var(--mute)}
+.ckp{margin:0 0 6px}.ckp small{color:var(--mute)}
+.bot.xl{font-size:1.18rem}.bot.xl .bmsg,.bot.xl .bch button,.bot.xl .bch a,.bot.xl .ba button,.bot.xl .ba a{font-size:1em}
+.heroask{position:relative;z-index:2;display:block;margin-top:14px;border:0;border-radius:99px;padding:10px 18px;font:inherit;font-weight:800;background:#ffc933;color:#3a2a00;cursor:pointer;box-shadow:0 6px 16px rgba(0,0,0,.25)}
+.tt{bottom:calc(88px + env(safe-area-inset-bottom,0px))}
+@media print{.bfab,.bot,.heroask{display:none!important}}
+@media (prefers-reduced-motion:reduce){.bfab::before,.bot,.bmsg,.typ i{animation:none!important}}
