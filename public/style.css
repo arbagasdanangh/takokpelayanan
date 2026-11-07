@@ -185,3 +185,4 @@ button:focus-visible,summary:focus-visible,textarea:focus-visible,input:focus-vi
 .tt{bottom:calc(88px + env(safe-area-inset-bottom,0px))}
 @media print{.bfab,.bot,.heroask{display:none!important}}
 @media (prefers-reduced-motion:reduce){.bfab::before,.bot,.bmsg,.typ i{animation:none!important}}
+.bul{list-style:none;margin:6px 0 0;padding:0}.bul li{padding:6px 0;border-top:1px dashed var(--line)}.bul li:first-child{border:0}

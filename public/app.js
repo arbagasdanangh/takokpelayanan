@@ -199,5 +199,5 @@ $("list").addEventListener("click",function(e){var b=e.target.closest("[data-go]
 EX.push("BPJS Kesehatan","Pajak");
 /* ---- Mulai ---- */
 (async function(){try{var j=await api("/api/info");LOCS=j.lokasi.map(function(l){return{id:l.id,nm:l.nama}});LD={};j.loket.forEach(function(r){(LD[r[0]]=LD[r[0]]||[]).push([r[1],r[2],r[3],r[4],r[5]||"",r[6]!==0,r[7]!==0])});for(var k in LD)LD[k].sort(function(a,b){return a[0]-b[0]});
- CFG=j.cfg||{};window.BERITA=j.berita||[];window.MPPR=j.mpp_roster||[];BALAS=j.balas_menit||null;if(!LD[LOC]&&LOCS.length)LOC=LOCS[0].id;an();lc();
+ CFG=j.cfg||{};window.BERITA=j.berita||[];window.KATA=j.kata||[];window.MPPR=j.mpp_roster||[];BALAS=j.balas_menit||null;if(!LD[LOC]&&LOCS.length)LOC=LOCS[0].id;an();lc();
  if(j.saya){await startSession(j)}else ui()}catch(x){err("Server belum bisa dihubungi: "+x.message)}})();

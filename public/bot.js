@@ -4,7 +4,7 @@
 (function () {
 var $b = function (i) { return document.getElementById(i); };
 var ICO = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/><path d="M8.5 10.5h7"/></svg>';
-var MENU = [["Izin usaha / NIB", "mau bikin NIB"], ["Dokumen yang dibawa", "syarat dokumen"], ["Status permohonan", "status permohonan saya"], ["Antrean & tiket saya", "tiket saya"], ["Booking kunjungan", "booking kunjungan"], ["Lokasi & jam", "lokasi dan jam buka"], ["Buat pengaduan", "buat pengaduan"], ["Berita terbaru", "berita terbaru"]];
+var MENU = [["Izin usaha / NIB", "mau bikin NIB"], ["Dokumen yang dibawa", "syarat dokumen"], ["Status permohonan", "status permohonan saya"], ["Antrean & tiket saya", "tiket saya"], ["Booking kunjungan", "booking kunjungan"], ["Lokasi & jam", "lokasi dan jam buka"], ["Instansi di MPP", "daftar instansi mpp"], ["Buat pengaduan", "buat pengaduan"], ["Berita terbaru", "berita terbaru"]];
 var KAT = ["Pelayanan lambat", "Petugas kurang ramah", "Pungutan tidak wajar", "Sistem/aplikasi bermasalah", "Informasi tidak jelas", "Lainnya"];
 var KB = [
  {id: "nib", t: "Membuat NIB / izin usaha", re: /\b(nib|kbli|oss|umkm|usaha|toko|warung|kopi|restoran|dagang)/, a: [/^loket cs$/i, /analisa/i, /pengambilan/i], d: ["KTP pemilik usaha", "NPWP (pribadi atau badan usaha)", "Email dan nomor HP aktif", "Alamat lokasi usaha", "Pilihan KBLI (jenis kegiatan usaha)", "Perkiraan modal dan jumlah tenaga kerja"]},
@@ -78,6 +78,40 @@ function berita() {
   if (!b.length) return bot("Belum ada berita atau pengumuman terbaru.");
   return bot("Berita & informasi terbaru:", b.slice(0, 3).map(function (x) { return '<div class="bc2"><b>' + esc(x.judul) + '</b><small>' + esc(x.kategori || "Berita") + ' &middot; ' + tglId(x.waktu) + '</small></div>'; }).join("") + '<div class="bch">' + btn("Baca di beranda", "home") + '</div>');
 }
+/* ---- MPP Surabaya: instansi per zona ---- */
+var AL = [[/polisi|skck|polrestabes|kepolisian/, /polrestabes/i], [/narkoba|narkotika|bnn/, /bnn/i], [/pengadaan|lpse|bpbjap|tender/, /bpbjap/i], [/\bpos\b|paket|giro/, /pos indonesia/i], [/pbb|pajak|bphtb|bapenda/, /bapenda/i], [/pajak|npwp|djp/, /direktorat jenderal pajak/i], [/pengadilan|sidang|perkara/, /pengadilan negeri/i], [/cerai|nikah|isbat|pengadilan agama/, /pengadilan agama/i], [/bandara/, /otoritas bandara/i], [/^(?!.*ketenagakerjaan).*(bpjs|jkn)/, /bpjs kesehatan/i], [/bpjs|ketenagakerjaan|jht|jaminan hari tua/, /bpjs ketenagakerjaan/i], [/loker|lowongan|kartu kuning|bursa|ak1|pencari kerja/, /bursa tenaga kerja/i], [/pdam|air bersih|air minum|sambungan air/, /pdam/i], [/tanah|sertifikat|bpn|pertanahan|balik nama/, /kantor pertanahan/i], [/kejaksaan|jaksa|tilang/, /kejaksaan/i]];
+function kataCocok(s, R) {
+  var out = [], seen = {};
+  (R || window.KATA || []).forEach(function (r) {
+    var hit = (r.k || []).some(function (w) { return w && new RegExp("(^|[^a-z0-9])" + w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "($|[^a-z0-9])").test(s); });
+    if (hit) (r.t || []).forEach(function (k) { if (!seen[k] && entryOf(k)) { seen[k] = 1; out.push(k); } });
+  });
+  return out;
+}
+function kataKartu(s) {
+  var ks = kataCocok(s); if (!ks.length) return null;
+  return bot("Ini layanan yang cocok dengan pertanyaan Anda:", ks.slice(0, 4).map(function (k) { var l = LOCS.filter(function (x) { return x.id === k.split("_")[0]; })[0] || {id: "", nm: ""}; return lk(l, entryOf(k)); }).join(""));
+}
+function mppRow(d) { return '<li>' + d[0] + '. <b>' + esc(d[1]) + '</b> ' + btn("Buka", "open:mpp_" + d[0]) + (d[6] !== false ? " " + btn("Booking", "bk:mpp_" + d[0]) : "") + '</li>'; }
+function zchips() { var z = []; (LD.mpp || []).forEach(function (d) { if (d[4] && z.indexOf(d[4]) < 0) z.push(d[4]); }); return '<div class="bch">' + z.map(function (x) { return btn(x, "q:" + x.toLowerCase() + " mpp"); }).join("") + '</div>'; }
+function zcard(z) { var L = (LD.mpp || []).filter(function (d) { return d[4] === z; }); return L.length ? '<div class="bc2" style="border-left-color:' + (ZC[z] || "#ffb800") + '"><b>' + esc(z) + '</b> <span class="btag">' + L.length + ' instansi</span><ul class="bul">' + L.map(mppRow).join("") + '</ul></div>' : ""; }
+function mppZona(n) {
+  var z = "Zona " + n, h = zcard(z);
+  if (!h) return bot("Belum ada instansi " + z + " di daftar MPP Surabaya pada aplikasi ini. Pilih zona lain:", zchips());
+  return bot(z + " MPP Surabaya:", h + zchips());
+}
+function mppAll() {
+  var z = [], n = (LD.mpp || []).length; (LD.mpp || []).forEach(function (d) { if (d[4] && z.indexOf(d[4]) < 0) z.push(d[4]); });
+  if (!n) return bot("Daftar instansi MPP belum tersedia.");
+  return bot("MPP Surabaya berisi " + n + " instansi di " + z.length + " zona. Ketuk Buka untuk melihat loketnya, atau tanya langsung (misalnya \"SKCK\", \"BPJS\", \"sertifikat tanah\").", z.map(zcard).join("") + '<div class="bch"><a target="_blank" rel="noopener noreferrer" href="https://www.google.com/maps/search/?api=1&amp;query=' + encodeURIComponent("MPP Surabaya") + '">Peta MPP Surabaya</a></div>');
+}
+function mppCari(s) {
+  var R = [], seen = {};
+  AL.forEach(function (a) { if (a[0].test(s)) (LD.mpp || []).forEach(function (d) { if (a[1].test(d[1]) && !seen[d[0]]) { seen[d[0]] = 1; R.push(d); } }); });
+  if (!R.length) return null;
+  var l = LOCS.filter(function (x) { return x.id === "mpp"; })[0] || {id: "mpp", nm: "MPP Surabaya"};
+  return bot("Layanan itu ada di MPP Surabaya:", R.slice(0, 3).map(function (d) { return lk(l, d) + '<small class="bnote">' + esc(d[4] || "") + '</small>'; }).join(""));
+}
 /* ---- Daftar dokumen interaktif ---- */
 function ckp(kb) {
   var c = CK[kb.id] || {}, n = 0; kb.d.forEach(function (_, i) { if (c[i]) n++; });
@@ -127,11 +161,15 @@ function ask(t) {
   }
   if (/^(halo|hai|hi|hello|permisi|selamat|assalam)/.test(s) && s.length < 30) return bot(sapa() + " Ada yang bisa saya bantu?", chips(MENU));
   if (/terima kasih|makasih|thanks|matur nuwun/.test(s)) return bot("Sama-sama! Kalau ada yang masih bingung, tanya lagi kapan saja.");
-  if (/darurat|kebakaran|ambulans|kecelakaan|polisi/.test(s)) return bot("Untuk keadaan darurat, segera hubungi 112. Asisten ini khusus informasi pelayanan publik.");
+  if (/darurat|kebakaran|ambulans/.test(s)) return bot("Untuk keadaan darurat, segera hubungi 112. Asisten ini khusus informasi pelayanan publik.");
+  var kc = kataKartu(s); if (kc) return kc;
   if (/status|progres|perkembangan|sudah jadi/.test(s)) return stat();
   if (/antre|antri|tiket saya|jadwal saya/.test(s)) return antre();
   if (/\b(adu|pengaduan|komplain|keluhan|lapor|pungli)/.test(s)) return wzStart();
   if (/\b(jam|buka|tutup|lokasi|alamat|dimana|maps|terdekat)\b|di mana/.test(s)) return lokasi();
+  var mc = mppCari(s); if (mc) return mc;
+  var zn = s.match(/\bzona\s*([1-5])\b/); if (zn) return mppZona(zn[1]);
+  if (/\b(mpp|mal pelayanan|instansi)\b/.test(s)) return mppAll();
   var kb = KB.filter(function (k) { return k.re.test(s); })[0];
   if (kb) return ckShow(kb);
   if (/syarat|dokumen|berkas|bawa|persyaratan/.test(s)) return bot("Dokumen untuk urusan apa? Pilih salah satu:", '<div class="bch">' + KB.map(function (k) { return btn(k.t, "ck:" + k.id); }).join("") + '</div>');
@@ -208,7 +246,7 @@ function init() {
     var w = e.target.closest("[data-kb]"); if (w) w.querySelector(".ckp").outerHTML = ckp(kb);
   });
   setInterval(function () { var m = document.title.match(/^\((\d+)\)/), n = $b("bn"); n.hidden = !m; n.textContent = m ? m[1] : ""; }, 3000);
-  window.openAsisten = openB; window.askAsisten = ask;
+  window.openAsisten = openB; window.askAsisten = ask; window.kataCocok = kataCocok;
 }
 init();
 })();

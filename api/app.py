@@ -455,7 +455,8 @@ class handler(BaseHTTPRequestHandler):
         bt = sorted([parse(v, {}) for v in hall(db().cmd("HGETALL", "berita")).values()], key=lambda x: (not x.get("sematkan"), -x.get("id", 0)))[:10]
         rt = sorted(float(x) for x in db().cmd("LRANGE", "rt", -50, -1) or [])
         balas = round(rt[len(rt) // 2]) if len(rt) >= 3 else None
-        self.json({"berita": bt, "balas_menit": balas, "mpp_roster": SKM_MPP, "lokasi": [{"id": k, "nama": v} for k, v in LOKASI.items()],
+        kata = parse(db().cmd("HGET", "cfg", "kata"), [])
+        self.json({"kata": kata if isinstance(kata, list) else [], "berita": bt, "balas_menit": balas, "mpp_roster": SKM_MPP, "lokasi": [{"id": k, "nama": v} for k, v in LOKASI.items()],
                    "loket": [[e["lokasi"], e["no"], e["nama"], e["uraian"], e["sistem"], e.get("zona", ""), 1 if e.get("diskusi", True) else 0, 1 if bisa_booking("%s_%s" % (e["lokasi"], e["no"])) else 0] for e in SEED["loket"]],
                    "cfg": {k: c.get(k, "") for k in ("wa", "jam", "info", "kuota")}, "saya": who},
                   extra=self.refresh(ses) if ses and who else ())
@@ -889,6 +890,19 @@ class handler(BaseHTTPRequestHandler):
             d = [clean(x, 400) for x in (b.get("daftar") or []) if isinstance(x, str) and clean(x, 400)][:12]
             db().cmd("HSET", "cfg", "qr", json.dumps(d, ensure_ascii=False))
             return self.json({"ok": True, "daftar": d}, extra=ex)
+        if r == "kata":
+            ada = set("%s_%s" % (e["lokasi"], e["no"]) for e in SEED["loket"])
+            out = []
+            for x in (b.get("daftar") or [])[:50]:
+                if not isinstance(x, dict):
+                    continue
+                ks = [clean(w, 40).lower() for w in (x.get("k") or []) if isinstance(w, str)]
+                ks = [w for w in ks if len(w) >= 2][:10]
+                ts = [t for t in (x.get("t") or []) if isinstance(t, str) and t in ada][:5]
+                if ks and ts:
+                    out.append({"k": ks, "t": ts})
+            db().cmd("HSET", "cfg", "kata", json.dumps(out, ensure_ascii=False))
+            return self.json({"ok": True, "daftar": out}, extra=ex)
         if r == "catatan":
             pid, k = int(b.get("pid") or 0), str(b.get("kunci", ""))
             if not valid_key(k):

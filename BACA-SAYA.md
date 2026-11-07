@@ -75,3 +75,5 @@ Tombol melayang "Tanya Asisten" di kanan bawah (juga tombol di banner beranda). 
 - **Aksesibilitas**: input suara (mikrofon, id-ID), jawaban dibacakan (tombol Dengarkan / Suara otomatis), huruf besar (A+), dan mode bahasa Suroboyoan (Cak).
 - Lencana angka di tombol bila ada balasan admin yang belum dibaca; bisa ditutup dengan Esc.
 - Suara memerlukan browser yang mendukung Web Speech (Chrome/Edge/Safari); tombol mikrofon otomatis tersembunyi bila tidak didukung.
+- **Instansi MPP di chatbot**: tanya "instansi MPP" atau "zona 4" untuk daftar 17 instansi per zona (tombol Buka dan Booking tiap instansi). Pertanyaan seperti SKCK, pajak, sertifikat tanah, cerai, kartu kuning, atau BPJS langsung diarahkan ke instansinya (daftar kata kunci: variabel `AL` di `bot.js`).
+- **Kata cari chatbot (admin)**: tab admin "Kata cari chatbot". Admin menambah aturan: kata/frasa (pisahkan koma) lalu pilih loket tujuan; ada kolom "Coba kata" untuk menguji. Disimpan di Redis (field `kata`), tanpa deploy ulang; warga memakainya saat halaman dimuat. Aturan admin diprioritaskan di atas aturan bawaan. Maksimal 50 aturan, 10 kata per aturan.
