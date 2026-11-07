@@ -387,7 +387,7 @@ class handler(BaseHTTPRequestHandler):
                 if "application/json" not in (self.headers.get("Content-Type") or ""):
                     raise HttpError(415, "Format permintaan tidak valid.")
                 n = int(self.headers.get("Content-Length") or 0)
-                if n > 10000:
+                if n > (90000 if path == "/admin/kata" else 10000):
                     raise HttpError(413, "Permintaan terlalu besar.")
                 try:
                     body = json.loads(self.rfile.read(n) or b"{}")
@@ -899,8 +899,9 @@ class handler(BaseHTTPRequestHandler):
                 ks = [clean(w, 40).lower() for w in (x.get("k") or []) if isinstance(w, str)]
                 ks = [w for w in ks if len(w) >= 2][:10]
                 ts = [t for t in (x.get("t") or []) if isinstance(t, str) and t in ada][:5]
-                if ks and ts:
-                    out.append({"k": ks, "t": ts})
+                j = clean(x.get("j", ""), 1500)
+                if ks and (ts or j):
+                    out.append({"k": ks, "t": ts, "j": j})
             db().cmd("HSET", "cfg", "kata", json.dumps(out, ensure_ascii=False))
             return self.json({"ok": True, "daftar": out}, extra=ex)
         if r == "catatan":

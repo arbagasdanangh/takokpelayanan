@@ -481,22 +481,23 @@ $("v-adm").addEventListener("paste", function (e) {
 /* ---------- Admin: kata cari chatbot ---------- */
 var KR = [];
 function ktOpts(sel) {
-  return LOCS.map(function (l) {
+  return '<option value=""' + (sel ? "" : " selected") + '>(tanpa kartu loket, hanya jawaban)</option>' + LOCS.map(function (l) {
     return '<optgroup label="' + esc(l.nm) + '">' + (LD[l.id] || []).map(function (d) { var k = l.id + "_" + d[0]; return '<option value="' + k + '"' + (k === sel ? " selected" : "") + '>' + esc(d[1]) + '</option>'; }).join("") + '</optgroup>';
   }).join("");
 }
 function ktRead() {
   var rows = document.querySelectorAll("#ktl .kt"), o = [];
   [].forEach.call(rows, function (r) {
-    o.push({k: r.querySelector("[data-kw]").value.split(",").map(function (w) { return clean(w).toLowerCase(); }).filter(function (w) { return w.length >= 2; }), t: [r.querySelector("[data-kt]").value]});
+    var tv = r.querySelector("[data-kt]").value;
+    o.push({k: r.querySelector("[data-kw]").value.split(",").map(function (w) { return clean(w).toLowerCase(); }).filter(function (w) { return w.length >= 2; }), t: tv ? [tv] : [], j: clean(r.querySelector("[data-kj]").value)});
   });
   KR = o;
 }
 function ktDraw() {
   var el = $("a-x");
-  el.innerHTML = '<h2 class="sec">Kata cari chatbot</h2><p class="sys" style="margin:0 0 8px">Atur kata atau frasa yang diketik warga agar chatbot langsung menampilkan loket tertentu. Pisahkan dengan koma. Aturan di sini diprioritaskan di atas aturan bawaan. Maksimal 50 aturan.</p><div id="ktl">' +
+  el.innerHTML = '<h2 class="sec">Kata cari chatbot</h2><p class="sys" style="margin:0 0 8px">Atur kata atau frasa yang diketik warga agar chatbot langsung menampilkan loket tertentu. Pisahkan dengan koma. Tulis juga jawaban lengkap untuk pengunjung (cara mengurus, langkah, syarat, biaya); loket tujuan bersifat pilihan. Aturan di sini diprioritaskan di atas aturan bawaan. Maksimal 50 aturan.</p><div id="ktl">' +
     (KR.length ? KR.map(function (r, i) {
-      return '<div class="card kt" style="margin:0 0 8px"><input class="si" data-kw maxlength="200" placeholder="Kata kunci, mis. skck, surat kelakuan baik" value="' + esc((r.k || []).join(", ")) + '" aria-label="Kata kunci"><select class="si" data-kt aria-label="Loket tujuan">' + ktOpts((r.t || [])[0]) + '</select><div class="btns"><button type="button" class="btn" data-ktd="' + i + '">Hapus aturan</button></div></div>';
+      return '<div class="card kt" style="margin:0 0 8px"><input class="si" data-kw maxlength="200" placeholder="Kata kunci, mis. skck, surat kelakuan baik" value="' + esc((r.k || []).join(", ")) + '" aria-label="Kata kunci"><textarea class="si" data-kj rows="5" maxlength="1500" placeholder="Jawaban untuk pengunjung: cara mengurus, langkah-langkah, syarat, biaya, jam, dll. Boleh beberapa baris." aria-label="Jawaban untuk pengunjung">' + esc(r.j || "") + '</textarea><select class="si" data-kt aria-label="Loket tujuan">' + ktOpts((r.t || [])[0]) + '</select><div class="btns"><button type="button" class="btn" data-ktd="' + i + '">Hapus aturan</button></div></div>';
     }).join("") : '<div class="empty">Belum ada aturan khusus. Tekan "Tambah aturan".</div>') +
     '</div><div class="btns"><button type="button" class="btn" id="kt-add">Tambah aturan</button><button type="button" class="send" id="kt-save">Simpan</button></div>' +
     '<div class="card" style="margin-top:12px"><b>Coba kata</b><input class="si" id="kt-q" maxlength="100" placeholder="Ketik pertanyaan warga untuk menguji"><button type="button" class="btn" id="kt-try">Uji</button><div class="sys" id="kt-r"></div></div>';
@@ -515,8 +516,8 @@ $("v-adm").addEventListener("click", async function (e) {
     else if (id === "kt-add") { if (KR.length >= 50) { err("Maksimal 50 aturan."); return; } ktRead(); KR.push({k: [], t: [LOCS.length ? LOCS[0].id + "_" + (LD[LOCS[0].id] || [[1]])[0][0] : ""]}); ktDraw(); }
     else if (id === "kt-save") { ktRead(); var r = await api("/api/admin/kata", {daftar: KR}); window.KATA = r.daftar; KR = JSON.parse(JSON.stringify(r.daftar)); ktDraw(); toast("Tersimpan (" + r.daftar.length + " aturan). Warga memakainya saat halaman dimuat ulang."); }
     else if (id === "kt-try") {
-      ktRead(); var q = clean($("kt-q").value).toLowerCase(), ks = window.kataCocok ? window.kataCocok(q, KR) : [];
-      $("kt-r").textContent = q ? (ks.length ? "Menampilkan: " + ks.map(label).join("; ") : "Tidak ada aturan khusus yang cocok (aturan bawaan dan pencarian biasa tetap dipakai).") : "";
+      ktRead(); var q = clean($("kt-q").value).toLowerCase(), h = window.kataHit ? window.kataHit(q, KR) : {j: [], k: []}, ks = h.k;
+      $("kt-r").textContent = q ? (ks.length || h.j.length ? (h.j.length ? "Jawaban: " + h.j.join(" || ").slice(0, 300) + (ks.length ? " | " : "") : "") + (ks.length ? "Loket: " + ks.map(label).join("; ") : "") : "Tidak ada aturan khusus yang cocok (aturan bawaan dan pencarian biasa tetap dipakai).") : "";
     }
   } catch (x) { err(x.message); }
 });

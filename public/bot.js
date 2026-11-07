@@ -30,11 +30,11 @@ function add(w, h, plain) {
   if (plain) { d.dataset.t = plain; d.insertAdjacentHTML("beforeend", '<button type="button" class="bsp" data-b="say">Dengarkan</button>'); }
   m.appendChild(d); m.scrollTop = m.scrollHeight; return d;
 }
-function bot(txt, extra, delay) {
+function bot(txt, extra, delay, raw) {
   return new Promise(function (r) {
     var m = $b("bm"), t = document.createElement("div");
     t.className = "bmsg b typ"; t.innerHTML = "<i></i><i></i><i></i>"; m.appendChild(t); m.scrollTop = m.scrollHeight;
-    setTimeout(function () { t.remove(); var p = tone(txt || ""); add("b", (p ? "<p>" + esc(p) + "</p>" : "") + (extra || ""), p); if (AUTO && p) speak(p); r(); }, delay || 420);
+    setTimeout(function () { t.remove(); var p = raw ? (txt || "") : tone(txt || ""); add("b", (p ? "<p>" + esc(p) + "</p>" : "") + (extra || ""), p); if (AUTO && p) speak(p); r(); }, delay || 420);
   });
 }
 function needIn(t) { return bot(t, '<div class="bch">' + btn("Masuk / daftar", "login") + '</div>'); }
@@ -80,17 +80,22 @@ function berita() {
 }
 /* ---- MPP Surabaya: instansi per zona ---- */
 var AL = [[/polisi|skck|polrestabes|kepolisian/, /polrestabes/i], [/narkoba|narkotika|bnn/, /bnn/i], [/pengadaan|lpse|bpbjap|tender/, /bpbjap/i], [/\bpos\b|paket|giro/, /pos indonesia/i], [/pbb|pajak|bphtb|bapenda/, /bapenda/i], [/pajak|npwp|djp/, /direktorat jenderal pajak/i], [/pengadilan|sidang|perkara/, /pengadilan negeri/i], [/cerai|nikah|isbat|pengadilan agama/, /pengadilan agama/i], [/bandara/, /otoritas bandara/i], [/^(?!.*ketenagakerjaan).*(bpjs|jkn)/, /bpjs kesehatan/i], [/bpjs|ketenagakerjaan|jht|jaminan hari tua/, /bpjs ketenagakerjaan/i], [/loker|lowongan|kartu kuning|bursa|ak1|pencari kerja/, /bursa tenaga kerja/i], [/pdam|air bersih|air minum|sambungan air/, /pdam/i], [/tanah|sertifikat|bpn|pertanahan|balik nama/, /kantor pertanahan/i], [/kejaksaan|jaksa|tilang/, /kejaksaan/i]];
-function kataCocok(s, R) {
-  var out = [], seen = {};
+function kataHit(s, R) {
+  var o = {j: [], k: []}, seen = {};
   (R || window.KATA || []).forEach(function (r) {
     var hit = (r.k || []).some(function (w) { return w && new RegExp("(^|[^a-z0-9])" + w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "($|[^a-z0-9])").test(s); });
-    if (hit) (r.t || []).forEach(function (k) { if (!seen[k] && entryOf(k)) { seen[k] = 1; out.push(k); } });
+    if (!hit) return;
+    if (r.j && o.j.indexOf(r.j) < 0) o.j.push(r.j);
+    (r.t || []).forEach(function (k) { if (!seen[k] && entryOf(k)) { seen[k] = 1; o.k.push(k); } });
   });
-  return out;
+  return o;
 }
+function kataCocok(s, R) { return kataHit(s, R).k; }
 function kataKartu(s) {
-  var ks = kataCocok(s); if (!ks.length) return null;
-  return bot("Ini layanan yang cocok dengan pertanyaan Anda:", ks.slice(0, 4).map(function (k) { var l = LOCS.filter(function (x) { return x.id === k.split("_")[0]; })[0] || {id: "", nm: ""}; return lk(l, entryOf(k)); }).join(""));
+  var h = kataHit(s); if (!h.k.length && !h.j.length) return null;
+  var kb = KB.filter(function (x) { return x.re.test(s); })[0];
+  var cards = h.k.slice(0, 4).map(function (k) { var l = LOCS.filter(function (x) { return x.id === k.split("_")[0]; })[0] || {id: "", nm: ""}; return lk(l, entryOf(k)); }).join("");
+  return bot(h.j.length ? h.j.join("\n\n") : "Ini layanan yang cocok dengan pertanyaan Anda:", cards + (kb ? '<div class="bch">' + btn("Daftar dokumen: " + kb.t, "ck:" + kb.id) + '</div>' : ""), 0, h.j.length > 0);
 }
 function mppRow(d) { return '<li>' + d[0] + '. <b>' + esc(d[1]) + '</b> ' + btn("Buka", "open:mpp_" + d[0]) + (d[6] !== false ? " " + btn("Booking", "bk:mpp_" + d[0]) : "") + '</li>'; }
 function zchips() { var z = []; (LD.mpp || []).forEach(function (d) { if (d[4] && z.indexOf(d[4]) < 0) z.push(d[4]); }); return '<div class="bch">' + z.map(function (x) { return btn(x, "q:" + x.toLowerCase() + " mpp"); }).join("") + '</div>'; }
@@ -246,7 +251,7 @@ function init() {
     var w = e.target.closest("[data-kb]"); if (w) w.querySelector(".ckp").outerHTML = ckp(kb);
   });
   setInterval(function () { var m = document.title.match(/^\((\d+)\)/), n = $b("bn"); n.hidden = !m; n.textContent = m ? m[1] : ""; }, 3000);
-  window.openAsisten = openB; window.askAsisten = ask; window.kataCocok = kataCocok;
+  window.openAsisten = openB; window.askAsisten = ask; window.kataCocok = kataCocok; window.kataHit = kataHit;
 }
 init();
 })();
