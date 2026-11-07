@@ -302,6 +302,7 @@ function admTabs() {
   admTab(AT);
 }
 function admTab(t) {
+  if (KDIRTY && AT === "kt" && t !== "kt") { if (!confirm("Perubahan di Kata cari chatbot belum disimpan. Tinggalkan tab ini?")) return; KDIRTY = false; }
   AT = t;
   [].forEach.call($("atabs").children, function (c) { c.setAttribute("aria-pressed", c.dataset.at === t); });
   $("a-inbox").hidden = t !== "inbox";
@@ -479,45 +480,210 @@ $("v-adm").addEventListener("paste", function (e) {
 });
 
 /* ---------- Admin: kata cari chatbot ---------- */
-var KR = [];
-function ktOpts(sel) {
-  return '<option value=""' + (sel ? "" : " selected") + '>(tanpa kartu loket, hanya jawaban)</option>' + LOCS.map(function (l) {
-    return '<optgroup label="' + esc(l.nm) + '">' + (LD[l.id] || []).map(function (d) { var k = l.id + "_" + d[0]; return '<option value="' + k + '"' + (k === sel ? " selected" : "") + '>' + esc(d[1]) + '</option>'; }).join("") + '</optgroup>';
+var KR = [], KDIRTY = false, KMISS = [], KIMP = null, KF = "", KMAX = 100;
+var KSTOP = {yang: 1, dan: 1, di: 1, ke: 1, dari: 1, untuk: 1, saya: 1, aku: 1, mau: 1, ingin: 1, bagaimana: 1, gimana: 1, cara: 1, apa: 1, apakah: 1, bisa: 1, boleh: 1, dong: 1, tidak: 1, nggak: 1, atau: 1, dengan: 1, pada: 1, ada: 1, dimana: 1, tolong: 1, minta: 1, mohon: 1, tanya: 1, info: 1, itu: 1, ini: 1, sudah: 1, belum: 1, kalau: 1, kalo: 1, bikin: 1, buat: 1};
+function ktWords(v) { return String(v).split(/[,;\n]/).map(function (w) { return clean(w).toLowerCase().slice(0, 40); }).filter(function (w) { return w.length >= 2; }).slice(0, 10); }
+function ktSaran(q) {
+  var seen = {}, t = String(q).toLowerCase().split(/[^a-z0-9]+/).filter(function (w) { if (w.length < 3 || KSTOP[w] || seen[w]) return false; seen[w] = 1; return true; }).slice(0, 3);
+  return t.length ? t : [String(q).slice(0, 40)];
+}
+function ktName(k) { var e = entryOf(k); return e ? e[1] : label(k); }
+function ktOptsBase() {
+  return '<option value="">(tanpa kartu loket, hanya jawaban)</option>' + LOCS.map(function (l) {
+    return '<optgroup label="' + esc(l.nm) + '">' + (LD[l.id] || []).map(function (d) { return '<option value="' + l.id + "_" + d[0] + '">' + esc(d[1]) + '</option>'; }).join("") + '</optgroup>';
   }).join("");
 }
+function ktDirty(v) {
+  KDIRTY = v;
+  var st = $("kt-st");
+  if (st) { st.textContent = v ? "Ada perubahan yang belum disimpan" : "Semua perubahan sudah tersimpan"; st.className = "sys" + (v ? " kt-dirty" : ""); }
+}
 function ktRead() {
-  var rows = document.querySelectorAll("#ktl .kt"), o = [];
-  [].forEach.call(rows, function (r) {
-    var tv = r.querySelector("[data-kt]").value;
-    o.push({k: r.querySelector("[data-kw]").value.split(",").map(function (w) { return clean(w).toLowerCase(); }).filter(function (w) { return w.length >= 2; }), t: tv ? [tv] : [], j: clean(r.querySelector("[data-kj]").value)});
+  var o = [];
+  [].forEach.call(document.querySelectorAll("#ktl .kt"), function (c) {
+    var tv = c.querySelector("[data-kt]").value;
+    o.push({k: ktWords(c.querySelector("[data-kw]").value), t: tv ? [tv] : [], j: clean(c.querySelector("[data-kj]").value), _o: c.open, _n: !!c.dataset.n});
   });
   KR = o;
 }
+function ktCard(r, i) {
+  return '<details class="row kt' + (r._n ? " kn" : "") + '"' + (r._o ? " open" : "") + (r._n ? ' data-n="1"' : "") + '><summary></summary><div class="kt-body">' +
+    '<label class="kt-l" for="kw' + i + '">Kata kunci <small>(pisahkan dengan koma)</small></label><input class="si" id="kw' + i + '" data-kw maxlength="400" placeholder="mis. skck, surat kelakuan baik" value="' + esc((r.k || []).join(", ")) + '">' +
+    '<label class="kt-l" for="kj' + i + '">Jawaban untuk pengunjung <small data-cn></small></label><textarea class="si" id="kj' + i + '" data-kj rows="5" maxlength="1500" placeholder="Cara mengurus, langkah-langkah, syarat, biaya, jam, dll. Boleh beberapa baris.">' + esc(r.j || "") + '</textarea>' +
+    '<label class="kt-l" for="kt' + i + '">Loket tujuan <small>(opsional)</small></label><select class="si" id="kt' + i + '" data-kt></select>' +
+    (r.cat ? '<p class="em" style="margin:0">' + esc(r.cat) + ' (aturan tetap diimpor tanpa loket)</p>' : "") +
+    '<div class="btns"><button type="button" class="btn" data-ka="up" data-i="' + i + '">&uarr; Naik</button><button type="button" class="btn" data-ka="down" data-i="' + i + '">&darr; Turun</button><button type="button" class="btn" data-ka="dup" data-i="' + i + '">Gandakan</button><button type="button" class="btn" data-ka="del" data-i="' + i + '">Hapus aturan</button></div></div></details>';
+}
+function ktMissHtml() {
+  var h = '<div class="card" style="margin:0 0 12px"><b>Pertanyaan warga yang belum terjawab</b><p class="sys" style="margin:0">Pertanyaan yang tidak bisa dijawab chatbot dicatat tanpa identitas (angka panjang, nomor HP, dan email dibuang). Ubah menjadi aturan agar warga berikutnya langsung mendapat jawaban.</p>';
+  if (!KMISS.length) return h + '<div class="sys">Belum ada pertanyaan yang tercatat.</div></div>';
+  return h + KMISS.slice(0, 10).map(function (m, i) {
+    return '<div class="ktm"><span class="ktq">&ldquo;' + esc(m.q) + '&rdquo;</span><span class="tag">' + m.n + '&times;</span><button type="button" class="btn" data-km="' + i + '">Buat aturan</button><button type="button" class="btn" data-kx="' + i + '">Abaikan</button></div>';
+  }).join("") + '<div class="btns" style="margin-top:6px">' + (KMISS.length > 10 ? '<span class="sys">Menampilkan 10 teratas dari ' + KMISS.length + '.</span>' : "") + '<button type="button" class="btn" id="kt-xa">Abaikan semua</button></div></div>';
+}
 function ktDraw() {
   var el = $("a-x");
-  el.innerHTML = '<h2 class="sec">Kata cari chatbot</h2><p class="sys" style="margin:0 0 8px">Atur kata atau frasa yang diketik warga agar chatbot langsung menampilkan loket tertentu. Pisahkan dengan koma. Tulis juga jawaban lengkap untuk pengunjung (cara mengurus, langkah, syarat, biaya); loket tujuan bersifat pilihan. Aturan di sini diprioritaskan di atas aturan bawaan. Maksimal 50 aturan.</p><div id="ktl">' +
-    (KR.length ? KR.map(function (r, i) {
-      return '<div class="card kt" style="margin:0 0 8px"><input class="si" data-kw maxlength="200" placeholder="Kata kunci, mis. skck, surat kelakuan baik" value="' + esc((r.k || []).join(", ")) + '" aria-label="Kata kunci"><textarea class="si" data-kj rows="5" maxlength="1500" placeholder="Jawaban untuk pengunjung: cara mengurus, langkah-langkah, syarat, biaya, jam, dll. Boleh beberapa baris." aria-label="Jawaban untuk pengunjung">' + esc(r.j || "") + '</textarea><select class="si" data-kt aria-label="Loket tujuan">' + ktOpts((r.t || [])[0]) + '</select><div class="btns"><button type="button" class="btn" data-ktd="' + i + '">Hapus aturan</button></div></div>';
-    }).join("") : '<div class="empty">Belum ada aturan khusus. Tekan "Tambah aturan".</div>') +
-    '</div><div class="btns"><button type="button" class="btn" id="kt-add">Tambah aturan</button><button type="button" class="send" id="kt-save">Simpan</button></div>' +
-    '<div class="card" style="margin-top:12px"><b>Coba kata</b><input class="si" id="kt-q" maxlength="100" placeholder="Ketik pertanyaan warga untuk menguji"><button type="button" class="btn" id="kt-try">Uji</button><div class="sys" id="kt-r"></div></div>';
+  el.innerHTML = '<h2 class="sec">Kata cari chatbot</h2><p class="sys" style="margin:0 0 10px">Atur kata atau frasa yang diketik warga agar chatbot langsung memberi jawaban lengkap dan menampilkan loket tertentu. Aturan di sini diprioritaskan di atas aturan bawaan. Maksimal ' + KMAX + ' aturan.</p>' +
+    '<div class="card kt-tools"><div class="btns"><button type="button" class="btn" id="kt-add">+ Tambah aturan</button><label class="btn kt-file" for="kt-file">Impor Excel/CSV</label><input type="file" id="kt-file" accept=".xlsx,.csv,.tsv,.txt" hidden><button type="button" class="btn" id="kt-pastebtn">Tempel dari spreadsheet</button><a class="btn" href="/api/app?p=%2Fadmin%2Fkata.xlsx" download>Ekspor Excel</a><a class="btn" href="/api/app?p=%2Fadmin%2Fkata-templat.xlsx" download>Unduh templat</a></div>' +
+    '<div id="kt-paste" hidden><p class="sys" style="margin:0">Salin sel dari Excel atau Google Sheets (kolom: Kata kunci, Jawaban, Loket tujuan; baris judul boleh ada), lalu tempel di sini.</p><textarea class="si" id="kt-pt" rows="5" placeholder="Tempel di sini"></textarea><div class="btns"><button type="button" class="send" id="kt-pgo">Baca tabel</button><button type="button" class="btn" id="kt-pclose">Tutup</button></div></div></div>' +
+    '<div id="kt-imp"></div>' + ktMissHtml() +
+    '<div class="kt-filter"><input class="si" id="kt-f" placeholder="Cari aturan (kata kunci atau jawaban)" aria-label="Cari aturan" value="' + esc(KF) + '"><span class="sys" id="kt-cnt"></span></div>' +
+    '<div id="ktl">' + (KR.length ? KR.map(ktCard).join("") : '<div class="empty">Belum ada aturan khusus. Tekan "Tambah aturan" atau impor dari Excel.</div>') + '</div><div class="empty" id="kt-fc" hidden>Tidak ada aturan yang cocok dengan pencarian.</div>' +
+    '<div class="card" style="margin-top:12px"><b>Coba kata</b><p class="sys" style="margin:0">Menguji daftar yang sedang Anda edit, termasuk yang belum disimpan.</p><input class="si" id="kt-q" maxlength="100" placeholder="Ketik pertanyaan warga untuk menguji" aria-label="Uji pertanyaan"><button type="button" class="btn" id="kt-try">Uji</button><div id="kt-r"></div></div>' +
+    '<div class="ktbar"><button type="button" class="send" id="kt-save">Simpan</button><span id="kt-st" class="sys"></span></div>';
+  var base = ktOptsBase();
+  [].forEach.call(el.querySelectorAll("#ktl .kt"), function (c, i) {
+    var s = c.querySelector("[data-kt]"); s.innerHTML = base; s.value = (KR[i].t || [])[0] || "";
+  });
+  ktSumAll(); ktDirty(KDIRTY); ktImpDraw();
+}
+function ktSumAll() {
+  var cs = document.querySelectorAll("#ktl .kt"), idx = {}, dt = [], nk = 0, q = KF.toLowerCase().trim(), shown = 0;
+  [].forEach.call(cs, function (c, i) {
+    var ks = ktWords(c.querySelector("[data-kw]").value), j = c.querySelector("[data-kj]").value.trim(), t = c.querySelector("[data-kt]").value;
+    dt.push({ks: ks, j: j, t: t});
+    ks.forEach(function (w) { (idx[w] = idx[w] || []).push(i); });
+  });
+  [].forEach.call(cs, function (c, i) {
+    var d = dt[i], w = [], dup = {}, chips;
+    nk += d.ks.length;
+    if (!d.ks.length) w.push("Belum ada kata kunci");
+    if (!d.j && !d.t) w.push("Isi jawaban atau pilih loket");
+    d.ks.forEach(function (k) { idx[k].forEach(function (o) { if (o !== i) dup[o + 1] = 1; }); });
+    var dn = Object.keys(dup); if (dn.length) w.push("Kata kunci sama dengan aturan #" + dn.slice(0, 3).join(", #"));
+    chips = d.ks.slice(0, 4).map(function (k) { return '<span class="tag">' + esc(k) + '</span>'; }).join("") + (d.ks.length > 4 ? '<span class="tag">+' + (d.ks.length - 4) + '</span>' : "");
+    c.querySelector("summary").innerHTML = '<span class="no">' + (i + 1) + '</span><span class="kt-s"><span class="kt-chips">' + (chips || '<i class="sys">(kosong)</i>') + '</span><span class="kt-m">' + (d.t ? esc(ktName(d.t)) : "Hanya jawaban") + (c.dataset.n ? " &middot; <b>Baru</b>" : "") + '</span>' + (w.length ? '<span class="kt-w">&#9888; ' + esc(w.join(" \u00b7 ")) + '</span>' : "") + '</span><span class="sys kt-cv">&#9662;</span>';
+    c.querySelector("[data-cn]").textContent = d.j.length + "/1500";
+    var hit = !q || (d.ks.join(" ") + " " + d.j).toLowerCase().indexOf(q) >= 0;
+    c.hidden = !hit; if (hit) shown++;
+  });
+  if ($("kt-cnt")) $("kt-cnt").textContent = cs.length + " aturan \u00b7 " + nk + " kata kunci";
+  if ($("kt-fc")) $("kt-fc").hidden = !(cs.length && !shown);
+}
+function ktB64(buf) { var b = new Uint8Array(buf), s = "", i; for (i = 0; i < b.length; i += 8192) s += String.fromCharCode.apply(null, b.subarray(i, i + 8192)); return btoa(s); }
+async function ktUpload(nama, b64) {
+  var r = await api("/api/admin/kata/impor", {nama: nama, data: b64});
+  KIMP = {r: r, nama: nama}; ktImpDraw();
+  var e = $("kt-imp"); if (e) e.scrollIntoView({block: "nearest", behavior: "smooth"});
+}
+function ktImpDraw() {
+  var el = $("kt-imp"), x = KIMP; if (!el) return;
+  if (!x) { el.innerHTML = ""; return; }
+  var r = x.r, n = r.aturan.length;
+  el.innerHTML = '<div class="card kt-imp" style="margin:0 0 12px"><b>Pratinjau impor: ' + esc(x.nama) + '</b><p class="sys" style="margin:0">' + n + ' aturan siap diimpor' + (r.total_lewat ? ", " + r.total_lewat + " baris dilewati" : "") + '.</p>' +
+    (r.lewat.length ? '<details class="ktskip"><summary>Lihat baris yang dilewati</summary><ul>' + r.lewat.map(function (l) { return '<li>Baris ' + l.baris + ': ' + esc(l.alasan) + '</li>'; }).join("") + '</ul></details>' : "") +
+    (n ? '<div>' + r.aturan.slice(0, 5).map(function (a) {
+      return '<div class="ktp"><b>' + esc(a.k.join(", ")) + '</b><span>' + esc((a.j || "(tanpa jawaban)").slice(0, 110)) + (a.j.length > 110 ? "\u2026" : "") + '</span><small class="sys">' + (a.t[0] ? "Loket: " + esc(label(a.t[0])) : "Hanya jawaban") + (a.cat ? ' &middot; <span class="kt-w">' + esc(a.cat) + '</span>' : "") + '</small></div>';
+    }).join("") + (n > 5 ? '<small class="sys">&hellip; dan ' + (n - 5) + ' aturan lainnya</small>' : "") + '</div>' +
+    '<div class="kt-mode"><label><input type="radio" name="kt-mode" value="gabung" checked><span><b>Gabung</b> (disarankan): perbarui aturan yang kata kuncinya sama, tambahkan yang baru</span></label><label><input type="radio" name="kt-mode" value="tambah"><span><b>Tambah</b> semuanya sebagai aturan baru</span></label><label><input type="radio" name="kt-mode" value="ganti"><span><b>Ganti</b> seluruh daftar dengan isi berkas ini</span></label></div>' +
+    '<div class="btns"><button type="button" class="send" id="kt-apply">Terapkan ke daftar</button><button type="button" class="btn" id="kt-cancel">Batal</button></div><small class="sys">Belum tersimpan sampai Anda menekan Simpan.</small>'
+    : '<p class="em" style="margin:0">Tidak ada baris yang bisa diimpor. Periksa kolom dan isinya, atau pakai templat.</p><div class="btns"><button type="button" class="btn" id="kt-cancel">Tutup</button></div>') + '</div>';
+}
+function ktApply() {
+  var m = (document.querySelector('input[name="kt-mode"]:checked') || {}).value || "gabung", imp = KIMP.r.aturan, add = 0, upd = 0, drop = 0;
+  ktRead();
+  if (m === "ganti") KR = [];
+  imp.forEach(function (a) {
+    var hit = -1;
+    if (m === "gabung") KR.forEach(function (r, i) { if (hit < 0 && r.k.some(function (w) { return a.k.indexOf(w) >= 0; })) hit = i; });
+    if (hit >= 0) {
+      var r = KR[hit]; r.k = r.k.concat(a.k.filter(function (w) { return r.k.indexOf(w) < 0; })).slice(0, 10);
+      if (a.j) r.j = a.j; if (a.t.length) r.t = a.t; r._o = false; upd++;
+    } else if (KR.length < KMAX) { KR.push({k: a.k, t: a.t, j: a.j, cat: a.cat, _n: true}); add++; }
+    else drop++;
+  });
+  KIMP = null; ktDirty(true); ktDraw();
+  toast("Impor: " + add + " ditambah, " + upd + " diperbarui" + (drop ? ", " + drop + " tidak muat (maksimal " + KMAX + ")" : "") + ". Tekan Simpan untuk menerapkan.");
+}
+function ktAdd(k) {
+  if (KR.length >= KMAX) { err("Maksimal " + KMAX + " aturan."); return; }
+  ktRead(); KR.push({k: k || [], t: [], j: "", _o: true, _n: true}); ktDirty(true); ktDraw();
+  var cs = document.querySelectorAll("#ktl .kt"), c = cs[cs.length - 1];
+  if (c) { c.scrollIntoView({block: "center", behavior: "smooth"}); c.querySelector("[data-kw]").focus({preventScroll: true}); }
+}
+async function ktSave() {
+  ktRead();
+  for (var i = 0; i < KR.length; i++) {
+    var bad = !KR[i].k.length ? "belum punya kata kunci" : (!KR[i].j && !KR[i].t[0] ? "belum punya jawaban atau loket tujuan" : "");
+    if (bad) {
+      err("Aturan #" + (i + 1) + " " + bad + ".");
+      var c = document.querySelectorAll("#ktl .kt")[i]; if (c) { c.hidden = false; c.open = true; c.scrollIntoView({block: "center", behavior: "smooth"}); }
+      return;
+    }
+  }
+  err("");
+  var old = KR, r = await api("/api/admin/kata", {daftar: KR.map(function (x) { return {k: x.k, t: x.t, j: x.j}; })});
+  window.KATA = r.daftar; KR = JSON.parse(JSON.stringify(r.daftar));
+  KR.forEach(function (x, i) { x._o = !!(old[i] && old[i]._o); });
+  var gone = KMISS.filter(function (m) { var h = window.kataHit ? window.kataHit(m.q, KR) : null; return h && (h.k.length || h.j.length); }).map(function (m) { return m.q; });
+  if (gone.length) { try { await api("/api/admin/miss/hapus", {qs: gone}); KMISS = KMISS.filter(function (m) { return gone.indexOf(m.q) < 0; }); } catch (x) {} }
+  ktDirty(false); ktDraw();
+  toast("Tersimpan (" + r.daftar.length + " aturan)" + (gone.length ? "; " + gone.length + " pertanyaan belum terjawab sudah tertangani" : "") + ". Warga memakainya saat halaman dimuat ulang.");
+}
+function ktTry() {
+  ktRead();
+  var q = clean($("kt-q").value).toLowerCase(), el = $("kt-r");
+  if (!q) { el.innerHTML = ""; return; }
+  var h = window.kataHit ? window.kataHit(q, KR) : {i: [], w: []};
+  if (!h.i.length) { el.innerHTML = '<p class="sys">Tidak ada aturan khusus yang cocok. Chatbot akan memakai aturan bawaan dan pencarian biasa.</p><button type="button" class="btn" id="kt-mk2">Buat aturan dari kalimat ini</button>'; return; }
+  el.innerHTML = h.i.map(function (ix, n) {
+    var r = KR[ix];
+    return '<div class="bc2"><b>Aturan #' + (ix + 1) + '</b> <span class="tag">cocok: ' + esc(h.w[n]) + '</span>' + (r.j ? '<p class="ktans">' + esc(r.j) + '</p>' : "") + (r.t[0] ? '<small>Loket: ' + esc(label(r.t[0])) + '</small>' : "") + '</div>';
+  }).join("");
 }
 async function aKt() {
   var j = await api("/api/info");
   window.KATA = j.kata || [];
-  KR = JSON.parse(JSON.stringify(window.KATA));
+  KR = JSON.parse(JSON.stringify(window.KATA)); KDIRTY = false; KIMP = null;
+  try { KMISS = (await api("/api/admin/miss")).daftar || []; } catch (x) { KMISS = []; }
   ktDraw();
 }
 $("v-adm").addEventListener("click", async function (e) {
-  if (S !== "adm") return;
-  var d = e.target.closest("[data-ktd]"), id = e.target.id;
+  if (S !== "adm" || AT !== "kt" || !$("ktl")) return;
+  var t = e.target, a = t.closest("[data-ka]"), m = t.closest("[data-km]"), x = t.closest("[data-kx]"), id = t.id;
   try {
-    if (d) { ktRead(); KR.splice(+d.dataset.ktd, 1); ktDraw(); }
-    else if (id === "kt-add") { if (KR.length >= 50) { err("Maksimal 50 aturan."); return; } ktRead(); KR.push({k: [], t: [LOCS.length ? LOCS[0].id + "_" + (LD[LOCS[0].id] || [[1]])[0][0] : ""]}); ktDraw(); }
-    else if (id === "kt-save") { ktRead(); var r = await api("/api/admin/kata", {daftar: KR}); window.KATA = r.daftar; KR = JSON.parse(JSON.stringify(r.daftar)); ktDraw(); toast("Tersimpan (" + r.daftar.length + " aturan). Warga memakainya saat halaman dimuat ulang."); }
-    else if (id === "kt-try") {
-      ktRead(); var q = clean($("kt-q").value).toLowerCase(), h = window.kataHit ? window.kataHit(q, KR) : {j: [], k: []}, ks = h.k;
-      $("kt-r").textContent = q ? (ks.length || h.j.length ? (h.j.length ? "Jawaban: " + h.j.join(" || ").slice(0, 300) + (ks.length ? " | " : "") : "") + (ks.length ? "Loket: " + ks.map(label).join("; ") : "") : "Tidak ada aturan khusus yang cocok (aturan bawaan dan pencarian biasa tetap dipakai).") : "";
+    if (a) {
+      ktRead(); var i = +a.dataset.i, k = a.dataset.ka;
+      if (k === "up" && i > 0) KR.splice(i - 1, 0, KR.splice(i, 1)[0]);
+      else if (k === "down" && i < KR.length - 1) KR.splice(i + 1, 0, KR.splice(i, 1)[0]);
+      else if (k === "dup") { if (KR.length >= KMAX) { err("Maksimal " + KMAX + " aturan."); return; } var cp = JSON.parse(JSON.stringify(KR[i])); cp._n = true; cp._o = true; KR.splice(i + 1, 0, cp); }
+      else if (k === "del") { var rm = KR.splice(i, 1)[0]; toast("Aturan #" + (i + 1) + " dihapus.", "Urungkan", function () { ktRead(); KR.splice(i, 0, rm); ktDirty(true); ktDraw(); }); }
+      ktDirty(true); ktDraw();
     }
-  } catch (x) { err(x.message); }
+    else if (m) { var q = KMISS[+m.dataset.km]; if (q) ktAdd(ktSaran(q.q)); }
+    else if (x) { var z = KMISS[+x.dataset.kx]; if (z) { await api("/api/admin/miss/hapus", {qs: [z.q]}); ktRead(); KMISS.splice(+x.dataset.kx, 1); ktDraw(); } }
+    else if (id === "kt-xa") { if (confirm("Abaikan semua pertanyaan yang tercatat?")) { await api("/api/admin/miss/hapus", {semua: true}); ktRead(); KMISS = []; ktDraw(); } }
+    else if (id === "kt-add") ktAdd();
+    else if (id === "kt-save") await ktSave();
+    else if (id === "kt-try") ktTry();
+    else if (id === "kt-mk2") { var qq = clean($("kt-q").value).toLowerCase(); ktAdd(ktSaran(qq)); }
+    else if (id === "kt-pastebtn") { var pp = $("kt-paste"); pp.hidden = !pp.hidden; if (!pp.hidden) $("kt-pt").focus(); }
+    else if (id === "kt-pclose") $("kt-paste").hidden = true;
+    else if (id === "kt-pgo") {
+      var tx = $("kt-pt").value; if (!clean(tx)) { err("Tempel dulu isi tabelnya."); return; }
+      err(""); await ktUpload("tempelan", btoa(unescape(encodeURIComponent(tx)))); $("kt-paste").hidden = true;
+    }
+    else if (id === "kt-apply") ktApply();
+    else if (id === "kt-cancel") { KIMP = null; ktImpDraw(); }
+  } catch (y) { err(y.message); }
 });
+$("v-adm").addEventListener("input", function (e) {
+  if (S !== "adm" || AT !== "kt") return;
+  var t = e.target;
+  if (t.id === "kt-f") { KF = t.value; ktSumAll(); }
+  else if (t.closest && t.closest("#ktl")) { ktDirty(true); ktSumAll(); }
+});
+$("v-adm").addEventListener("change", async function (e) {
+  if (S !== "adm" || AT !== "kt") return;
+  var t = e.target;
+  if (t.id === "kt-file") {
+    var f = t.files && t.files[0]; t.value = "";
+    if (!f) return;
+    if (f.size > 600000) { err("Berkas lebih dari 600 KB."); return; }
+    try { err(""); toast("Membaca berkas\u2026"); await ktUpload(f.name, ktB64(await f.arrayBuffer())); } catch (y) { err(y.message); }
+  } else if (t.closest && t.closest("#ktl")) { ktDirty(true); ktSumAll(); }
+});
+$("v-adm").addEventListener("keydown", function (e) {
+  if (S === "adm" && AT === "kt" && e.target.id === "kt-q" && e.key === "Enter") { e.preventDefault(); ktTry(); }
+});
+window.addEventListener("beforeunload", function (e) { if (KDIRTY && S === "adm") { e.preventDefault(); e.returnValue = ""; } });

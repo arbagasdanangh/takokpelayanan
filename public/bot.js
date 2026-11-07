@@ -48,6 +48,7 @@ function cari(t) {
   if (tk.length) LOCS.forEach(function (l) { (LD[l.id] || []).forEach(function (d) { var sc = score(d, tk); if (sc > 0) R.push({l: l, d: d, s: sc + (l.id === LOC ? 1 : 0)}); }); });
   R.sort(function (a, b) { return b.s - a.s; });
   var fw = '<div class="bch">' + btn("Teruskan ke admin", "fw:" + t.slice(0, 150)) + '</div>';
+  if (!R.length) { try { api("/api/bot/miss", {q: t.slice(0, 160)}).catch(function () {}); } catch (x) {} }
   if (!R.length) return bot("Maaf, saya belum menemukan layanan yang cocok dengan \"" + t + "\". Coba kata lain (misalnya NIB, SIP dokter, reklame), atau teruskan pertanyaan ini ke admin.", fw + chips(MENU.slice(0, 4)));
   return bot("Ini loket yang paling sesuai (" + R.length + " ditemukan):", R.slice(0, 3).map(function (r) { return lk(r.l, r.d); }).join("") + fw);
 }
@@ -81,10 +82,12 @@ function berita() {
 /* ---- MPP Surabaya: instansi per zona ---- */
 var AL = [[/polisi|skck|polrestabes|kepolisian/, /polrestabes/i], [/narkoba|narkotika|bnn/, /bnn/i], [/pengadaan|lpse|bpbjap|tender/, /bpbjap/i], [/\bpos\b|paket|giro/, /pos indonesia/i], [/pbb|pajak|bphtb|bapenda/, /bapenda/i], [/pajak|npwp|djp/, /direktorat jenderal pajak/i], [/pengadilan|sidang|perkara/, /pengadilan negeri/i], [/cerai|nikah|isbat|pengadilan agama/, /pengadilan agama/i], [/bandara/, /otoritas bandara/i], [/^(?!.*ketenagakerjaan).*(bpjs|jkn)/, /bpjs kesehatan/i], [/bpjs|ketenagakerjaan|jht|jaminan hari tua/, /bpjs ketenagakerjaan/i], [/loker|lowongan|kartu kuning|bursa|ak1|pencari kerja/, /bursa tenaga kerja/i], [/pdam|air bersih|air minum|sambungan air/, /pdam/i], [/tanah|sertifikat|bpn|pertanahan|balik nama/, /kantor pertanahan/i], [/kejaksaan|jaksa|tilang/, /kejaksaan/i]];
 function kataHit(s, R) {
-  var o = {j: [], k: []}, seen = {};
-  (R || window.KATA || []).forEach(function (r) {
-    var hit = (r.k || []).some(function (w) { return w && new RegExp("(^|[^a-z0-9])" + w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "($|[^a-z0-9])").test(s); });
-    if (!hit) return;
+  var o = {j: [], k: [], i: [], w: []}, seen = {};
+  (R || window.KATA || []).forEach(function (r, idx) {
+    var hw = null;
+    (r.k || []).some(function (w) { if (w && new RegExp("(^|[^a-z0-9])" + w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "($|[^a-z0-9])").test(s)) { hw = w; return true; } return false; });
+    if (hw === null) return;
+    o.i.push(idx); o.w.push(hw);
     if (r.j && o.j.indexOf(r.j) < 0) o.j.push(r.j);
     (r.t || []).forEach(function (k) { if (!seen[k] && entryOf(k)) { seen[k] = 1; o.k.push(k); } });
   });

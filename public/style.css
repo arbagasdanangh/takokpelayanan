@@ -186,3 +186,26 @@ button:focus-visible,summary:focus-visible,textarea:focus-visible,input:focus-vi
 @media print{.bfab,.bot,.heroask{display:none!important}}
 @media (prefers-reduced-motion:reduce){.bfab::before,.bot,.bmsg,.typ i{animation:none!important}}
 .bul{list-style:none;margin:6px 0 0;padding:0}.bul li{padding:6px 0;border-top:1px dashed var(--line)}.bul li:first-child{border:0}
+/* ---- Kata cari chatbot (admin) ---- */
+.kt{margin:0 0 8px}.kt[hidden]{display:none}.kt.kn{border-color:var(--tick)}
+.kt summary{align-items:flex-start;gap:12px}
+.kt .no{min-width:38px;height:38px;font-size:1rem;margin-top:2px}
+.kt-s{flex:1;min-width:0;display:grid;gap:4px}
+.kt-chips{display:flex;flex-wrap:wrap;gap:4px}
+.kt-m{font-size:.78rem;color:var(--mute)}
+.kt-w{font-size:.78rem;color:var(--warn);font-weight:700}
+.kt-cv{flex:none;transition:transform .15s;margin-top:6px}.kt[open] .kt-cv{transform:rotate(180deg)}
+.kt-body{padding:12px 14px 14px;display:grid;gap:6px}
+.kt-l{font-weight:700;font-size:.85rem}.kt-l small{font-weight:400;color:var(--mute)}
+.kt-tools{margin:0 0 12px}.kt-file{cursor:pointer;display:inline-block}
+.kt-filter{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:6px 0 8px}.kt-filter .si{flex:1;min-width:200px;margin:0}
+.ktm{display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:6px 0;border-top:1px dashed var(--line)}.ktq{flex:1;min-width:180px;overflow-wrap:anywhere}
+.ktp{padding:6px 0;border-top:1px dashed var(--line);display:grid;gap:2px}.ktp span{color:var(--mute);font-size:.85rem;overflow-wrap:anywhere}
+.ktskip ul{margin:6px 0 0;padding-left:20px;font-size:.85rem}
+.kt-mode{display:grid;gap:6px;margin-top:6px}.kt-mode label{display:flex;gap:8px;align-items:flex-start}
+.ktans{white-space:pre-wrap;overflow-wrap:anywhere}
+.ktbar{position:sticky;bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:5;display:flex;gap:10px;align-items:center;width:fit-content;max-width:calc(100% - 150px);margin:12px 0 0;padding:8px 14px 8px 8px;background:var(--surface);border:1px solid var(--line);border-radius:99px;box-shadow:var(--shadow)}
+.kt-dirty{color:var(--warn);font-weight:700}
+.card .kt-mode input[type=radio]{width:auto;flex:none;padding:0;margin:4px 0 0;accent-color:var(--acc)}
+.kt-mode label span{flex:1}
+a.btn{text-decoration:none;display:inline-block}

@@ -324,6 +324,98 @@ def add_msg(pid, kunci, dari, isi):
 
 
 # ---------------- Handler ----------------
+# ---------------- Kata cari chatbot: impor / ekspor ----------------
+KATA_MAX = 100
+
+
+def kata_peta_loket():
+    by_label, by_nama = {}, {}
+    for k in LOKET:
+        by_label[label(k).lower()] = k
+        by_nama.setdefault(LOKET[k]["nama"].strip().lower(), []).append(k)
+    return by_label, by_nama
+
+
+def kata_cari_loket(v, peta):
+    """Terjemahkan isi kolom loket (kode, 'Lokasi - Loket', atau nama loket) menjadi kunci loket."""
+    v = clean(v, 200)
+    lv = v.lower()
+    by_label, by_nama = peta
+    if v in LOKET:
+        return v, ""
+    if lv in by_label:
+        return by_label[lv], ""
+    for nm in (lv, lv.split(" - ")[-1].strip()):
+        if nm in by_nama:
+            return by_nama[nm][0], ("" if len(by_nama[nm]) == 1 else "nama loket ada di beberapa lokasi, dipilih yang pertama")
+    return None, "loket \"%s\" tidak dikenali" % v[:40]
+
+
+def kata_baca_baris(raw):
+    """Baca .xlsx / .csv / teks tab menjadi daftar baris (maksimal 600 baris, 8 kolom)."""
+    if raw[:4] == b"\xd0\xcf\x11\xe0":
+        raise HttpError(400, "Format .xls lama tidak didukung. Simpan ulang sebagai .xlsx atau .csv.")
+    if raw[:2] == b"PK":
+        from openpyxl import load_workbook
+        wb = load_workbook(io.BytesIO(raw), read_only=True, data_only=True)
+        try:
+            ws = wb["Aturan"] if "Aturan" in wb.sheetnames else wb.worksheets[0]
+            return [["" if v is None else str(v) for v in r] for r in ws.iter_rows(min_row=1, max_row=601, max_col=8, values_only=True)]
+        finally:
+            wb.close()
+    try:
+        txt = raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        txt = raw.decode("latin-1")
+    first = txt.split("\n", 1)[0]
+    delim = "\t" if "\t" in first else max((";", ","), key=lambda d: first.count(d))
+    return [r for r in csv.reader(io.StringIO(txt), delimiter=delim)][:601]
+
+
+def kata_dari_baris(rows):
+    """Ubah baris tabel menjadi aturan. Kembalian: (aturan, baris_yang_dilewati)."""
+    peta = kata_peta_loket()
+    ik, ij, it, mulai = 0, 1, 2, 0
+    if rows:
+        h = [str(c).strip().lower() for c in rows[0]]
+
+        def cari(*kunci):
+            for i, c in enumerate(h):
+                if any(x in c for x in kunci):
+                    return i
+            return None
+        a, b, c = cari("kata"), cari("jawab"), cari("loket", "tujuan")
+        if sum(x is not None for x in (a, b, c)) >= 2:
+            ik, ij, it, mulai = (0 if a is None else a), (1 if b is None else b), (2 if c is None else c), 1
+    ok, lewat = [], []
+    for n, r in enumerate(rows[mulai:], start=mulai + 1):
+        if not any(str(x).strip() for x in r):
+            continue
+
+        def g(i):
+            return str(r[i]) if i < len(r) and r[i] is not None else ""
+        if g(ik).strip().lower() in ("contoh kata, contoh frasa lain", "contoh dengan loket"):
+            continue
+        ks = [clean(w, 40).lower() for w in re.split(r"[,;\n]", g(ik))]
+        ks = [w for w in ks if len(w) >= 2][:10]
+        j = clean(g(ij), 1500)
+        t, cat = None, ""
+        if g(it).strip():
+            t, cat = kata_cari_loket(g(it), peta)
+        if not ks:
+            lewat.append({"baris": n, "alasan": "kata kunci kosong"})
+            continue
+        if not j and not t:
+            lewat.append({"baris": n, "alasan": cat or "jawaban dan loket kosong"})
+            continue
+        item = {"k": ks, "t": [t] if t else [], "j": j}
+        if cat:
+            item["cat"] = cat
+        ok.append(item)
+    return ok, lewat
+
+
+
 class handler(BaseHTTPRequestHandler):
     server_version = "Takok"
     sys_version = ""
@@ -387,7 +479,7 @@ class handler(BaseHTTPRequestHandler):
                 if "application/json" not in (self.headers.get("Content-Type") or ""):
                     raise HttpError(415, "Format permintaan tidak valid.")
                 n = int(self.headers.get("Content-Length") or 0)
-                if n > (90000 if path == "/admin/kata" else 10000):
+                if n > {"/admin/kata": 250000, "/admin/kata/impor": 850000}.get(path, 10000):
                     raise HttpError(413, "Permintaan terlalu besar.")
                 try:
                     body = json.loads(self.rfile.read(n) or b"{}")
@@ -412,6 +504,8 @@ class handler(BaseHTTPRequestHandler):
             return self.admin_masuk(b)
         if path == "/layar" and method == "GET":
             return self.layar(q)
+        if path == "/bot/miss" and method == "POST":
+            return self.bot_miss(b)
         if path == "/keluar" and method == "POST":
             return self.json({"ok": True}, extra=self.cookie("", 0))
         ses = self.session()
@@ -442,6 +536,20 @@ class handler(BaseHTTPRequestHandler):
         if ses["r"] == "adm" and path.startswith("/admin/"):
             return self.admin(method, path[7:], q, b, ex)
         raise HttpError(403, "Tidak diizinkan.")
+
+    def bot_miss(self, b):
+        """Catat pertanyaan warga yang tidak terjawab chatbot (anonim, tanpa IP/identitas)."""
+        t = clean(b.get("q", ""), 160).lower()
+        t = re.sub(r"[\w.+-]+@[\w-]+\.[\w.]+", " ", t)
+        t = re.sub(r"\+?\d[\d\s().-]{5,}\d", " ", t)
+        t = re.sub(r"\s+", " ", t).strip()[:100]
+        if len(t) < 3 or not re.search(r"[a-z]{3}", t) or limited("rl:miss:" + self.ip(), 20, 3600):
+            return self.json({"ok": True})
+        n, ada = db().pipe([["HLEN", "miss"], ["HEXISTS", "miss", t]])
+        if int(n or 0) >= 300 and not int(ada or 0):
+            return self.json({"ok": True})
+        db().pipe([["HINCRBY", "miss", t, 1], ["HSET", "missw", t, now_ms()]])
+        return self.json({"ok": True})
 
     def info(self, ses):
         who = None
@@ -728,6 +836,37 @@ class handler(BaseHTTPRequestHandler):
         if r == "templat" and method == "GET":
             t = parse(db().cmd("HGET", "cfg", "qr"), None)
             return self.json({"daftar": t if isinstance(t, list) else ["Terima kasih, pertanyaan Anda sudah kami terima dan sedang kami proses.", "Silakan datang ke loket terkait dengan membawa dokumen asli dan fotokopi persyaratan.", "Mohon lengkapi berkas yang kurang, lalu ajukan kembali melalui sistem yang sesuai.", "Untuk penjelasan lebih lanjut, kami akan menghubungi Anda melalui WhatsApp."]}, extra=ex)
+        if r == "kata.xlsx":
+            return self.kata_xlsx(ex, False)
+        if r == "kata-templat.xlsx":
+            return self.kata_xlsx(ex, True)
+        if r == "kata/impor" and method == "POST":
+            try:
+                raw = base64.b64decode(str(b.get("data", "")))
+            except Exception:
+                raise HttpError(400, "Berkas tidak terbaca.")
+            if not raw or len(raw) > 600000:
+                raise HttpError(400, "Berkas kosong atau lebih dari 600 KB.")
+            try:
+                rows = kata_baca_baris(raw)
+            except HttpError:
+                raise
+            except Exception as e:
+                print("IMPOR", repr(e))
+                raise HttpError(400, "Berkas tidak bisa dibaca. Pastikan berformat .xlsx atau .csv yang valid.")
+            ok, lewat = kata_dari_baris(rows)
+            return self.json({"aturan": ok[:300], "lewat": lewat[:40], "total_lewat": len(lewat)}, extra=ex)
+        if r == "miss" and method == "GET":
+            c, w = [hall(x) for x in db().pipe([["HGETALL", "miss"], ["HGETALL", "missw"]])]
+            d = sorted([{"q": k, "n": int(v), "w": int(w.get(k) or 0)} for k, v in c.items()], key=lambda x: (-x["n"], -x["w"]))[:100]
+            return self.json({"daftar": d}, extra=ex)
+        if r == "miss/hapus" and method == "POST":
+            if b.get("semua"):
+                db().pipe([["DEL", "miss"], ["DEL", "missw"]])
+            else:
+                qs = [clean(x, 100) for x in (b.get("qs") or []) if isinstance(x, str)][:100]
+                db().pipe([["HDEL", "miss", x] for x in qs] + [["HDEL", "missw", x] for x in qs])
+            return self.json({"ok": True}, extra=ex)
         if r == "rekap.csv":
             return self.rekap(ex)
         if r == "data.xlsx":
@@ -893,7 +1032,7 @@ class handler(BaseHTTPRequestHandler):
         if r == "kata":
             ada = set("%s_%s" % (e["lokasi"], e["no"]) for e in SEED["loket"])
             out = []
-            for x in (b.get("daftar") or [])[:50]:
+            for x in (b.get("daftar") or [])[:KATA_MAX]:
                 if not isinstance(x, dict):
                     continue
                 ks = [clean(w, 40).lower() for w in (x.get("k") or []) if isinstance(w, str)]
@@ -972,6 +1111,59 @@ class handler(BaseHTTPRequestHandler):
                         time.strftime("%d-%m-%Y %H:%M", time.gmtime(t["waktu"] / 1000 + 7 * 3600)),
                         "Perlu dijawab" if t["pend"] else "Sudah dijawab", t["nilai"] or ""])
         self.out(200, "\ufeff" + buf.getvalue(), "text/csv; charset=utf-8", [("Content-Disposition", 'attachment; filename="rekap.csv"')] + ex)
+
+    def kata_xlsx(self, ex, templat):
+        from openpyxl import Workbook
+        from openpyxl.styles import Alignment, Font, PatternFill
+        from openpyxl.worksheet.datavalidation import DataValidation
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Aturan"
+        ws.append(["Kata kunci", "Jawaban untuk pengunjung", "Loket tujuan (opsional)"])
+        keys = list(LOKET)
+        if templat:
+            rows = [["contoh kata, contoh frasa lain", "Contoh jawaban: tulis cara mengurus, syarat, biaya, dan jam layanan di sini. Hapus baris contoh ini sebelum mengunggah.", ""],
+                    ["contoh dengan loket", "Jawaban boleh dikosongkan bila loket tujuan diisi.", label(keys[0]) if keys else ""]]
+        else:
+            d = parse(db().cmd("HGET", "cfg", "kata"), [])
+            rows = [[", ".join(x.get("k", [])), x.get("j", ""), label(x["t"][0]) if x.get("t") and x["t"][0] in LOKET else ""] for x in d if isinstance(x, dict)]
+        for i, r in enumerate(rows, start=2):
+            for j, v in enumerate(r, start=1):
+                c = ws.cell(row=i, column=j, value=v)
+                c.data_type = "s"
+                c.alignment = Alignment(wrap_text=True, vertical="top")
+        for c in ws[1]:
+            c.font = Font(bold=True, color="FFFFFF")
+            c.fill = PatternFill("solid", fgColor="1A46B5")
+        for col, w in (("A", 34), ("B", 80), ("C", 46)):
+            ws.column_dimensions[col].width = w
+        ws.freeze_panes = "A2"
+        pt = wb.create_sheet("Petunjuk")
+        for line in ["Cara mengisi", "1. Kolom A: kata atau frasa yang diketik warga. Pisahkan dengan koma (maksimal 10 kata, tiap kata 2-40 huruf).",
+                     "2. Kolom B: jawaban untuk pengunjung (maksimal 1.500 karakter, boleh beberapa baris).",
+                     "3. Kolom C (opsional): pilih loket dari daftar tarik-turun, atau salin dari sheet 'Daftar loket'.",
+                     "4. Baris tanpa kata kunci, atau tanpa jawaban sekaligus tanpa loket, dilewati.",
+                     "5. Unggah lewat tombol 'Impor Excel/CSV' di tab Kata cari chatbot, periksa pratinjau, lalu tekan Simpan.",
+                     "6. Berkas .csv (UTF-8) dengan tiga kolom yang sama juga bisa diimpor."]:
+            pt.append([line])
+        pt.column_dimensions["A"].width = 120
+        pt["A1"].font = Font(bold=True)
+        lk = wb.create_sheet("Daftar loket")
+        lk.append(["Pilihan loket (salin ke kolom C)", "Kode"])
+        for k in keys:
+            lk.append([label(k), k])
+        lk.column_dimensions["A"].width = 70
+        lk.column_dimensions["B"].width = 16
+        for c in lk[1]:
+            c.font = Font(bold=True)
+        if keys:
+            dv = DataValidation(type="list", formula1="='Daftar loket'!$A$2:$A$%d" % (len(keys) + 1), allow_blank=True, showErrorMessage=False)
+            ws.add_data_validation(dv)
+            dv.add("C2:C%d" % (KATA_MAX + 201))
+        bio = io.BytesIO()
+        wb.save(bio)
+        self.out(200, bio.getvalue(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                 [("Content-Disposition", 'attachment; filename="%s"' % ("templat-kata-cari.xlsx" if templat else "kata-cari-chatbot.xlsx"))] + ex)
 
     def xlsx(self, ex):
         from openpyxl import Workbook
