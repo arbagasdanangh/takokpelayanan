@@ -291,3 +291,6 @@ mark{background:var(--tick);color:var(--tickink);border-radius:3px;padding:0 2px
 .cloud{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .defl{border:1.5px solid var(--tick);background:var(--surface);border-radius:14px;padding:10px 12px;margin:8px 0;display:grid;gap:6px}
 .defl .bans-b p,.defl .bans-b ul,.defl .bans-b ol{margin:2px 0}
+.kt-pgr{display:flex;gap:6px;align-items:center;justify-content:center;flex-wrap:wrap;margin:8px 0}
+.kt-pgr .sys{margin:0 6px}.kt-go{display:inline-flex;gap:6px}.kt-go .si{width:120px;margin:0}
+.kt-filter{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.kt-filter .si{margin:0;flex:1;min-width:160px}.kt-filter select.si{flex:none;min-width:150px}

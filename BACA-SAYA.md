@@ -118,3 +118,12 @@ Cakupan: hingga 200 percakapan terbaru (agar muat di batas 10 detik fungsi Verce
 **Sisi pemohon**: saat mengetik pertanyaan ke admin, bila cocok dengan aturan Kata cari chatbot, jawabannya muncul langsung ("Mungkin ini sudah menjawab pertanyaan Anda") sehingga mengurangi beban admin.
 
 Data baru di Redis: hash `tmeta` (agregat analisis per percakapan) dan `ttag` (label/petugas/tindak lanjut). Percakapan lama tetap berfungsi: analisisnya dihitung ulang dari pesan yang ada.
+
+## Versi 8.1: Kata cari chatbot skala besar (ribuan aturan)
+Batas 100 aturan dihapus. Kini sampai **5.000 aturan** (ubah lewat variabel lingkungan `KATA_MAX`, maksimum 20.000; makin besar makin berat bagi Vercel/Upstash gratis).
+- **Penyimpanan berpecahan** (hash `kata2`, 100 aturan per pecahan) dan **penyimpanan bertahap**: admin menyimpan per bagian (maks. 300 aturan atau 420 KB), lalu daftar diganti secara atomik (`RENAME`) sehingga warga tidak pernah melihat daftar setengah jadi. Data lama (`cfg.kata`) tetap terbaca otomatis.
+- **Pengunjung ringan**: aturan tidak lagi ikut `/api/info`. Browser mengambilnya dari `/api/kata?v=<versi>` (cache CDN 1 tahun per versi) dan menyimpannya di localStorage. Redis hanya dibaca saat ada versi baru.
+- **Pencarian terindeks** (browser dan server), tetap instan walau ribuan aturan.
+- **Editor admin berhalaman** (30 aturan per halaman), dengan pencarian, filter (Perlu diperbaiki / Belum pernah dipakai / Baru), lompat ke nomor aturan, dan tombol **Gabungkan aturan kembar** (dapat diurungkan).
+- **Impor** sampai 5.000 baris dan berkas 3 MB (Excel/CSV/tempel). Setelah impor, aturan baru langsung ditampilkan.
+- Tidak ada lagi pembacaan seluruh daftar tiap kali admin membuka percakapan (saran balasan memakai cache per versi).

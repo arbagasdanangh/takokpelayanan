@@ -357,7 +357,35 @@ def muat_semua(limit=200):
 
 # ---------------- Handler ----------------
 # ---------------- Kata cari chatbot: impor / ekspor ----------------
-KATA_MAX = 100
+KATA_MAX = max(100, min(20000, int(os.environ.get("KATA_MAX", "5000") or 5000)))
+_KC = {"v": None, "d": [], "ix": None, "awal": set()}
+
+
+def kata_baca():
+    """Baca seluruh aturan Kata cari (disimpan berpecahan di hash kata2: p0, p1, ...). Kembalian: (daftar, versi|None)."""
+    h = hall(db().cmd("HGETALL", "kata2"))
+    if not h.get("v"):  # data lama (versi 7): satu blok JSON di cfg.kata
+        d = parse(db().cmd("HGET", "cfg", "kata"), [])
+        return (d if isinstance(d, list) else []), None
+    out = []
+    for _, v in sorted((int(k[1:]), v) for k, v in h.items() if k[:1] == "p" and k[1:].isdigit()):
+        p = parse(v, [])
+        out += p if isinstance(p, list) else []
+    return out, h["v"]
+
+
+def kata_cache():
+    """Seperti kata_baca(), tetapi dipakai ulang selama versinya sama (hanya 1 perintah Redis kecil per panggilan)."""
+    v = db().cmd("HGET", "kata2", "v")
+    if v and _KC["v"] == v:
+        return _KC["d"], v, _KC["ix"], _KC["awal"]
+    d, v = kata_baca()
+    ix = AN.KataIdx(d)
+    awal = set((x.get("k") or [""])[0] for x in d if isinstance(x, dict))
+    if v:
+        _KC.update({"v": v, "d": d, "ix": ix, "awal": awal})
+    return d, v, ix, awal
+
 
 
 def kata_peta_loket():
@@ -384,7 +412,7 @@ def kata_cari_loket(v, peta):
 
 
 def kata_baca_baris(raw):
-    """Baca .xlsx / .csv / teks tab menjadi daftar baris (maksimal 600 baris, 8 kolom)."""
+    """Baca .xlsx / .csv / teks tab menjadi daftar baris (maksimal 5.000 baris, 8 kolom)."""
     if raw[:4] == b"\xd0\xcf\x11\xe0":
         raise HttpError(400, "Format .xls lama tidak didukung. Simpan ulang sebagai .xlsx atau .csv.")
     if raw[:2] == b"PK":
@@ -392,7 +420,7 @@ def kata_baca_baris(raw):
         wb = load_workbook(io.BytesIO(raw), read_only=True, data_only=True)
         try:
             ws = wb["Aturan"] if "Aturan" in wb.sheetnames else wb.worksheets[0]
-            return [["" if v is None else str(v) for v in r] for r in ws.iter_rows(min_row=1, max_row=601, max_col=8, values_only=True)]
+            return [["" if v is None else str(v) for v in r] for r in ws.iter_rows(min_row=1, max_row=5001, max_col=8, values_only=True)]
         finally:
             wb.close()
     try:
@@ -401,7 +429,7 @@ def kata_baca_baris(raw):
         txt = raw.decode("latin-1")
     first = txt.split("\n", 1)[0]
     delim = "\t" if "\t" in first else max((";", ","), key=lambda d: first.count(d))
-    return [r for r in csv.reader(io.StringIO(txt), delimiter=delim)][:601]
+    return [r for r in csv.reader(io.StringIO(txt), delimiter=delim)][:5001]
 
 
 def kata_dari_baris(rows):
@@ -468,7 +496,8 @@ class handler(BaseHTTPRequestHandler):
         self.send_header("Referrer-Policy", "no-referrer")
         self.send_header("Content-Security-Policy", CSP)
         self.send_header("X-Frame-Options", "DENY")
-        self.send_header("Cache-Control", "no-store")
+        if not any(k.lower() == "cache-control" for k, _ in extra):
+            self.send_header("Cache-Control", "no-store")
         for k, v in extra:
             self.send_header(k, v)
         self.end_headers()
@@ -511,7 +540,7 @@ class handler(BaseHTTPRequestHandler):
                 if "application/json" not in (self.headers.get("Content-Type") or ""):
                     raise HttpError(415, "Format permintaan tidak valid.")
                 n = int(self.headers.get("Content-Length") or 0)
-                if n > {"/admin/kata": 250000, "/admin/kata/impor": 850000}.get(path, 10000):
+                if n > {"/admin/kata": 700000, "/admin/kata/impor": 4200000}.get(path, 10000):
                     raise HttpError(413, "Permintaan terlalu besar.")
                 try:
                     body = json.loads(self.rfile.read(n) or b"{}")
@@ -528,6 +557,8 @@ class handler(BaseHTTPRequestHandler):
     def route(self, method, path, q, b):
         if path == "/info":
             return self.info(self.session())
+        if path == "/kata" and method == "GET":
+            return self.kata_publik()
         if path == "/daftar" and method == "POST":
             return self.daftar(b)
         if path == "/masuk" and method == "POST":
@@ -592,8 +623,7 @@ class handler(BaseHTTPRequestHandler):
         v = v if v in (0, 1, -1) else 0
         if not ks or limited("rl:hit:" + self.ip(), 60, 3600):
             return self.json({"ok": True})
-        daftar = parse(db().cmd("HGET", "cfg", "kata"), [])
-        ada = set((x.get("k") or [""])[0] for x in daftar if isinstance(x, dict))
+        ada = kata_cache()[3]
         ks = [k for k in ks if k in ada]
         if ks:
             h = "khit" if v == 0 else ("kup" if v == 1 else "kdn")
@@ -602,6 +632,16 @@ class handler(BaseHTTPRequestHandler):
                 cmds.append(["HINCRBY", "khd", time.strftime("%Y%m%d", wib()), 1])
             db().pipe(cmds)
         return self.json({"ok": True})
+
+    def q1(self, k):
+        return (parse_qs(urlparse(self.path).query).get(k) or [""])[0]
+
+    def kata_publik(self):
+        """Daftar aturan untuk pengunjung. Dipasang cache CDN selama satu tahun karena URL-nya memuat nomor versi."""
+        d, v, _, _ = kata_cache()
+        ringan = [{"k": x["k"], "t": x["t"], "j": x["j"]} if x.get("t") else {"k": x["k"], "j": x["j"]} for x in d if isinstance(x, dict)]
+        hdr = [("Cache-Control", "public, max-age=86400, s-maxage=31536000, immutable")] if (v and self.q1("v") == v) else [("Cache-Control", "no-store")]
+        return self.json({"v": v or "", "kata": ringan}, extra=hdr)
 
     def info(self, ses):
         who = None
@@ -615,8 +655,9 @@ class handler(BaseHTTPRequestHandler):
         bt = sorted([parse(v, {}) for v in hall(db().cmd("HGETALL", "berita")).values()], key=lambda x: (not x.get("sematkan"), -x.get("id", 0)))[:10]
         rt = sorted(float(x) for x in db().cmd("LRANGE", "rt", -50, -1) or [])
         balas = round(rt[len(rt) // 2]) if len(rt) >= 3 else None
-        kata = parse(db().cmd("HGET", "cfg", "kata"), [])
-        self.json({"kata": kata if isinstance(kata, list) else [], "berita": bt, "balas_menit": balas, "mpp_roster": SKM_MPP, "lokasi": [{"id": k, "nama": v} for k, v in LOKASI.items()],
+        kv = db().cmd("HGET", "kata2", "v")
+        kata = kata_baca()[0] if (not kv or self.q1("kata")) else []  # data lama / editor admin: sertakan; pengunjung biasa: ambil via /kata?v=
+        self.json({"kata": kata, "kv": kv or "", "kata_max": KATA_MAX, "berita": bt, "balas_menit": balas, "mpp_roster": SKM_MPP, "lokasi": [{"id": k, "nama": v} for k, v in LOKASI.items()],
                    "loket": [[e["lokasi"], e["no"], e["nama"], e["uraian"], e["sistem"], e.get("zona", ""), 1 if e.get("diskusi", True) else 0, 1 if bisa_booking("%s_%s" % (e["lokasi"], e["no"])) else 0] for e in SEED["loket"]],
                    "cfg": {k: c.get(k, "") for k in ("wa", "jam", "info", "kuota")}, "saya": who},
                   extra=self.refresh(ses) if ses and who else ())
@@ -884,12 +925,11 @@ class handler(BaseHTTPRequestHandler):
                 raise HttpError(400, "Data tidak valid.")
             f = "%s|%s" % (pid, k)
             res = db().pipe([["LRANGE", "msgs:" + f, 0, -1], ["HSET", "rd", f, now_ms()], ["HGET", "cat", f], ["HGET", "ttag", f],
-                             ["HGET", "cfg", "kata"], ["HGET", "pemohon", pid]])
+                             ["HGET", "pemohon", pid]])
             msgs = [m for m in (parse(x) for x in res[0] or []) if m]
-            nama = (parse(res[5], {}) or {}).get("nama", "")
+            nama = (parse(res[4], {}) or {}).get("nama", "")
             analisa = AN.ringkas_percakapan(msgs, now_ms(), fmt_wib)
-            aturan = parse(res[4], [])
-            saran = AN.saran_balasan(msgs, aturan if isinstance(aturan, list) else [], nama, label(k), label) if msgs and msgs[-1]["dari"] == "pemohon" else []
+            saran = AN.saran_balasan(msgs, kata_cache()[2], nama, label(k), label) if msgs and msgs[-1]["dari"] == "pemohon" else []
             return self.json({"pesan": msgs, "catatan": res[2] or "", "tag": parse(res[3], {}) or {}, "analisa": analisa, "saran": saran}, extra=ex)
         if r == "analitik" and method == "GET":
             hari = int((q.get("hari") or ["30"])[0] or 30)
@@ -923,8 +963,8 @@ class handler(BaseHTTPRequestHandler):
                 raw = base64.b64decode(str(b.get("data", "")))
             except Exception:
                 raise HttpError(400, "Berkas tidak terbaca.")
-            if not raw or len(raw) > 600000:
-                raise HttpError(400, "Berkas kosong atau lebih dari 600 KB.")
+            if not raw or len(raw) > 3000000:
+                raise HttpError(400, "Berkas kosong atau lebih dari 3 MB.")
             try:
                 rows = kata_baca_baris(raw)
             except HttpError:
@@ -933,7 +973,7 @@ class handler(BaseHTTPRequestHandler):
                 print("IMPOR", repr(e))
                 raise HttpError(400, "Berkas tidak bisa dibaca. Pastikan berformat .xlsx atau .csv yang valid.")
             ok, lewat = kata_dari_baris(rows)
-            return self.json({"aturan": ok[:300], "lewat": lewat[:40], "total_lewat": len(lewat)}, extra=ex)
+            return self.json({"aturan": ok[:KATA_MAX], "lewat": lewat[:40], "total_lewat": len(lewat)}, extra=ex)
         if r == "kstat" and method == "GET":
             res = db().pipe([["HGETALL", "khit"], ["HGETALL", "kup"], ["HGETALL", "kdn"], ["HGETALL", "khd"], ["HGETALL", "kmd"]])
             hit, up, dn, khd, kmd = [{k: int(float(v)) for k, v in hall(x).items()} for x in res]
@@ -1122,17 +1162,30 @@ class handler(BaseHTTPRequestHandler):
         if r == "kata":
             ada = set("%s_%s" % (e["lokasi"], e["no"]) for e in SEED["loket"])
             out = []
-            for x in (b.get("daftar") or [])[:KATA_MAX]:
+            for x in (b.get("daftar") or [])[:1200]:
                 if not isinstance(x, dict):
                     continue
                 ks = [clean(w, 40).lower() for w in (x.get("k") or []) if isinstance(w, str)]
-                ks = [w for w in ks if len(w) >= 2][:10]
+                ks = list(dict.fromkeys(w for w in ks if len(w) >= 2))[:10]
                 ts = [t for t in (x.get("t") or []) if isinstance(t, str) and t in ada][:5]
                 j = clean(x.get("j", ""), 1500)
                 if ks and (ts or j):
                     out.append({"k": ks, "t": ts, "j": j})
-            db().cmd("HSET", "cfg", "kata", json.dumps(out, ensure_ascii=False))
-            return self.json({"ok": True, "daftar": out}, extra=ex)
+            bagian, total = max(0, int(b.get("bagian") or 0)), max(1, int(b.get("total") or 1))
+            if bagian >= total or total > 100:
+                raise HttpError(400, "Data tidak valid.")
+            if bagian == 0:
+                db().cmd("DEL", "kata2n")
+            n = int(db().pipe([["HSET", "kata2n", "p%d" % bagian, json.dumps(out, ensure_ascii=False)], ["HINCRBY", "kata2n", "n", len(out)]])[1])
+            if n > KATA_MAX:
+                db().cmd("DEL", "kata2n")
+                raise HttpError(400, "Maksimal %d aturan." % KATA_MAX)
+            if bagian < total - 1:
+                return self.json({"ok": True, "bagian": bagian}, extra=ex)
+            v = str(now_ms())
+            db().pipe([["HSET", "kata2n", "v", v], ["RENAME", "kata2n", "kata2"]])  # RENAME bersifat atomik: pengunjung tidak pernah melihat daftar setengah jadi
+            _KC["v"] = None
+            return self.json({"ok": True, "n": n, "v": v}, extra=ex)
         if r == "catatan":
             pid, k = int(b.get("pid") or 0), str(b.get("kunci", ""))
             if not valid_key(k):
@@ -1289,7 +1342,7 @@ class handler(BaseHTTPRequestHandler):
             rows = [["contoh kata, contoh frasa lain", "Contoh jawaban: tulis cara mengurus, syarat, biaya, dan jam layanan di sini. Hapus baris contoh ini sebelum mengunggah.", ""],
                     ["contoh dengan loket", "Jawaban boleh dikosongkan bila loket tujuan diisi.", label(keys[0]) if keys else ""]]
         else:
-            d = parse(db().cmd("HGET", "cfg", "kata"), [])
+            d = kata_baca()[0]
             rows = [[", ".join(x.get("k", [])), x.get("j", ""), label(x["t"][0]) if x.get("t") and x["t"][0] in LOKET else ""] for x in d if isinstance(x, dict)]
         for i, r in enumerate(rows, start=2):
             for j, v in enumerate(r, start=1):

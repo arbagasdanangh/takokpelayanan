@@ -81,13 +81,35 @@ function berita() {
 }
 /* ---- MPP Surabaya: instansi per zona ---- */
 var AL = [[/polisi|skck|polrestabes|kepolisian/, /polrestabes/i], [/narkoba|narkotika|bnn/, /bnn/i], [/pengadaan|lpse|bpbjap|tender/, /bpbjap/i], [/\bpos\b|paket|giro/, /pos indonesia/i], [/pbb|pajak|bphtb|bapenda/, /bapenda/i], [/pajak|npwp|djp/, /direktorat jenderal pajak/i], [/pengadilan|sidang|perkara/, /pengadilan negeri/i], [/cerai|nikah|isbat|pengadilan agama/, /pengadilan agama/i], [/bandara/, /otoritas bandara/i], [/^(?!.*ketenagakerjaan).*(bpjs|jkn)/, /bpjs kesehatan/i], [/bpjs|ketenagakerjaan|jht|jaminan hari tua/, /bpjs ketenagakerjaan/i], [/loker|lowongan|kartu kuning|bursa|ak1|pencari kerja/, /bursa tenaga kerja/i], [/pdam|air bersih|air minum|sambungan air/, /pdam/i], [/tanah|sertifikat|bpn|pertanahan|balik nama/, /kantor pertanahan/i], [/kejaksaan|jaksa|tilang/, /kejaksaan/i]];
+/* Pencocokan aturan Kata cari memakai indeks terbalik (token pertama kata kunci), sehingga tetap cepat walau ada ribuan aturan.
+   Hasilnya setara dengan pencocokan batas-kata; kata kunci bertanda baca khusus (mis. "e-ktp") dicek dengan regex. */
+function kataTk(s) { return String(s).toLowerCase().match(/[a-z0-9]+/g) || []; }
+function kataIdx(R) {
+  var ix = {}, lambat = [];
+  R.forEach(function (r, i) {
+    (r.k || []).forEach(function (w, o) {
+      if (!w) return;
+      var t = kataTk(w);
+      if (t.length && t.join(" ") === String(w).toLowerCase().replace(/\s+/g, " ").trim()) (ix[t[0]] = ix[t[0]] || []).push([i, o, t]);
+      else lambat.push([i, o, w]);
+    });
+  });
+  return {ix: ix, lambat: lambat};
+}
 function kataHit(s, R) {
-  var o = {j: [], k: [], i: [], w: []}, seen = {};
-  (R || window.KATA || []).forEach(function (r, idx) {
-    var hw = null;
-    (r.k || []).some(function (w) { if (w && new RegExp("(^|[^a-z0-9])" + w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "($|[^a-z0-9])").test(s)) { hw = w; return true; } return false; });
-    if (hw === null) return;
-    o.i.push(idx); o.w.push(hw);
+  var o = {j: [], k: [], i: [], w: []}, seen = {}, A = R || window.KATA || [], X, best = {}, toks = kataTk(s), txt = String(s).replace(/\s+/g, " ");
+  if (R) X = kataIdx(A); else { if (!A.__ix) { try { Object.defineProperty(A, "__ix", {value: kataIdx(A), enumerable: false, configurable: true}); } catch (e) { return o; } } X = A.__ix; }
+  toks.forEach(function (tk, p) {
+    (X.ix[tk] || []).forEach(function (e) {
+      if (toks.slice(p, p + e[2].length).join(" ") === e[2].join(" ") && (!best[e[0]] || e[1] < best[e[0]][0])) best[e[0]] = [e[1], e[2].join(" ")];
+    });
+  });
+  X.lambat.forEach(function (e) {
+    if ((!best[e[0]] || e[1] < best[e[0]][0]) && new RegExp("(^|[^a-z0-9])" + String(e[2]).replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "($|[^a-z0-9])").test(txt)) best[e[0]] = [e[1], e[2]];
+  });
+  Object.keys(best).map(Number).sort(function (a, b) { return a - b; }).forEach(function (idx) {
+    var r = A[idx];
+    o.i.push(idx); o.w.push(best[idx][1]);
     if (r.j && o.j.indexOf(r.j) < 0) o.j.push(r.j);
     (r.t || []).forEach(function (k) { if (!seen[k] && entryOf(k)) { seen[k] = 1; o.k.push(k); } });
   });

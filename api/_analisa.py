@@ -177,18 +177,44 @@ def ringkas_percakapan(msgs, now_ms, tgl_fmt):
             "respons_menit": round(sum(resp) / len(resp), 1) if resp else None}
 
 
+def _tk(s):
+    return re.findall(r"[a-z0-9]+", str(s).lower())
+
+
+class KataIdx:
+    """Indeks terbalik untuk aturan Kata cari: pencarian cepat walau ada ribuan aturan.
+    Setara dengan pencocokan batas-kata di chatbot (bot.js)."""
+
+    def __init__(self, aturan):
+        self.a, self.ix, self.lambat = aturan, {}, []
+        for i, r in enumerate(aturan):
+            if not isinstance(r, dict):
+                continue
+            for o, w in enumerate(r.get("k") or []):
+                if not isinstance(w, str) or not w:
+                    continue
+                t = _tk(w)
+                if t and " ".join(t) == re.sub(r"\s+", " ", w.lower()).strip():
+                    self.ix.setdefault(t[0], []).append((i, o, t))
+                else:
+                    self.lambat.append((i, o, w))
+
+    def cocok(self, teks):
+        s = re.sub(r"\s+", " ", str(teks).lower())
+        toks, best = _tk(s), {}
+        for p, tk_ in enumerate(toks):
+            for i, o, t in self.ix.get(tk_, ()):
+                if toks[p:p + len(t)] == t and (i not in best or o < best[i][0]):
+                    best[i] = (o, " ".join(t))
+        for i, o, w in self.lambat:
+            if (i not in best or o < best[i][0]) and re.search(r"(^|[^a-z0-9])" + re.escape(w) + r"($|[^a-z0-9])", s):
+                best[i] = (o, w)
+        return [(self.a[i], best[i][1]) for i in sorted(best)]
+
+
 def cocok_kata(teks, aturan):
-    """Cocokkan teks dengan aturan 'Kata cari chatbot' (sama seperti di chatbot: batas kata)."""
-    s = re.sub(r"\s+", " ", str(teks).lower())
-    out = []
-    for r in aturan:
-        if not isinstance(r, dict):
-            continue
-        for w in r.get("k") or []:
-            if w and re.search(r"(^|[^a-z0-9])" + re.escape(w) + r"($|[^a-z0-9])", s):
-                out.append((r, w))
-                break
-    return out
+    """Cocokkan teks dengan aturan 'Kata cari chatbot'. aturan: daftar atau KataIdx. Kembalian: [(aturan, kata_yang_cocok)]."""
+    return (aturan if isinstance(aturan, KataIdx) else KataIdx(aturan)).cocok(teks)
 
 
 def saran_balasan(msgs, aturan, nama, loket_label, label_fn):
