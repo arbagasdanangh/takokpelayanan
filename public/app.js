@@ -5,7 +5,8 @@ var EX=["Mau bikin NIB","SIP dokter","Bayar retribusi IPT","Pasang reklame","Izi
 var $=function(i){return document.getElementById(i)};
 var S="out",ME=null,CFG={},LOCS=[],LD={},LOC="pusat",fl="Semua",qv="";
 var M=[],MYST={},T=[],SEL=null,SM=[],KEEP={},FOC=null,SENT=[],MYV=false,OPENK=null,AF={st:"pend",loc:"all",q:""},LAST=Date.now(),SEEN=null,SEENA=null,TIMER=null,AUTH="masuk",SIG="",ASIG="";
-var APP=location.origin+"/";
+var APP=location.origin+"/",MYDB={},BALAS=null;
+var QQ=["Apa saja persyaratannya?","Berapa lama prosesnya?","Apakah ada biaya?","Bagaimana cara mengajukannya?"];
 var QR=["Terima kasih, pertanyaan Anda sudah kami terima dan sedang kami proses.","Silakan datang ke loket terkait dengan membawa dokumen asli dan fotokopi persyaratan.","Mohon lengkapi berkas yang kurang, lalu ajukan kembali melalui sistem yang sesuai.","Untuk penjelasan lebih lanjut, kami akan menghubungi Anda melalui WhatsApp."];
 function esc(s){return String(s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
 function clean(s){return String(s).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g,"").trim()}
@@ -26,7 +27,13 @@ function toks(s){return s.toLowerCase().replace(/[^a-z0-9 ]/g," ").split(/\s+/).
 function score(d,t){var h=(d[1]+" "+d[2]+" "+(d[4]||"")).toLowerCase(),n=d[1].toLowerCase(),s=0;t.forEach(function(w){if(h.indexOf(w)>-1)s+=2;if(n.indexOf(w)>-1)s+=3});return s}
 function sysOk(d){return fl==="Semua"||String(d[3]).indexOf(fl)>-1}
 function msgsOf(k){return M.filter(function(x){return x.n===k})}
-function bubbles(L,mine){return L.length?L.map(function(m){return '<div class="m'+(m.by===mine?' me':'')+'">'+esc(m.text)+'<small>'+(m.by==="admin"?"Admin":"Pemohon")+', '+fmt(m.ts)+'</small></div>'}).join(""):'<p class="sys">Belum ada pesan. Tulis pertanyaan Anda di bawah.</p>'}
+function hariId(ts){return new Date(ts).toLocaleDateString("id-ID",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}
+function bubbles(L,mine,rd){
+ if(!L.length)return '<p class="sys">Belum ada pesan. Tulis pertanyaan Anda di bawah.</p>';
+ var pd="",o=L.map(function(m){var d=new Date(m.ts).toDateString(),sep=d!==pd?'<div class="dsep">'+esc(hariId(m.ts))+'</div>':"";pd=d;return sep+'<div class="m'+(m.by===mine?' me':'')+'">'+esc(m.text)+'<small>'+(m.by==="admin"?"Admin":"Pemohon")+', '+fmt(m.ts)+'</small></div>'}).join("");
+ var last=L[L.length-1];
+ if(mine==="user"&&last.by==="user")o+='<div class="rcpt">'+(rd&&rd>=last.ts?'&#10003;&#10003; Dibaca admin':'&#10003; Terkirim')+'</div>';
+ return o}
 function conv(a){return a.map(function(m){return{id:m.id,n:m.kunci,by:m.dari==="admin"?"admin":"user",text:m.isi,ts:m.waktu}})}
 function guard(t,k){
  if(t.length>800)return "Pesan terlalu panjang (maksimal 800 karakter).";
@@ -44,7 +51,7 @@ function chatHtml(k){
  var L=msgsOf(k),last=L[L.length-1],rt=(MYST[k]||{}).nilai,aw=CFG.wa||"",ex="";
  if(last&&last.by==="admin")ex+='<div class="rate"><span class="sys">Apakah jawaban membantu? '+(rt?'Penilaian Anda: '+rt+'/5':'')+'</span><span class="btns">'+[1,2,3,4,5].map(function(i){return '<button type="button" class="chip" data-act="rate" data-n="'+k+'" data-v="'+i+'" aria-label="Nilai '+i+' dari 5">'+i+'</button>'}).join("")+'</span></div>';
  if(aw)ex+='<div class="hint"><a class="chip" href="'+esc(waLink(aw,"Halo admin, saya "+ME.nama+" ("+ME.hp+") baru mengirim pertanyaan di "+label(k)+". Mohon dicek di Takok Pelayanan Suroboyo."))+'" target="_blank" rel="noopener noreferrer">Beritahu admin via WhatsApp</a></div>';
- return '<div class="qa"><h3>Diskusi pribadi dengan admin</h3><p class="sys">Hanya Anda dan admin yang dapat melihat percakapan ini. Jangan kirim NIK lengkap, kata sandi, atau kode OTP.</p><div class="thread">'+bubbles(L,"user")+'</div><div class="qf"><textarea data-k="q:'+k+'" rows="3" maxlength="800" placeholder="Tulis pertanyaan atau balasan Anda" aria-label="Pesan"></textarea><button type="button" class="send" data-act="send" data-n="'+k+'">Kirim</button></div>'+ex+'</div>'}
+ return '<div class="qa"><h3>Diskusi pribadi dengan admin</h3><p class="sys">Hanya Anda dan admin yang dapat melihat percakapan ini. Jangan kirim NIK lengkap, kata sandi, atau kode OTP.'+(BALAS?' Rata-rata admin membalas dalam '+(BALAS<60?"±"+BALAS+" menit":"±"+Math.round(BALAS/60)+" jam")+'.':"")+'</p><div class="thread">'+bubbles(L,"user",MYDB[k])+'</div>'+(L.length?"":QQ.map(function(q){return '<button type="button" class="chip" data-qq="'+esc(q)+'">'+esc(q)+'</button> '}).join(""))+'<div class="qf"><textarea data-k="q:'+k+'" rows="3" maxlength="800" placeholder="Tulis pertanyaan atau balasan Anda" aria-label="Pesan"></textarea><div class="btns" style="justify-content:space-between;align-items:center;width:100%"><small class="sys ctr">0/800 &middot; Enter untuk kirim</small><button type="button" class="send" data-act="send" data-n="'+k+'">Kirim</button></div></div>'+ex+'</div>'}
 function render(){
  title();
  if(S==="adm"||(S==="user"&&MYV))return;
@@ -77,7 +84,7 @@ function loginUI(){var reg=AUTH==="daftar";
  :'<input id="lh" type="tel" inputmode="tel" placeholder="Nomor HP (08xxxxxxxxxx)" maxlength="16" autocomplete="tel" aria-label="Nomor HP"><input id="lp" type="password" inputmode="numeric" placeholder="PIN 6 angka" maxlength="6" autocomplete="current-password" aria-label="PIN"><button class="send" id="lu" type="button">Masuk</button>')
  +'<p class="sys" style="margin:0">Percakapan Anda bersifat pribadi. Nomor HP dan email hanya dilihat admin.</p></div>'
  +'<div class="card"><h2>Admin</h2><p class="sys" style="margin:0">Khusus petugas PTSP. Sesi berakhir otomatis bila tidak aktif.</p><input id="lw" type="password" placeholder="Kata sandi admin" autocomplete="current-password" aria-label="Kata sandi admin"><button class="send" id="la" type="button">Masuk admin</button></div>'}
-async function startSession(j){S=j.saya.peran==="admin"?"adm":"user";ME=j.saya;LAST=Date.now();err("");MYV=false;SEEN=null;SEENA=null;SEL=null;SIG="";ASIG="";$("lg").dataset.on="";startPoll();ui()}
+async function startSession(j){S=j.saya.peran==="admin"?"adm":"user";ME=j.saya;LAST=Date.now();err("");MYV=false;SEEN=null;SEENA=null;SEL=null;SIG="";ASIG="";$("lg").dataset.on="";startPoll();if(S==="adm")api("/api/admin/templat").then(function(j){QR=j.daftar;if($("tq"))$("tq").value=QR.join("\n");admPane()}).catch(function(){});ui()}
 $("lg").addEventListener("click",async function(e){var id=e.target.id,a=e.target.dataset.a;err("");
  if(a){AUTH=a;loginUI();return}
  try{
@@ -97,12 +104,12 @@ document.addEventListener("visibilitychange",function(){if(S!=="out")startPoll()
 async function tick(){try{
  if(S==="user"){var j=await api("/api/pesan"),arr=conv(j.pesan).sort(function(a,b){return a.ts-b.ts});
   if(window.pmhCheck)pmhCheck(j.pmh||[]);if(window.bkCheck)bkCheck(j.bk||[]);if(SEEN)arr.forEach(function(m){if(m.by==="admin"&&!SEEN[m.id])notify("Admin membalas",label(m.n),function(){openKey(m.n)})});
-  SEEN={};arr.forEach(function(m){SEEN[m.id]=1});var sg=arr.length+":"+(arr.length?arr[arr.length-1].id:0)+JSON.stringify(j.status);
-  if(sg!==SIG){SIG=sg;M=arr;MYST=j.status;render();if(MYV)myList()}}
+  SEEN={};arr.forEach(function(m){SEEN[m.id]=1});var sg=arr.length+":"+(arr.length?arr[arr.length-1].id:0)+JSON.stringify(j.status)+JSON.stringify(j.dibaca||{});
+  if(sg!==SIG){SIG=sg;M=arr;MYST=j.status;MYDB=j.dibaca||{};render();if(MYV)myList()}}
  if(S==="adm"){var a=await api("/api/admin/percakapan"),cur2={};a.daftar.forEach(function(x){if(x.pend)cur2[x.pid+"|"+x.kunci+"|"+x.waktu]=x});
   if(SEENA)for(var id in cur2)if(!SEENA[id])notify("Pesan baru",cur2[id].nama+" - "+label(cur2[id].kunci),(function(x){return function(){pick(x)}})(cur2[id]));
   SEENA={};for(var i2 in cur2)SEENA[i2]=1;var sa=JSON.stringify(a.daftar);if(sa!==ASIG){ASIG=sa;T=a.daftar;admList()}else title();
-  if(SEL){var pm=await api("/api/admin/pesan?pid="+SEL.pid+"&kunci="+encodeURIComponent(SEL.kunci)),sm=conv(pm.pesan).sort(function(x,y){return x.ts-y.ts}),ss=sm.length+":"+(sm.length?sm[sm.length-1].id:0);if(ss!==SM.sig){sm.sig=ss;SM=sm;admPane()}}}
+  if(SEL){var pm=await api("/api/admin/pesan?pid="+SEL.pid+"&kunci="+encodeURIComponent(SEL.kunci)),sm=conv(pm.pesan).sort(function(x,y){return x.ts-y.ts}),ss=sm.length+":"+(sm.length?sm[sm.length-1].id:0);if(SEL.cat===undefined){SEL.cat=pm.catatan||"";admPane()}if(ss!==SM.sig){sm.sig=ss;SM=sm;admPane()}}}
  }catch(x){}}
 /* ---- Pencarian, filter, tema ---- */
 function setQ(v){qv=v;$("q").value=v;render()}
@@ -122,6 +129,7 @@ function myList(){var el=$("v-my");var by=lastBy(),ks=Object.keys(by).sort(funct
  var ml=$("ml");if(ml)ks.forEach(function(k){var m=by[k],b=document.createElement("button");b.type="button";b.className="ti";var h=document.createElement("b");h.textContent=label(k);var s=document.createElement("span");s.textContent=(m.by==="admin"?"Admin: ":"Anda: ")+m.text;b.appendChild(h);b.appendChild(s);if(m.by==="admin"){var e=document.createElement("em");e.textContent="Ada balasan";b.appendChild(e)}
   b.onclick=function(){openKey(k)};ml.appendChild(b)});title()}
 $("list").addEventListener("click",async function(e){err("");
+ var qq=e.target.closest("[data-qq]");if(qq){var t0=qq.closest(".qa").querySelector("textarea");t0.value=qq.dataset.qq;t0.focus();t0.dispatchEvent(new Event("input",{bubbles:true}));return}
  var rb=e.target.closest('[data-act="rate"]');
  if(rb&&S==="user"){try{await api("/api/nilai",{kunci:rb.dataset.n,nilai:+rb.dataset.v});toast("Terima kasih atas penilaian Anda.");SIG="";tick()}catch(x){err(x.message)}return}
  var b=e.target.closest('[data-act="send"]');if(!b||S!=="user")return;var k=b.dataset.n,ta=b.closest(".qf").querySelector("textarea"),t=clean(ta.value);if(!t)return;
@@ -130,8 +138,8 @@ $("list").addEventListener("click",async function(e){err("");
 /* ---- Admin ---- */
 function pick(x){SEL={pid:x.pid,kunci:x.kunci,nama:x.nama,hp:x.hp,email:x.email};SM=[];admList();admPane();tick()}
 function admUI(){var d=$("v-adm");if(d.dataset.on==="1"){admList();return}d.dataset.on="1";
- d.innerHTML='<div class="hint" id="atabs"></div><div id="a-inbox"><div class="stat" id="st"></div><div class="hint"><a class="btn" href="/api/app?p=%2Fadmin%2Frekap.csv" download>Unduh rekap (CSV)</a><a class="btn" href="/api/app?p=%2Fadmin%2Fdata.xlsx" download>Unduh database (Excel)</a></div><details class="set"><summary>Pengaturan dan pengumuman</summary><div class="qf"><input class="si" id="cw" placeholder="Nomor WA resmi PTSP (08xxxxxxxxxx)" maxlength="16" aria-label="Nomor WA resmi"><input class="si" id="cj" placeholder="Jam layanan, mis. Senin-Jumat 08.00-15.00" maxlength="100" aria-label="Jam layanan"><textarea id="ci" rows="2" maxlength="300" placeholder="Pengumuman untuk pemohon (opsional)" aria-label="Pengumuman"></textarea><button type="button" class="send" id="cs">Simpan pengaturan</button><b style="margin-top:8px">Ganti kata sandi admin</b><input class="si" id="p1" type="password" placeholder="Kata sandi lama" autocomplete="current-password"><input class="si" id="p2" type="password" placeholder="Kata sandi baru (min. 8 karakter)" autocomplete="new-password"><button type="button" class="btn" id="cp">Ganti kata sandi</button></div></details><div class="adg"><div><div class="hint" id="af"></div><input class="si" id="as" placeholder="Cari nama, nomor HP, atau email" aria-label="Cari"><select class="si" id="ls" aria-label="Lokasi"><option value="all">Semua lokasi</option>'+LOCS.map(function(l){return '<option value="'+esc(l.id)+'">'+esc(l.nm)+'</option>'}).join("")+'</select><div class="tl" id="al"></div></div><div class="pane" id="ap"></div></div></div><div id="a-x" hidden></div>';
- $("cw").value=CFG.wa||"";$("cj").value=CFG.jam||"";$("ci").value=CFG.info||"";
+ d.innerHTML='<div class="hint" id="atabs"></div><div id="a-inbox"><div class="stat" id="st"></div><div class="hint"><a class="btn" href="/api/app?p=%2Fadmin%2Frekap.csv" download>Unduh rekap (CSV)</a><a class="btn" href="/api/app?p=%2Fadmin%2Fdata.xlsx" download>Unduh database (Excel)</a></div><details class="set"><summary>Pengaturan dan pengumuman</summary><div class="qf"><input class="si" id="cw" placeholder="Nomor WA resmi PTSP (08xxxxxxxxxx)" maxlength="16" aria-label="Nomor WA resmi"><input class="si" id="cj" placeholder="Jam layanan, mis. Senin-Jumat 08.00-15.00" maxlength="100" aria-label="Jam layanan"><textarea id="ci" rows="2" maxlength="300" placeholder="Pengumuman untuk pemohon (opsional)" aria-label="Pengumuman"></textarea><button type="button" class="send" id="cs">Simpan pengaturan</button><b style="margin-top:8px">Templat balasan cepat (satu per baris, maksimal 12)</b><textarea id="tq" rows="5" maxlength="4000" aria-label="Templat balasan"></textarea><button type="button" class="btn" id="tqs">Simpan templat</button><b style="margin-top:8px">Ganti kata sandi admin</b><input class="si" id="p1" type="password" placeholder="Kata sandi lama" autocomplete="current-password"><input class="si" id="p2" type="password" placeholder="Kata sandi baru (min. 8 karakter)" autocomplete="new-password"><button type="button" class="btn" id="cp">Ganti kata sandi</button></div></details><div class="adg"><div><div class="hint" id="af"></div><input class="si" id="as" placeholder="Cari nama, nomor HP, atau email" aria-label="Cari"><select class="si" id="ls" aria-label="Lokasi"><option value="all">Semua lokasi</option>'+LOCS.map(function(l){return '<option value="'+esc(l.id)+'">'+esc(l.nm)+'</option>'}).join("")+'</select><div class="tl" id="al"></div></div><div class="pane" id="ap"></div></div></div><div id="a-x" hidden></div>';
+ $("tq").value=QR.join("\n");$("cw").value=CFG.wa||"";$("cj").value=CFG.jam||"";$("ci").value=CFG.info||"";
  $("as").oninput=function(){AF.q=this.value.toLowerCase();admList()};$("ls").onchange=function(){AF.loc=this.value;admList()};
  $("af").onclick=function(e){var b=e.target.closest("[data-s]");if(b){AF.st=b.dataset.s;admList()}};admList();admPane();if(window.admTabs)admTabs()}
 function admList(){var el=$("al");if(!el||S!=="adm")return;title();var all=T;
@@ -151,14 +159,16 @@ function admPane(){var p=$("ap");if(!p||S!=="adm")return;
  var wa=waLink(SEL.hp,msg),mail=SEL.email?"mailto:"+SEL.email+"?subject="+encodeURIComponent("Balasan admin - "+lb)+"&body="+encodeURIComponent(msg):"";
  p.innerHTML='<h3>'+esc(SEL.nama)+'</h3><p class="sys" style="margin:0 0 8px">'+esc(lb)+'<br>HP: '+esc(SEL.hp||"-")+' | Email: '+esc(SEL.email||"-")+'</p><div class="thread" id="th2">'+bubbles(SM,"admin")+'</div>'
  +'<div class="hint"><span class="sys">Beritahu pemohon:</span>'+(wa?'<a class="chip" href="'+esc(wa)+'" target="_blank" rel="noopener noreferrer">WhatsApp</a>':'')+(mail?'<a class="chip" href="'+esc(mail)+'" target="_blank" rel="noopener noreferrer">Email</a>':'')+'</div>'
- +'<div class="hint">'+QR.map(function(q,i){return '<button type="button" class="chip" data-q="'+i+'">Balasan cepat '+(i+1)+'</button>'}).join("")+'</div><div class="qf"><textarea id="rt" rows="3" maxlength="800" placeholder="Tulis jawaban untuk pemohon" aria-label="Jawaban"></textarea><div class="btns"><button type="button" class="send" id="rs">Kirim jawaban</button><button type="button" class="btn" id="rc">Tandai selesai</button><button type="button" class="btn" id="rd">Hapus percakapan</button></div></div>';
+ +'<div class="hint">'+QR.map(function(q,i){return '<button type="button" class="chip" data-q="'+i+'" title="'+esc(q)+'">'+esc(q.length>30?q.slice(0,30)+"\u2026":q)+'</button>'}).join("")+'</div><div class="qf"><textarea id="rt" rows="3" maxlength="800" placeholder="Tulis jawaban untuk pemohon" aria-label="Jawaban"></textarea><div class="btns"><button type="button" class="send" id="rs">Kirim jawaban</button><button type="button" class="btn" id="rc">Tandai selesai</button><button type="button" class="btn" id="rd">Hapus percakapan</button></div></div><div class="qf"><b>Catatan internal</b> <small class="sys">(tidak terlihat pemohon)</small><textarea id="cat" rows="2" maxlength="500" placeholder="Catatan untuk petugas lain" aria-label="Catatan internal">'+esc(SEL.cat||"")+'</textarea><button type="button" class="btn" id="cats">Simpan catatan</button></div>';
  $("rt").value=keep;var th=$("th2");th.scrollTop=th.scrollHeight}
 $("v-adm").addEventListener("click",async function(e){if(S!=="adm")return;var id=e.target.id,qb=e.target.closest("[data-q]");err("");
  try{
  if(id==="cs"){await api("/api/admin/pengaturan",{wa:$("cw").value,jam:$("cj").value,info:$("ci").value});CFG={wa:ph($("cw").value)||"",jam:clean($("cj").value),info:clean($("ci").value)};an();toast("Pengaturan tersimpan.");return}
  if(id==="cp"){await api("/api/admin/password",{lama:$("p1").value,baru:$("p2").value});reset("Kata sandi diganti. Silakan masuk kembali.");return}
+ if(id==="tqs"){var r=await api("/api/admin/templat",{daftar:$("tq").value.split("\n")});QR=r.daftar;toast("Templat tersimpan ("+QR.length+").");admPane();return}
  if(!SEL)return;
  if(qb){var ta=$("rt");ta.value=(ta.value?ta.value+"\n":"")+QR[+qb.dataset.q];ta.focus();return}
+ if(id==="cats"){await api("/api/admin/catatan",{pid:SEL.pid,kunci:SEL.kunci,teks:$("cat").value});SEL.cat=$("cat").value;toast("Catatan tersimpan.");return}
  if(id==="rs"){var t=clean($("rt").value);if(!t)return;e.target.disabled=true;await api("/api/admin/balas",{pid:SEL.pid,kunci:SEL.kunci,isi:t});$("rt").value="";toast("Jawaban terkirim. Beritahu pemohon lewat WhatsApp atau email bila perlu.");ASIG="";SM.sig="";await tick();var b=$("rs");if(b)b.disabled=false}
  if(id==="rc"){await api("/api/admin/selesai",{pid:SEL.pid,kunci:SEL.kunci});toast("Ditandai selesai.");ASIG="";tick()}
  if(id==="rd"){if(e.target.dataset.sure!=="1"){e.target.dataset.sure="1";e.target.textContent="Yakin hapus? Klik lagi";return}await api("/api/admin/hapus",{pid:SEL.pid,kunci:SEL.kunci});SEL=null;ASIG="";await tick();admPane()}
@@ -172,6 +182,9 @@ $("t3").onclick=function(){$("lc").scrollIntoView({block:"center"});toast("Pilih
 $("t4").onclick=function(){if(S==="user"){MYV=true;ui()}else needLogin()};
 $("t5").onclick=function(){var k=findK(/^loket (informasi|cs)$/i,LOC)||findK(/^loket (informasi|cs)$/i,"pusat");if(k)openKey(k);needLogin()};
 $("t6").onclick=function(){var k=findK(/pengaduan/i,LOC)||findK(/pengaduan/i,"pusat");if(k){if(k.indexOf(LOC+"_")!==0)toast("Loket Pengaduan tidak ada di SPP ini. Dialihkan ke SPP lain.");openKey(k)}needLogin()};
+$("list").addEventListener("keydown",function(e){if(e.key==="Enter"&&!e.shiftKey&&e.target.matches&&e.target.matches('textarea[data-k^="q:"]')){e.preventDefault();var b=e.target.closest(".qf").querySelector("[data-act=send]");if(b&&!b.disabled)b.click()}});
+$("list").addEventListener("input",function(e){if(e.target.matches&&e.target.matches('textarea[data-k^="q:"]')){var c=e.target.closest(".qf").querySelector(".ctr");if(c)c.textContent=e.target.value.length+"/800 \u00b7 Enter untuk kirim"}});
+$("v-adm").addEventListener("input",function(e){if(e.target.id==="cat"&&SEL)SEL.cat=e.target.value});
 /* ---- Zona MPP ---- */
 var ZN="Semua",PZ=null;
 var ZC={"Zona 1":"#0e9aa7","Zona 2":"#c026d3","Zona 3":"#84cc16","Zona 4":"#ef4444","Zona 5":"#22c55e"};
@@ -186,5 +199,5 @@ $("list").addEventListener("click",function(e){var b=e.target.closest("[data-go]
 EX.push("BPJS Kesehatan","Pajak");
 /* ---- Mulai ---- */
 (async function(){try{var j=await api("/api/info");LOCS=j.lokasi.map(function(l){return{id:l.id,nm:l.nama}});LD={};j.loket.forEach(function(r){(LD[r[0]]=LD[r[0]]||[]).push([r[1],r[2],r[3],r[4],r[5]||"",r[6]!==0,r[7]!==0])});for(var k in LD)LD[k].sort(function(a,b){return a[0]-b[0]});
- CFG=j.cfg||{};window.BERITA=j.berita||[];if(!LD[LOC]&&LOCS.length)LOC=LOCS[0].id;an();lc();
+ CFG=j.cfg||{};window.BERITA=j.berita||[];window.MPPR=j.mpp_roster||[];BALAS=j.balas_menit||null;if(!LD[LOC]&&LOCS.length)LOC=LOCS[0].id;an();lc();
  if(j.saya){await startSession(j)}else ui()}catch(x){err("Server belum bisa dihubungi: "+x.message)}})();

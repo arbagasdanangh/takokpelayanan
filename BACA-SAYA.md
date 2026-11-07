@@ -57,3 +57,10 @@ Catatan:
 - **Penanda jam sepi/ramai** dan rekomendasi jam paling lengang saat memilih jam.
 - **Admin:** booking dikelompokkan per loket dengan tombol **Panggil berikutnya**; kolom **scan/ketik kode tiket** lalu Enter untuk memanggil (cocok dengan alat pemindai barcode USB yang mengetik kode ke kolom).
 - Barcode memakai standar Code 39 yang dibuat sendiri; belum diuji dengan alat pemindai fisik. Kode juga bisa diketik manual.
+
+## Versi 5
+**Berita:** admin menulis dengan editor teks kaya (tebal, miring, garis bawah, judul bagian, daftar poin/nomor, kutipan, tautan), memilih kategori (Berita, Pengumuman, Tips Layanan), menyematkan di atas, mengubah, dan menghapus. Isi disaring dua kali (server dan browser) dengan daftar-putih tag; script, gambar, dan atribut berbahaya dibuang.
+**SKM per zona dan instansi:** pemohon memilih lokasi lalu unit yang dinilai. Untuk MPP Surabaya tersedia seluruh zona dan instansi (Zona 1 sampai 5 dan non-zona/fasilitas lain, 25 unit), dengan ringkasan zona yang bisa dibuka. Untuk SPP, unit adalah seluruh pelayanan atau satu loket. Admin melihat IKM per lokasi, per zona MPP, dan per instansi/loket.
+**Tanya admin:**
+- Pemohon: tanda "Terkirim" lalu "Dibaca admin", pemisah tanggal, pertanyaan cepat (chip) saat percakapan kosong, penghitung karakter, Enter untuk kirim (Shift+Enter baris baru), dan perkiraan waktu balas admin (median dari balasan sebelumnya, tampil setelah minimal 3 data).
+- Admin: balasan cepat yang bisa diatur sendiri (Pengaturan > Templat balasan, maksimal 12) dan catatan internal per percakapan yang tidak terlihat pemohon.
