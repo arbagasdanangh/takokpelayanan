@@ -156,7 +156,7 @@ Catatan: belum diuji di browser sungguhan; cek di perangkat sebelum deploy. Dikt
 
 ### Versi 10 (lanjutan): ubah/hapus pesan dan kenyamanan chat
 **Tanya loket (pemohon)**
-- **Ubah pesan**: tombol "Ubah" di pesan sendiri, hanya selama 15 menit sejak dikirim dan sebelum admin membalas. Teks masuk ke kotak pesan, tombol berubah jadi "Simpan perubahan", ada tombol Batal (draf semula dikembalikan). Pesan yang diubah diberi penanda "diedit".
+- **Ubah pesan**: tombol "Ubah" di pesan sendiri (lihat bagian CRUD di bawah; batas 15 menit sudah dicabut).
 - **Hapus pesan**: kapan saja, dengan konfirmasi dua ketukan ("Yakin hapus?"). Penghapusan bersifat lunak: isi dikosongkan di server, pemohon melihat "Pesan ini dihapus", admin melihat "Pesan dihapus oleh pemohon".
 - **Cari dalam percakapan** (tombol Cari), selain draf otomatis, dikte suara, templat, emoji, dan unduh chat dari versi 10.
 - Server: `POST /api/pesan/ubah` dan `POST /api/pesan/hapus` (`api/app.py`; batas 8 per menit; hanya pesan milik sendiri; pemeriksaan NIK tetap berlaku). Konstanta `EDIT_MS` mengatur batas waktu ubah.
@@ -174,3 +174,17 @@ Tab admin baru **Editor loket** (`public/loket-admin.js`). Admin bisa, langsung 
 - Ada pencarian dan filter per lokasi. Setelah Simpan, perubahan langsung tampil di beranda dan chatbot tanpa deploy ulang.
 Cara kerja: hasil edit disimpan di Redis (hash `loketx`) dan digabung dengan data bawaan di server (`refresh_loket` di `api/app.py`, dipakai ulang maksimal 10 detik antar-permintaan). Pengunjung memuat data terbaru tiap membuka halaman. Endpoint: `GET /api/admin/loket`, `POST /api/admin/loket/simpan`, `POST /api/admin/loket/reset`.
 Batasan: nama lokasi (SPP Pusat, MPP Surabaya, dst.) dan nomor urut loket belum bisa diubah dari panel; loket tambahan tidak bisa dihapus permanen, hanya disembunyikan. Instance server lain bisa memakai data lama sampai 10 detik setelah penyimpanan. Aturan kata cari dan jawaban chatbot yang sudah ada tidak ikut berubah otomatis bila nama loket diganti; periksa tab Kata cari chatbot.
+
+### Versi 10 (lanjutan 2): CRUD pesan penuh dan fitur chat baru
+**Cache browser:** semua berkas memakai `?v=11`. Setelah deploy, bila tampilan masih lama, muat ulang keras (Ctrl+Shift+R / Cmd+Shift+R).
+**CRUD pesan (pemohon dan admin)**
+- **Create/Read:** kirim dan baca seperti biasa.
+- **Update:** pemohon dan admin dapat **mengubah pesan sendiri kapan saja** (tanpa batas 15 menit dan tanpa syarat belum dibalas). Setiap perubahan menyimpan versi sebelumnya (maks. 5): admin melihat "Diedit pemohon, lihat versi sebelumnya" agar percakapan tetap jujur dan tidak membingungkan.
+- **Delete:** hapus lunak dengan konfirmasi dua ketukan. Isi dan riwayat revisi dikosongkan di server; lawan bicara melihat "Pesan dihapus oleh ...".
+- **Admin** kini juga bisa mengubah/menghapus balasannya sendiri (`POST /api/admin/pesan/ubah` dan `/hapus`); pemohon: `/api/pesan/ubah` dan `/hapus`.
+**Fitur chat lain**
+- **Reaksi emoji** pemohon pada balasan admin (👍 ❤️ 🙏 😊 😮, satu per pesan, ketuk lagi untuk melepas); admin melihat reaksinya (`POST /api/pesan/reaksi`).
+- **Sematkan pesan penting** (maks. 5 per loket, tersimpan di perangkat) tampil sebagai kotak kuning di atas percakapan.
+- **Balasan cepat** ("Terima kasih", "Sudah jelas", "Masih bingung") muncul bila pesan terakhir dari admin.
+- **Tautan otomatis bisa diketuk** dan format `*tebal*` di pesan.
+Batasan: bila admin menghapus balasannya, percakapan tetap dianggap sudah dijawab; label analisis topik/nada tidak dihitung ulang setelah ubah/hapus.

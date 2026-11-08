@@ -104,7 +104,7 @@ function botInit() {
 }
 
 /* ===== Chat pemohon: draf otomatis, dikte suara, templat, emoji, unduh, salin ===== */
-var TPL = [["Syarat", "Mohon info syarat dan dokumen yang harus dibawa untuk "], ["Biaya", "Berapa biaya dan berapa lama proses untuk "], ["Nomor", "Nomor permohonan saya: "]], EM = ["\uD83D\uDE4F", "\uD83D\uDC4D", "\u2705"];
+var TPL = [["Syarat", "Mohon info syarat dan dokumen yang harus dibawa untuk "], ["Biaya", "Berapa biaya dan berapa lama proses untuk "], ["Nomor", "Nomor permohonan saya: "]], QR2 = [["Terima kasih \uD83D\uDE4F", "Terima kasih atas balasannya. \uD83D\uDE4F"], ["Sudah jelas \u2705", "Baik, sudah jelas. Terima kasih. \u2705"], ["Masih bingung", "Maaf, saya masih kurang paham. Mohon dijelaskan dengan lebih sederhana."]], EM = ["\uD83D\uDE4F", "\uD83D\uDC4D", "\u2705"];
 var REC2 = null;
 function ins(ta, s) { var a = ta.selectionStart || ta.value.length; ta.value = ta.value.slice(0, a) + s + ta.value.slice(ta.selectionEnd || a); ta.focus(); ta.dispatchEvent(new Event("input", {bubbles: true})); }
 function enh(ta) {
@@ -112,13 +112,16 @@ function enh(ta) {
   try { var d = localStorage.getItem(key); if (d && !ta.value) { ta.value = d; ta.dispatchEvent(new Event("input", {bubbles: true})); tb.dataset.r = "1"; } } catch (x) {}
   ta.addEventListener("input", function () { try { if (ta.value) localStorage.setItem(key, ta.value); else localStorage.removeItem(key); } catch (x) {} });
   tb.innerHTML = (tb.dataset.r ? '<span class="wdr">Draf dipulihkan</span>' : "") + TPL.map(function (t, i) { return '<button type="button" data-t="' + i + '">' + t[0] + '</button>'; }).join("") + EM.map(function (e) { return '<button type="button" class="em" data-e="' + e + '" aria-label="Sisipkan ' + e + '">' + e + '</button>'; }).join("") + (SRc ? '<button type="button" data-mic="1" aria-label="Dikte suara">\uD83C\uDFA4 Dikte</button>' : "") + '<button type="button" data-dl="1">Unduh chat</button><button type="button" data-sr="1">Cari</button>';
-  ta.insertAdjacentElement("afterend", tb); edApply(ta);
+  ta.insertAdjacentElement("afterend", tb); edApply(ta); pinDraw(ta.closest(".qa"), ta.dataset.k.slice(2));
+  var ms = ta.closest(".qa") ? ta.closest(".qa").querySelectorAll(".thread .m") : [], lm = ms[ms.length - 1];
+  if (lm && !lm.classList.contains("me") && !lm.classList.contains("dl")) tb.insertAdjacentHTML("afterbegin", QR2.map(function (q, i) { return '<button type="button" class="qr" data-q2="' + i + '">' + q[0] + '</button>'; }).join(""));
   tb.addEventListener("click", function (e) {
     var b = e.target.closest("button"); if (!b) return;
     if (b.dataset.sr) { var q = prompt("Cari kata dalam percakapan ini (kosongkan untuk menampilkan semua):"); var th2 = ta.closest(".qa"); if (q === null || !th2) return; q = q.toLowerCase(); [].forEach.call(th2.querySelectorAll(".thread .m"), function (m) { m.hidden = !!q && m.textContent.toLowerCase().indexOf(q) < 0; }); if (q) tg("Menampilkan pesan yang memuat \u201C" + q + "\u201D."); return; }
-    if (b.dataset.t) ins(ta, TPL[+b.dataset.t][1]);
+    if (b.dataset.q2) ins(ta, QR2[+b.dataset.q2][1]);
+    else if (b.dataset.t) ins(ta, TPL[+b.dataset.t][1]);
     else if (b.dataset.e) ins(ta, b.dataset.e);
-    else if (b.dataset.dl) { var th = ta.closest(".qa"), o = ["Percakapan dengan admin Takok", ""]; [].forEach.call(th ? th.querySelectorAll(".thread .m") : [], function (m) { var c = m.cloneNode(true), s = c.querySelector("small"), w = s ? s.textContent : ""; [].forEach.call(c.querySelectorAll("small,.macts"), function (x) { x.remove(); }); o.push("[" + w + "] " + c.textContent.trim()); }); dl("percakapan-admin-takok.txt", o.join("\n\n")); }
+    else if (b.dataset.dl) { var th = ta.closest(".qa"), o = ["Percakapan dengan admin Takok", ""]; [].forEach.call(th ? th.querySelectorAll(".thread .m") : [], function (m) { var c = m.cloneNode(true), s = c.querySelector("small"), w = s ? s.textContent : ""; [].forEach.call(c.querySelectorAll("small,.macts,.mrx,.mrv"), function (x) { x.remove(); }); o.push("[" + w + "] " + c.textContent.trim()); }); dl("percakapan-admin-takok.txt", o.join("\n\n")); }
     else if (b.dataset.mic) {
       if (REC2) { REC2.stop(); return; }
       try { REC2 = new SRc(); REC2.lang = "id-ID"; b.classList.add("on"); REC2.onresult = function (ev) { ins(ta, ev.results[0][0].transcript + " "); }; REC2.onend = REC2.onerror = function () { REC2 = null; b.classList.remove("on"); }; REC2.start(); } catch (x) { REC2 = null; b.classList.remove("on"); }
@@ -129,42 +132,66 @@ document.addEventListener("click", function (e) {
   var s = e.target.closest && e.target.closest('[data-act="send"]');
   if (s) { var ta = s.closest(".qf"); ta = ta && ta.querySelector("textarea"); if (ta) setTimeout(function () { if (!ta.value) { try { localStorage.removeItem("tkw_d:" + ta.dataset.k); } catch (x) {} } }, 400); return; }
   var m = e.target.closest && e.target.closest(".thread .m:not(.dl)");
-  if (m && !e.target.closest("button") && !window.getSelection().toString()) { var c = m.cloneNode(true); [].forEach.call(c.querySelectorAll("small,.macts"), function (x) { x.remove(); }); try { navigator.clipboard.writeText(c.textContent.trim()); tg("Pesan disalin."); } catch (x) {} }
+  if (m && !e.target.closest("button") && !window.getSelection().toString()) { var c = m.cloneNode(true); [].forEach.call(c.querySelectorAll("small,.macts,.mrx,.mrv"), function (x) { x.remove(); }); try { navigator.clipboard.writeText(c.textContent.trim()); tg("Pesan disalin."); } catch (x) {} }
 });
 var raf = 0;
 function scan() { raf = 0; botInit(); [].forEach.call(document.querySelectorAll('.qf textarea[data-k^="q:"]:not([data-w])'), enh); }
 new MutationObserver(function () { if (!raf) raf = requestAnimationFrame(scan); }).observe(document.body, {childList: true, subtree: true});
 
-/* ===== Ubah & hapus pesan sendiri ===== */
-var ED = null;
+/* ===== CRUD pesan: ubah, hapus, reaksi, sematkan ===== */
+var ED = null, STRIP = "small,.macts,.mrx,.mrv";
+function plain(m) { var c = m.cloneNode(true); [].forEach.call(c.querySelectorAll(STRIP), function (z) { z.remove(); }); return c.textContent.trim(); }
 function edApply(ta) {
-  var qf = ta.closest(".qf"); if (!qf) return;
+  var qf = ta && ta.closest(".qf"); if (!qf) return;
   var old = qf.querySelector(".wed"); if (old) old.remove();
-  var sb = qf.querySelector('[data-act="send"]'), on = ED && ta.dataset.k === "q:" + ED.k;
-  if (sb) sb.textContent = on ? "Simpan perubahan" : "Kirim";
-  if (on) ta.insertAdjacentHTML("beforebegin", '<div class="wed">Mengubah pesan. Pesan hanya bisa diubah 15 menit dan sebelum admin membalas. <button type="button" data-wed="x">Batal</button></div>');
+  var sb = qf.querySelector('[data-act="send"],#rs'), on = ED && (ED.adm ? ta.id === "rt" : ta.dataset.k === "q:" + ED.k);
+  if (sb) sb.textContent = on ? "Simpan perubahan" : (ta.id === "rt" ? "Kirim jawaban" : "Kirim");
+  if (on) ta.insertAdjacentHTML("beforebegin", '<div class="wed">Mengubah pesan. Versi sebelumnya tetap terlihat oleh lawan bicara sebagai riwayat revisi. <button type="button" data-wed="x">Batal</button></div>');
 }
 function edStop(ta) { var p = ED ? ED.prev : ""; ED = null; if (ta) { ta.value = p || ""; ta.dispatchEvent(new Event("input", {bubbles: true})); edApply(ta); } }
+function pins(k) { try { return JSON.parse(localStorage.getItem("tkw_pin:" + k) || "[]"); } catch (x) { return []; } }
+function pinDraw(qa, k) {
+  if (!qa) return; var o = qa.querySelector(".wpin"); if (o) o.remove();
+  var L = pins(k), th = qa.querySelector(".thread"); if (!L.length || !th) return;
+  th.insertAdjacentHTML("beforebegin", '<div class="wpin"><b>\uD83D\uDCCC Pesan penting</b>' + L.map(function (p) { return '<div>' + esc(p.t.length > 200 ? p.t.slice(0, 200) + "..." : p.t) + ' <button type="button" data-act="munpin" data-id="' + p.id + '" data-n="' + esc(k) + '" aria-label="Lepas sematan">\u00D7</button></div>'; }).join("") + '</div>');
+}
 document.addEventListener("click", async function (e) {
   var t = e.target; if (!t.closest) return;
   var x = t.closest("[data-wed]");
-  if (x) { edStop(x.closest(".qa").querySelector("textarea")); return; }
-  var b = t.closest('[data-act="medit"],[data-act="mdel"]');
+  if (x) { edStop(ED && ED.adm ? $("rt") : x.closest(".qa").querySelector("textarea")); return; }
+  var b = t.closest('[data-act="medit"],[data-act="mdel"],[data-act="mre"],[data-act="mpin"],[data-act="munpin"]');
   if (b) {
-    var qa = b.closest(".qa"), ta = qa && qa.querySelector("textarea"); if (!ta) return;
-    if (b.dataset.act === "medit") {
-      var c = b.closest(".m").cloneNode(true); [].forEach.call(c.querySelectorAll("small,.macts"), function (z) { z.remove(); });
-      ED = {k: b.dataset.n, id: +b.dataset.id, prev: ED ? ED.prev : ta.value}; ta.value = c.textContent.trim(); ta.dispatchEvent(new Event("input", {bubbles: true})); edApply(ta); ta.focus(); ta.scrollIntoView({block: "center"});
-    } else if (!b.dataset.c) { b.dataset.c = "1"; b.textContent = "Yakin hapus?"; b.classList.add("warn"); setTimeout(function () { b.dataset.c = ""; b.textContent = "Hapus"; b.classList.remove("warn"); }, 3500); }
-    else { b.disabled = true; try { await api("/api/pesan/hapus", {kunci: b.dataset.n, id: +b.dataset.id}); if (ED && ED.id === +b.dataset.id) edStop(ta); SIG = ""; await tick(); tg("Pesan dihapus."); } catch (z) { err(z.message); b.disabled = false; } }
+    var act = b.dataset.act, adm = !!b.dataset.adm, qa = b.closest(".qa"), ta = adm ? $("rt") : (qa && qa.querySelector("textarea"));
+    try {
+      if (act === "mre") { await api("/api/pesan/reaksi", {kunci: b.dataset.n, id: +b.dataset.id, e: b.classList.contains("on") ? "" : b.dataset.e}); SIG = ""; await tick(); return; }
+      if (act === "mpin" || act === "munpin") {
+        var k = b.dataset.n, L = pins(k), id = +b.dataset.id, has = L.some(function (p) { return p.id === id; });
+        if (act === "munpin" || has) L = L.filter(function (p) { return p.id !== id; }); else if (L.length >= 5) { tg("Maksimal 5 pesan penting."); return; } else L.push({id: id, t: plain(b.closest(".m"))});
+        try { localStorage.setItem("tkw_pin:" + k, JSON.stringify(L)); } catch (z) {}
+        pinDraw(qa, k); tg(has || act === "munpin" ? "Sematan dilepas." : "Pesan disematkan di atas percakapan."); return;
+      }
+      if (!ta) return;
+      if (act === "medit") { ED = {k: b.dataset.n, id: +b.dataset.id, adm: adm, pid: adm && window.SEL ? SEL.pid : 0, prev: ED ? ED.prev : ta.value}; ta.value = plain(b.closest(".m")); ta.dispatchEvent(new Event("input", {bubbles: true})); edApply(ta); ta.focus(); ta.scrollIntoView({block: "center"}); }
+      else if (!b.dataset.c) { b.dataset.c = "1"; b.textContent = "Yakin hapus?"; b.classList.add("warn"); setTimeout(function () { b.dataset.c = ""; b.textContent = "Hapus"; b.classList.remove("warn"); }, 3500); }
+      else {
+        b.disabled = true;
+        await api(adm ? "/api/admin/pesan/hapus" : "/api/pesan/hapus", adm ? {pid: SEL.pid, kunci: b.dataset.n, id: +b.dataset.id} : {kunci: b.dataset.n, id: +b.dataset.id});
+        if (ED && ED.id === +b.dataset.id) edStop(ta);
+        if (adm) { ASIG = ""; SM.sig = ""; } SIG = ""; await tick(); tg("Pesan dihapus.");
+      }
+    } catch (z) { err(z.message); tg(z.message); if (b) b.disabled = false; }
     return;
   }
-  var sb = t.closest('[data-act="send"]'); if (!sb || !ED || sb.dataset.n !== ED.k) return;
+  var sb = t.closest('[data-act="send"],#rs'); if (!sb || !ED) return;
+  if (ED.adm ? sb.id !== "rs" : sb.dataset.n !== ED.k) return;
   e.stopImmediatePropagation(); e.preventDefault();
   var ta2 = sb.closest(".qf").querySelector("textarea"), v = clean(ta2.value); if (!v) return;
-  var g = guard(v, ED.k); if (g) { err(g); return; }
+  if (!ED.adm) { var g = guard(v, ED.k); if (g) { err(g); return; } }
   sb.disabled = true;
-  try { await api("/api/pesan/ubah", {kunci: ED.k, id: ED.id, isi: v}); edStop(ta2); SIG = ""; await tick(); tg("Pesan diubah."); } catch (z) { err(z.message); }
+  try {
+    await api(ED.adm ? "/api/admin/pesan/ubah" : "/api/pesan/ubah", ED.adm ? {pid: ED.pid, kunci: ED.k, id: ED.id, isi: v} : {kunci: ED.k, id: ED.id, isi: v});
+    var adm2 = ED.adm; edStop(ta2); if (adm2) { ASIG = ""; SM.sig = ""; } SIG = ""; await tick(); tg("Pesan diubah.");
+  } catch (z) { err(z.message); tg(z.message); }
   sb.disabled = false;
 }, true);
 
