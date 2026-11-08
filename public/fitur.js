@@ -272,7 +272,7 @@ async function pnClick(e) {
       KEP = $("bk2").value;
       t.disabled = true;
       var r = await api("/api/booking", {tanggal: CART_TGL, keperluan: clean(KEP), item: CART});
-      toast("Booking berhasil: " + r.booking.map(function (o) { return o.kode; }).join(", "));
+      toast("Booking berhasil: " + r.booking.map(function (o) { return o.kode; }).join(", ")); if (window.konfeti) window.konfeti(60);
       CART = []; KEP = ""; BJ = ""; rencana(); await slots(); await bSaya(); return;
     }
     if (t.dataset.tiba) { await api("/api/booking/tiba", {id: t.dataset.tiba}); toast("Check-in berhasil. Petugas akan memanggil Anda sesuai urutan."); await bSaya(); return; }
@@ -288,7 +288,7 @@ async function pnClick(e) {
       }
       t.disabled = true;
       await api("/api/skm", {lokasi: $("sl").value, unit: $("su").value, j: j, saran: clean($("ss").value)});
-      $("v-pn").innerHTML = back() + '<div class="empty"><b>Terima kasih.</b><br>Penilaian Anda sangat membantu kami meningkatkan pelayanan.</div>';
+      if (window.konfeti) window.konfeti(60); $("v-pn").innerHTML = back() + '<div class="empty"><b>Terima kasih.</b><br>Penilaian Anda sangat membantu kami meningkatkan pelayanan.</div>';
     }
   } catch (x) { err(x.message); if (t.disabled) t.disabled = false; }
 }
@@ -336,7 +336,15 @@ async function aRing(el) {
       var d = new Date(x.tanggal + "T00:00:00");
       return '<div style="display:flex;align-items:center;gap:8px;margin:0 0 6px"><span style="width:96px">' + d.toLocaleDateString("id-ID", {weekday: "short", day: "numeric", month: "short"}) + '</span><div class="bar2" style="flex:1"><i style="width:' + (x.n / mx * 100) + '%"></i></div><b style="width:28px;text-align:right">' + x.n + '</b></div>';
     }).join("") + '</div><h2 class="sec">Permohonan per status</h2><div class="card">' + (Object.keys(j.pmh).length ? Object.keys(j.pmh).map(function (k) { return '<div style="display:flex;justify-content:space-between;margin:0 0 4px">' + bdg(k) + '<b>' + j.pmh[k] + '</b></div>'; }).join("") : '<span class="sys">Belum ada permohonan tercatat.</span>') + '</div>' +
+    aGame(j.game) +
     '<h2 class="sec">Layar antrean</h2><div class="card"><p class="sys" style="margin:0">Tampilkan nomor yang dipanggil di TV atau layar ruang tunggu. Layar mengumumkan dengan suara bila diaktifkan.</p><div class="btns"><a class="btn" href="/?layar=1" target="_blank" rel="noopener">Buka layar antrean</a></div></div>';
+}
+var GNAMA = {cocok: "Cocok Bentuk", susun: "Susun Bentuk", urut: "Ingat Urutan", kuis: "Kuis Kilat Loket"};
+function aGame(g) {
+  if (!g) return "";
+  var ks = Object.keys(g.per), tot = ks.reduce(function (a, k) { return a + g.per[k]; }, 0), mx = Math.max.apply(null, ks.map(function (k) { return g.per[k]; }).concat([1])), mh = Math.max.apply(null, g.hari.map(function (x) { return x.n; }).concat([1]));
+  return '<h2 class="sec">Ruang Main (pemakaian anonim)</h2><div class="card">' + (tot ? '<p class="sys" style="margin:0">' + tot + ' permainan dimulai. Data tanpa identitas; poin dan lencana warga hanya ada di perangkat mereka.</p>' + ks.map(function (k) { return '<div style="display:flex;align-items:center;gap:8px;margin:0 0 6px"><span style="width:130px">' + esc(GNAMA[k]) + '</span><div class="bar2" style="flex:1"><i style="width:' + (g.per[k] / mx * 100) + '%"></i></div><b style="width:36px;text-align:right">' + g.per[k] + '</b></div>'; }).join("") +
+    '<div class="kth-c" style="height:70px;margin-top:6px" role="img" aria-label="Permainan per hari">' + g.hari.map(function (x) { return '<div class="kth-d" title="' + esc(x.d) + ': ' + x.n + ' permainan"><div class="kth-b"><i class="y" style="height:' + Math.round(x.n * 100 / mh) + '%;background:var(--tick)"></i></div><small>' + esc(x.d) + '</small></div>'; }).join("") + '</div>' : '<span class="sys">Belum ada yang bermain. Ruang Main muncul di beranda warga.</span>') + '</div>';
 }
 var BKA = [];
 async function aBk(el, tgl) {

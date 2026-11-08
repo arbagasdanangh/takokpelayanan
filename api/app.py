@@ -569,6 +569,8 @@ class handler(BaseHTTPRequestHandler):
             return self.layar(q)
         if path == "/bot/miss" and method == "POST":
             return self.bot_miss(b)
+        if path == "/game/main" and method == "POST":
+            return self.game_main(b)
         if path == "/bot/hit" and method == "POST":
             return self.bot_hit(b)
         if path == "/keluar" and method == "POST":
@@ -614,6 +616,15 @@ class handler(BaseHTTPRequestHandler):
         if int(n or 0) >= 300 and not int(ada or 0):
             return self.json({"ok": True})
         db().pipe([["HINCRBY", "miss", t, 1], ["HSET", "missw", t, now_ms()], ["HINCRBY", "kmd", time.strftime("%Y%m%d", wib()), 1]])
+        return self.json({"ok": True})
+
+    GAMES = ("cocok", "susun", "urut", "kuis")
+
+    def game_main(self, b):
+        """Hitung pemakaian Ruang Main secara anonim (tanpa IP/identitas): total per permainan dan per hari."""
+        g = b.get("g")
+        if g in self.GAMES and not limited("rl:gm:" + self.ip(), 40, 3600):
+            db().pipe([["HINCRBY", "gm:n", g, 1], ["HINCRBY", "gm:d", time.strftime("%Y%m%d", wib()), 1]])
         return self.json({"ok": True})
 
     def bot_hit(self, b):
@@ -1040,6 +1051,12 @@ class handler(BaseHTTPRequestHandler):
                 if o:
                     ps[o["status"]] = ps.get(o["status"], 0) + 1
             ts = threads()
+            gn, gd = [hall(x) for x in db().pipe([["HGETALL", "gm:n"], ["HGETALL", "gm:d"]])]
+            gdays = []
+            for i in range(6, -1, -1):
+                t = time.gmtime(time.time() + 7 * 3600 - i * 86400)
+                gdays.append({"d": time.strftime("%d/%m", t), "n": int(gd.get(time.strftime("%Y%m%d", t), 0))})
+            game = {"per": {k: int(gn.get(k, 0)) for k in self.GAMES}, "hari": gdays}
             rows = [o for o in (parse(x) for x in db().cmd("LRANGE", "skm", 0, -1) or []) if o]
             skm = None
             if rows:
@@ -1048,7 +1065,7 @@ class handler(BaseHTTPRequestHandler):
                 skm = {"n": len(rows), "ikm": ikm, "mutu": kategori_ikm(ikm)}
             return self.json({"pend": sum(1 for t in ts if t["pend"]), "percakapan": len(ts), "pemohon": int(sc[-1] or 0), "hari": hari,
                               "booking_hari_ini": {"total": len(bk), "status": bs}, "booking_7hari": [{"tanggal": d, "n": int(c or 0)} for d, c in zip(hh, sc[:7])],
-                              "pmh": ps, "skm": skm}, extra=ex)
+                              "pmh": ps, "skm": skm, "game": game}, extra=ex)
         if r == "skm" and method == "GET":
             rows = [parse(x) for x in db().cmd("LRANGE", "skm", 0, -1) or []]
             rows = [o for o in rows if o]

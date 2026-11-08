@@ -127,3 +127,13 @@ Batas 100 aturan dihapus. Kini sampai **5.000 aturan** (ubah lewat variabel ling
 - **Editor admin berhalaman** (30 aturan per halaman), dengan pencarian, filter (Perlu diperbaiki / Belum pernah dipakai / Baru), lompat ke nomor aturan, dan tombol **Gabungkan aturan kembar** (dapat diurungkan).
 - **Impor** sampai 5.000 baris dan berkas 3 MB (Excel/CSV/tempel). Setelah impor, aturan baru langsung ditampilkan.
 - Tidak ada lagi pembacaan seluruh daftar tiap kali admin membuka percakapan (saran balasan memakai cache per versi).
+
+## Versi 9: Ruang Main dan tampilan baru
+**Ruang Main** (banner ungu di beranda, terbuka untuk siapa saja tanpa login; file `public/main.js`):
+- **Cocok Bentuk**: permainan kartu pasangan, 3 level (6/8/10 pasang), bintang berdasarkan jumlah langkah.
+- **Susun Bentuk**: seret bentuk ke bayangannya (mouse/sentuh) atau ketuk bentuk lalu ketuk bayangan; 3 ronde (3, 4, 6 bentuk).
+- **Ingat Urutan**: ulangi urutan pad bentuk yang menyala, makin panjang makin sulit.
+- **Kuis Kilat Loket**: 5 soal "layanan ini di loket mana?" dibuat otomatis dari data loket (soal dengan uraian "Belum diisi" atau uraian kembar dilewati agar jawaban tidak ambigu). Tersedia tombol "Lihat loketnya".
+- **Poin, level (4 judul), runtun hari, 8 lencana**. Semuanya tersimpan di perangkat (localStorage), tidak dikirim ke server. Suara bawaan mati (tombol di atas). Tombol Esc / Kembali menutup.
+- **Admin**: kartu "Ruang Main (pemakaian anonim)" di tab Ringkasan: jumlah permainan per jenis dan per hari (hash Redis `gm:n`, `gm:d`; tanpa IP/identitas; batas 40 per IP per jam).
+**Tampilan**: bentuk geometris melayang di hero dan latar, maskot "Cak Takok" dengan orbit chip (ketuk untuk membuka Asisten; sapaan berganti, termasuk hitung mundur Hari Pahlawan 1-10 November), ubin menu beranimasi, bagian "Mudah, cukup 3 langkah", dan **konfeti** saat booking berhasil dan survei terkirim. Animasi dimatikan otomatis bila perangkat memakai "kurangi gerakan". Mode gelap didukung.
