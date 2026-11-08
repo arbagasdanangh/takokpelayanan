@@ -242,7 +242,7 @@ def cek_tanggal(tgl, jam):
 def bisa_booking(k):
     """Loket yang menerima booking kunjungan (bukan telepon/WA/survei)."""
     e = LOKET.get(str(k))
-    return bool(e) and not re.search(r"telepon|via wa|hotline|skm", e["nama"], re.I)
+    return bool(e) and not e.get("sembunyi") and not re.search(r"telepon|via wa|hotline|skm", e["nama"], re.I)
 
 
 def kategori_ikm(v):
@@ -250,7 +250,43 @@ def kategori_ikm(v):
 
 
 LOKASI = {l["id"]: l["nm"] for l in SEED["lokasi"]}
-LOKET = {"%s_%s" % (e["lokasi"], e["no"]): e for e in SEED["loket"]}
+BASE = {"%s_%s" % (e["lokasi"], e["no"]): dict(e) for e in SEED["loket"]}
+LOKET = {k: dict(v) for k, v in BASE.items()}
+_LX = {"t": 0.0, "raw": None}
+LX_FIELD = ("nama", "uraian", "sistem", "zona", "diskusi", "sembunyi")
+
+
+def refresh_loket(maks=10):
+    """Gabungkan data bawaan (_data.py) dengan hasil edit admin (Redis hash loketx). Dipakai ulang antar permintaan selama `maks` detik."""
+    if time.time() - _LX["t"] < maks:
+        return
+    try:
+        raw = hall(db().cmd("HGETALL", "loketx"))
+    except Exception as e:  # Redis gagal: pakai data terakhir
+        print("LOKETX", repr(e))
+        return
+    _LX["t"] = time.time()
+    if raw == _LX["raw"]:
+        return
+    _LX["raw"] = raw
+    new = {k: dict(v) for k, v in BASE.items()}
+    for k, v in raw.items():
+        o = parse(v, None)
+        lok, _, no = k.partition("_")
+        if not isinstance(o, dict) or lok not in LOKASI or not no.isdigit():
+            continue
+        if k in new:
+            new[k].update({f: o[f] for f in LX_FIELD if f in o})
+        else:
+            new[k] = {"lokasi": lok, "no": int(no), "nama": str(o.get("nama", ""))[:80], "uraian": str(o.get("uraian", ""))[:1000], "sistem": str(o.get("sistem", ""))[:120],
+                      "zona": str(o.get("zona", ""))[:20], "diskusi": bool(o.get("diskusi", True)), "sembunyi": bool(o.get("sembunyi")), "baru": True}
+    LOKET.clear()
+    LOKET.update(new)
+
+
+def loket_urut(semua=False):
+    ur = {l["id"]: i for i, l in enumerate(SEED["lokasi"])}
+    return sorted([e for e in LOKET.values() if semua or not e.get("sembunyi")], key=lambda e: (ur.get(e["lokasi"], 99), e["no"]))
 
 
 def valid_key(k):
@@ -558,6 +594,7 @@ class handler(BaseHTTPRequestHandler):
             self.json({"error": "Terjadi kesalahan pada server."}, 500)
 
     def route(self, method, path, q, b):
+        refresh_loket()
         if path == "/info":
             return self.info(self.session())
         if path == "/kata" and method == "GET":
@@ -669,6 +706,7 @@ class handler(BaseHTTPRequestHandler):
             p = parse(db().cmd("HGET", "pemohon", ses.get("id")))
             if p:
                 who = {"peran": "pemohon", "nama": p["nama"], "hp": p["hp"], "email": p.get("email", "")}
+        refresh_loket(0)
         c = cfg_all()
         bt = sorted([parse(v, {}) for v in hall(db().cmd("HGETALL", "berita")).values()], key=lambda x: (not x.get("sematkan"), -x.get("id", 0)))[:10]
         rt = sorted(float(x) for x in db().cmd("LRANGE", "rt", -50, -1) or [])
@@ -676,7 +714,7 @@ class handler(BaseHTTPRequestHandler):
         kv = db().cmd("HGET", "kata2", "v")
         kata = kata_baca()[0] if (not kv or self.q1("kata")) else []  # data lama / editor admin: sertakan; pengunjung biasa: ambil via /kata?v=
         self.json({"kata": kata, "kv": kv or "", "kata_max": KATA_MAX, "berita": bt, "balas_menit": balas, "mpp_roster": SKM_MPP, "lokasi": [{"id": k, "nama": v} for k, v in LOKASI.items()],
-                   "loket": [[e["lokasi"], e["no"], e["nama"], e["uraian"], e["sistem"], e.get("zona", ""), 1 if e.get("diskusi", True) else 0, 1 if bisa_booking("%s_%s" % (e["lokasi"], e["no"])) else 0] for e in SEED["loket"]],
+                   "loket": [[e["lokasi"], e["no"], e["nama"], e["uraian"], e["sistem"], e.get("zona", ""), 1 if e.get("diskusi", True) else 0, 1 if bisa_booking("%s_%s" % (e["lokasi"], e["no"])) else 0] for e in loket_urut()],
                    "cfg": {k: c.get(k, "") for k in ("wa", "jam", "info", "kuota")}, "saya": who},
                   extra=self.refresh(ses) if ses and who else ())
 
@@ -913,7 +951,7 @@ class handler(BaseHTTPRequestHandler):
         pid, k, isi = ses["id"], str(b.get("kunci", "")), clean(b.get("isi", ""), 800)
         if not valid_key(k) or not isi:
             raise HttpError(400, "Pesan tidak valid.")
-        if not LOKET[k].get("diskusi", True):
+        if LOKET[k].get("sembunyi") or not LOKET[k].get("diskusi", True):
             raise HttpError(400, "Fasilitas ini tidak menerima pertanyaan lewat aplikasi.")
         if re.search(r"\d{16}", re.sub(r"[\s.\-]", "", isi)):
             raise HttpError(400, "Demi keamanan, jangan kirim NIK/KTP lengkap di sini.")
@@ -1212,6 +1250,38 @@ class handler(BaseHTTPRequestHandler):
                 cmds += [["RPUSH", "layar", json.dumps({"kode": o["kode"], "kunci": o["kunci"], "loket": label(o["kunci"]), "lokasi": o["lokasi"], "waktu": now_ms()}, ensure_ascii=False)], ["LTRIM", "layar", -50, -1]]
             db().pipe(cmds)
             return self.json({"ok": True}, extra=ex)
+        if r == "loket" and method == "GET":
+            refresh_loket(0)
+            return self.json({"lokasi": [{"id": k, "nama": v} for k, v in LOKASI.items()],
+                              "loket": [dict(e, kunci="%s_%s" % (e["lokasi"], e["no"]), asli=("%s_%s" % (e["lokasi"], e["no"])) in BASE,
+                                             diubah=(("%s_%s" % (e["lokasi"], e["no"])) in (_LX["raw"] or {}))) for e in loket_urut(True)]}, extra=ex)
+        if r == "loket/simpan" and method == "POST":
+            lok, kunci = str(b.get("lokasi", "")), str(b.get("kunci", ""))
+            nama, uraian = clean(b.get("nama", ""), 80), clean(b.get("uraian", ""), 1000)
+            if lok not in LOKASI or len(nama) < 2:
+                raise HttpError(400, "Pilih lokasi dan isi nama loket (minimal 2 huruf).")
+            if kunci:
+                if kunci not in LOKET:
+                    raise HttpError(404, "Loket tidak ditemukan.")
+                lok = LOKET[kunci]["lokasi"]
+            else:
+                if len(_LX["raw"] or {}) >= 600:
+                    raise HttpError(400, "Jumlah loket tambahan sudah mencapai batas.")
+                kunci = "%s_%d" % (lok, max([e["no"] for e in LOKET.values() if e["lokasi"] == lok] + [0]) + 1)
+            d = {"nama": nama, "uraian": uraian, "sistem": clean(b.get("sistem", ""), 120), "zona": clean(b.get("zona", ""), 20),
+                 "diskusi": bool(b.get("diskusi", True)), "sembunyi": bool(b.get("sembunyi", False))}
+            db().cmd("HSET", "loketx", kunci, json.dumps(d, ensure_ascii=False))
+            _LX["t"] = 0.0
+            refresh_loket(0)
+            return self.json({"ok": True, "kunci": kunci}, extra=ex)
+        if r == "loket/reset" and method == "POST":
+            kunci = str(b.get("kunci", ""))
+            if kunci not in BASE:
+                raise HttpError(400, "Hanya loket bawaan yang bisa dikembalikan. Loket tambahan cukup disembunyikan.")
+            db().cmd("HDEL", "loketx", kunci)
+            _LX["t"] = 0.0
+            refresh_loket(0)
+            return self.json({"ok": True}, extra=ex)
         if r == "berita":
             jd, isi = clean(b.get("judul", ""), 100), sanitize_html(b.get("isi", ""))
             kat = b.get("kategori") if b.get("kategori") in KAT_BERITA else "Berita"
@@ -1236,7 +1306,7 @@ class handler(BaseHTTPRequestHandler):
             db().cmd("HSET", "cfg", "qr", json.dumps(d, ensure_ascii=False))
             return self.json({"ok": True, "daftar": d}, extra=ex)
         if r == "kata":
-            ada = set("%s_%s" % (e["lokasi"], e["no"]) for e in SEED["loket"])
+            ada = set(LOKET)
             out = []
             for x in (b.get("daftar") or [])[:1200]:
                 if not isinstance(x, dict):
@@ -1487,7 +1557,7 @@ class handler(BaseHTTPRequestHandler):
                     rows.append([m["id"], t["pid"], t["nama"], label(t["kunci"]), m["dari"], m["isi"], time.strftime("%d-%m-%Y %H:%M", time.gmtime(m["waktu"] / 1000 + 7 * 3600))])
         sheet("Pesan", ["id", "pid", "nama", "loket", "dari", "isi", "waktu"], rows)
         sheet("Status", ["nama", "loket", "perlu_dijawab", "nilai"], [[t["nama"], label(t["kunci"]), "ya" if t["pend"] else "tidak", t["nilai"] or ""] for t in ts])
-        sheet("Loket", ["lokasi", "no", "nama", "zona", "uraian", "sistem"], [[e["lokasi"], e["no"], e["nama"], e.get("zona", ""), e["uraian"], e["sistem"]] for e in SEED["loket"]])
+        sheet("Loket", ["lokasi", "no", "nama", "zona", "uraian", "sistem"], [[e["lokasi"], e["no"], e["nama"], e.get("zona", ""), e["uraian"], e["sistem"]] for e in loket_urut(True)])
         bio = io.BytesIO()
         wb.save(bio)
         self.out(200, bio.getvalue(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

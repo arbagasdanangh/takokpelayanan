@@ -449,3 +449,4 @@ details.row{transition:box-shadow .2s,transform .2s}details.row:hover{transform:
 .m.dl .mdel{opacity:.6}.m[hidden]{display:none}
 .wed{display:flex;gap:8px;align-items:center;justify-content:space-between;background:var(--accsoft);color:var(--ink);border-left:4px solid var(--acc);border-radius:10px;padding:8px 10px;margin:0 0 6px;font-size:.8rem}.wed button{border:1px solid var(--acc);background:var(--surface);color:var(--acc);border-radius:99px;font:inherit;font-weight:700;font-size:.76rem;padding:3px 10px;cursor:pointer}
 .bot .bq button[data-wb]{border-style:dashed}.bmsg.u{cursor:pointer}
+.lkf label{display:block;font-weight:700;font-size:.82rem;margin:10px 0 4px}.lkf textarea{resize:vertical}.lkc.off{opacity:.65;border-style:dashed}

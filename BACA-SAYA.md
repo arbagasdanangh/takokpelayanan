@@ -164,3 +164,13 @@ Catatan: belum diuji di browser sungguhan; cek di perangkat sebelum deploy. Dikt
 **Chatbot**
 - **Riwayat tersimpan** 12 jam di perangkat (hanya bila belum masuk akun, agar data status/tiket tidak tertinggal di komputer bersama), tombol "Hapus riwayat" di bilah cepat.
 - **Ketuk pertanyaan sendiri** untuk menaruhnya kembali di kotak input (ubah lalu kirim ulang).
+
+### Versi 10 (lanjutan): Editor loket (ubah konten tanpa menyunting kode)
+Tab admin baru **Editor loket** (`public/loket-admin.js`). Admin bisa, langsung dari browser:
+- **Ubah** nama, uraian layanan, sistem/cara layanan, zona (MPP), dan pengaturan "terima pertanyaan" tiap loket atau instansi.
+- **Tambah loket baru** di lokasi mana pun (nomor otomatis berikutnya).
+- **Sembunyikan / tampilkan** loket. Loket tersembunyi tidak tampil, tidak menerima booking dan pertanyaan baru, tetapi riwayat pesan dan tiket lamanya tetap aman.
+- **Kembalikan bawaan** untuk loket yang pernah diubah (isi bawaan tetap ada di `api/_data.py`).
+- Ada pencarian dan filter per lokasi. Setelah Simpan, perubahan langsung tampil di beranda dan chatbot tanpa deploy ulang.
+Cara kerja: hasil edit disimpan di Redis (hash `loketx`) dan digabung dengan data bawaan di server (`refresh_loket` di `api/app.py`, dipakai ulang maksimal 10 detik antar-permintaan). Pengunjung memuat data terbaru tiap membuka halaman. Endpoint: `GET /api/admin/loket`, `POST /api/admin/loket/simpan`, `POST /api/admin/loket/reset`.
+Batasan: nama lokasi (SPP Pusat, MPP Surabaya, dst.) dan nomor urut loket belum bisa diubah dari panel; loket tambahan tidak bisa dihapus permanen, hanya disembunyikan. Instance server lain bisa memakai data lama sampai 10 detik setelah penyimpanan. Aturan kata cari dan jawaban chatbot yang sudah ada tidak ikut berubah otomatis bila nama loket diganti; periksa tab Kata cari chatbot.
