@@ -137,3 +137,19 @@ Batas 100 aturan dihapus. Kini sampai **5.000 aturan** (ubah lewat variabel ling
 - **Poin, level (4 judul), runtun hari, 8 lencana**. Semuanya tersimpan di perangkat (localStorage), tidak dikirim ke server. Suara bawaan mati (tombol di atas). Tombol Esc / Kembali menutup.
 - **Admin**: kartu "Ruang Main (pemakaian anonim)" di tab Ringkasan: jumlah permainan per jenis dan per hari (hash Redis `gm:n`, `gm:d`; tanpa IP/identitas; batas 40 per IP per jam).
 **Tampilan**: bentuk geometris melayang di hero dan latar, maskot "Cak Takok" dengan orbit chip (ketuk untuk membuka Asisten; sapaan berganti, termasuk hitung mundur Hari Pahlawan 1-10 November), ubin menu beranimasi, bagian "Mudah, cukup 3 langkah", dan **konfeti** saat booking berhasil dan survei terkirim. Animasi dimatikan otomatis bila perangkat memakai "kurangi gerakan". Mode gelap didukung.
+
+## Versi 10: fitur wow (file baru `public/wow.js`)
+Semua berjalan di browser, tanpa server baru dan tanpa AI luar.
+**Seluruh situs**
+- **Pencarian cepat (Ctrl+K / tombol "Cari cepat")**: ketik nama layanan untuk langsung membuka loketnya, atau lompat ke Booking, Tanya Admin, Status, Pengaduan, Survei, Ruang Main, dan Tema. Navigasi dengan panah dan Enter.
+**Asisten Takok**
+- **Efek mengetik** pada jawaban teks (mati otomatis bila perangkat memakai "kurangi gerakan").
+- **Saran "Lanjut:"** di bawah tiap jawaban, menyesuaikan topik pertanyaan (NIB, SIP, PBG, status, MPP).
+- **Perintah garis miring**: ketik `/` untuk menu cepat (/status, /antrean, /dokumen, /adu, /mpp, /jam, /berita).
+- **Konfeti + ajakan booking** saat semua dokumen di daftar berkas tercentang.
+- Tombol **Simpan** di header untuk mengunduh percakapan (.txt).
+**Chat pemohon ke admin**
+- **Draf otomatis** per loket (tersimpan di perangkat, dipulihkan bila halaman dimuat ulang).
+- **Dikte suara** (id-ID), **templat** (Syarat, Biaya, Nomor), **emoji cepat**, **Unduh chat** (.txt).
+- **Ketuk gelembung pesan untuk menyalin** teksnya.
+Catatan: belum diuji di browser sungguhan; cek di perangkat sebelum deploy. Dikte suara butuh Chrome/Edge/Safari.
