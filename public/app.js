@@ -31,11 +31,14 @@ function msgsOf(k){return M.filter(function(x){return x.n===k})}
 function hariId(ts){return new Date(ts).toLocaleDateString("id-ID",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}
 function bubbles(L,mine,rd){
  if(!L.length)return '<p class="sys">Belum ada pesan. Tulis pertanyaan Anda di bawah.</p>';
- var pd="",o=L.map(function(m){var d=new Date(m.ts).toDateString(),sep=d!==pd?'<div class="dsep">'+esc(hariId(m.ts))+'</div>':"";pd=d;return sep+'<div class="m'+(m.by===mine?' me':'')+'">'+esc(m.text)+'<small>'+(m.by==="admin"?"Admin":"Pemohon")+', '+fmt(m.ts)+'</small></div>'}).join("");
+ var pd="",o=L.map(function(m,i){var d=new Date(m.ts).toDateString(),sep=d!==pd?'<div class="dsep">'+esc(hariId(m.ts))+'</div>':"";pd=d;
+  var acts="";if(mine==="user"&&m.by==="user"&&!m.dl){var can=Date.now()-m.ts<900000&&!L.slice(i+1).some(function(x){return x.by==="admin"});
+   acts='<span class="macts">'+(can?'<button type="button" data-act="medit" data-n="'+esc(m.n)+'" data-id="'+m.id+'">Ubah</button>':"")+'<button type="button" data-act="mdel" data-n="'+esc(m.n)+'" data-id="'+m.id+'">Hapus</button></span>'}
+  return sep+'<div class="m'+(m.by===mine?' me':'')+(m.dl?' dl':'')+'" data-mid="'+m.id+'">'+(m.dl?'<i class="mdel">'+(mine==="user"?'Pesan ini dihapus':'Pesan dihapus oleh pemohon')+'</i>':esc(m.text))+'<small>'+(m.by==="admin"?"Admin":"Pemohon")+', '+fmt(m.ts)+(m.ed&&!m.dl?' &middot; diedit':'')+'</small>'+acts+'</div>'}).join("");
  var last=L[L.length-1];
  if(mine==="user"&&last.by==="user")o+='<div class="rcpt">'+(rd&&rd>=last.ts?'&#10003;&#10003; Dibaca admin':'&#10003; Terkirim')+'</div>';
  return o}
-function conv(a){return a.map(function(m){return{id:m.id,n:m.kunci,by:m.dari==="admin"?"admin":"user",text:m.isi,ts:m.waktu}})}
+function conv(a){return a.map(function(m){return{id:m.id,n:m.kunci,by:m.dari==="admin"?"admin":"user",text:m.isi,ts:m.waktu,dl:m.hapus||0,ed:m.edit||0}})}
 function guard(t,k){
  if(t.length>800)return "Pesan terlalu panjang (maksimal 800 karakter).";
  if(/\d{16}/.test(t.replace(/[\s.\-]/g,"")))return "Demi keamanan, jangan kirim NIK/KTP lengkap di sini. Berkas asli diserahkan langsung di loket.";
@@ -105,7 +108,7 @@ document.addEventListener("visibilitychange",function(){if(S!=="out")startPoll()
 async function tick(){try{
  if(S==="user"){var j=await api("/api/pesan"),arr=conv(j.pesan).sort(function(a,b){return a.ts-b.ts});
   if(window.pmhCheck)pmhCheck(j.pmh||[]);if(window.bkCheck)bkCheck(j.bk||[]);if(SEEN)arr.forEach(function(m){if(m.by==="admin"&&!SEEN[m.id])notify("Admin membalas",label(m.n),function(){openKey(m.n)})});
-  SEEN={};arr.forEach(function(m){SEEN[m.id]=1});var sg=arr.length+":"+(arr.length?arr[arr.length-1].id:0)+JSON.stringify(j.status)+JSON.stringify(j.dibaca||{});
+  SEEN={};arr.forEach(function(m){SEEN[m.id]=1});var sg=arr.length+":"+(arr.length?arr[arr.length-1].id:0)+JSON.stringify(j.status)+JSON.stringify(j.dibaca||{})+arr.map(function(x){return x.ed+(x.dl?"d":"")}).join("");
   if(sg!==SIG){SIG=sg;M=arr;MYST=j.status;MYDB=j.dibaca||{};render();if(MYV)myList()}}
  if(S==="adm"){var a=await api("/api/admin/percakapan"),cur2={};a.daftar.forEach(function(x){if(x.pend)cur2[x.pid+"|"+x.kunci+"|"+x.waktu]=x});
   if(SEENA)for(var id in cur2)if(!SEENA[id])notify("Pesan baru",cur2[id].nama+" - "+label(cur2[id].kunci),(function(x){return function(){pick(x)}})(cur2[id]));

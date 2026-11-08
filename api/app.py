@@ -321,6 +321,9 @@ def threads():
     return sorted(out, key=lambda x: (not x["pend"], -x["waktu"]))
 
 
+EDIT_MS = 15 * 60 * 1000
+
+
 def add_msg(pid, kunci, dari, isi):
     f = "%s|%s" % (pid, kunci)
     mid = int(db().cmd("INCR", "seq:pesan"))
@@ -584,6 +587,10 @@ class handler(BaseHTTPRequestHandler):
                 return self.user_pesan(ses, ex)
             if path == "/pesan" and method == "POST":
                 return self.user_kirim(ses, b, ex)
+            if path == "/pesan/ubah" and method == "POST":
+                return self.user_ubah(ses, b, ex)
+            if path == "/pesan/hapus" and method == "POST":
+                return self.user_hapus(ses, b, ex)
             if path == "/nilai" and method == "POST":
                 return self.user_nilai(ses, b, ex)
             if path == "/permohonan" and method == "GET":
@@ -748,7 +755,7 @@ class handler(BaseHTTPRequestHandler):
             for x in lst or []:
                 m = parse(x)
                 if m:
-                    ms.append({"id": m["id"], "kunci": k, "dari": m["dari"], "isi": m["isi"], "waktu": m["waktu"]})
+                    ms.append({"id": m["id"], "kunci": k, "dari": m["dari"], "isi": m["isi"], "waktu": m["waktu"], "hapus": m.get("hapus", 0), "edit": m.get("edit", 0)})
         nl = hall(res[n])
         pm, bk = [], []
         if ip is not None:
@@ -915,6 +922,58 @@ class handler(BaseHTTPRequestHandler):
         if int(db().cmd("LLEN", "msgs:%s|%s" % (pid, k)) or 0) >= 200:
             raise HttpError(400, "Percakapan ini sudah penuh. Silakan hubungi loket langsung.")
         add_msg(pid, k, "pemohon", isi)
+        self.json({"ok": True}, extra=ex)
+
+    def _pesan_milik(self, ses, b):
+        pid, k = ses["id"], str(b.get("kunci", ""))
+        try:
+            mid = int(b.get("id"))
+        except (TypeError, ValueError):
+            raise HttpError(400, "Data tidak valid.")
+        if not valid_key(k):
+            raise HttpError(400, "Data tidak valid.")
+        key = "msgs:%s|%s" % (pid, k)
+        ms = [parse(x) for x in (db().cmd("LRANGE", key, 0, -1) or [])]
+        for i, m in enumerate(ms):
+            if m and m.get("id") == mid:
+                if m.get("dari") != "pemohon":
+                    raise HttpError(403, "Hanya pesan Anda sendiri yang dapat diubah.")
+                if m.get("hapus"):
+                    raise HttpError(400, "Pesan ini sudah dihapus.")
+                return pid, k, key, i, m, ms
+        raise HttpError(404, "Pesan tidak ditemukan.")
+
+    def _simpan_pesan(self, pid, k, key, i, m, ms, teks_terakhir):
+        cmds = [["LSET", key, i, json.dumps(m, ensure_ascii=False)]]
+        if i == len(ms) - 1:
+            cmds.append(["HSET", "tlast", "%s|%s" % (pid, k), json.dumps({"teks": teks_terakhir[:100], "waktu": m["waktu"]}, ensure_ascii=False)])
+        db().pipe(cmds)
+
+    def user_ubah(self, ses, b, ex):
+        """Pemohon boleh mengubah pesannya sendiri selama 15 menit dan sebelum admin membalas."""
+        isi = clean(b.get("isi", ""), 800)
+        if not isi:
+            raise HttpError(400, "Pesan tidak boleh kosong.")
+        if re.search(r"\d{16}", re.sub(r"[\s.\-]", "", isi)):
+            raise HttpError(400, "Demi keamanan, jangan kirim NIK/KTP lengkap di sini.")
+        if limited("rl:ubah:%s" % ses["id"], 8, 60):
+            raise HttpError(429, "Terlalu banyak perubahan dalam satu menit.")
+        pid, k, key, i, m, ms = self._pesan_milik(ses, b)
+        if now_ms() - m["waktu"] > EDIT_MS:
+            raise HttpError(400, "Pesan hanya dapat diubah dalam 15 menit setelah dikirim.")
+        if any(x and x.get("dari") == "admin" and x.get("waktu", 0) >= m["waktu"] for x in ms):
+            raise HttpError(400, "Admin sudah membalas, jadi pesan ini tidak dapat diubah. Kirim pesan baru.")
+        m["isi"], m["edit"] = isi, now_ms()
+        self._simpan_pesan(pid, k, key, i, m, ms, isi)
+        self.json({"ok": True}, extra=ex)
+
+    def user_hapus(self, ses, b, ex):
+        """Hapus lunak: isi dikosongkan, admin melihat 'Pesan dihapus oleh pemohon'."""
+        if limited("rl:hapus:%s" % ses["id"], 8, 60):
+            raise HttpError(429, "Terlalu banyak penghapusan dalam satu menit.")
+        pid, k, key, i, m, ms = self._pesan_milik(ses, b)
+        m["isi"], m["hapus"] = "", now_ms()
+        self._simpan_pesan(pid, k, key, i, m, ms, "(pesan dihapus)")
         self.json({"ok": True}, extra=ex)
 
     def user_nilai(self, ses, b, ex):

@@ -153,3 +153,14 @@ Semua berjalan di browser, tanpa server baru dan tanpa AI luar.
 - **Dikte suara** (id-ID), **templat** (Syarat, Biaya, Nomor), **emoji cepat**, **Unduh chat** (.txt).
 - **Ketuk gelembung pesan untuk menyalin** teksnya.
 Catatan: belum diuji di browser sungguhan; cek di perangkat sebelum deploy. Dikte suara butuh Chrome/Edge/Safari.
+
+### Versi 10 (lanjutan): ubah/hapus pesan dan kenyamanan chat
+**Tanya loket (pemohon)**
+- **Ubah pesan**: tombol "Ubah" di pesan sendiri, hanya selama 15 menit sejak dikirim dan sebelum admin membalas. Teks masuk ke kotak pesan, tombol berubah jadi "Simpan perubahan", ada tombol Batal (draf semula dikembalikan). Pesan yang diubah diberi penanda "diedit".
+- **Hapus pesan**: kapan saja, dengan konfirmasi dua ketukan ("Yakin hapus?"). Penghapusan bersifat lunak: isi dikosongkan di server, pemohon melihat "Pesan ini dihapus", admin melihat "Pesan dihapus oleh pemohon".
+- **Cari dalam percakapan** (tombol Cari), selain draf otomatis, dikte suara, templat, emoji, dan unduh chat dari versi 10.
+- Server: `POST /api/pesan/ubah` dan `POST /api/pesan/hapus` (`api/app.py`; batas 8 per menit; hanya pesan milik sendiri; pemeriksaan NIK tetap berlaku). Konstanta `EDIT_MS` mengatur batas waktu ubah.
+- Batasan: label topik/nada percakapan yang sudah terhitung dari teks lama tidak dihitung ulang setelah ubah/hapus. Bila satu-satunya pesan dihapus, percakapan masih tampak "belum dibalas" di admin.
+**Chatbot**
+- **Riwayat tersimpan** 12 jam di perangkat (hanya bila belum masuk akun, agar data status/tiket tidak tertinggal di komputer bersama), tombol "Hapus riwayat" di bilah cepat.
+- **Ketuk pertanyaan sendiri** untuk menaruhnya kembali di kotak input (ubah lalu kirim ulang).

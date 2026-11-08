@@ -61,7 +61,7 @@ function typeIt(p) {
 function onMsg(n) {
   if (n.nodeType !== 1 || !n.classList.contains("bmsg") || n.classList.contains("typ") || n.dataset.w) return;
   n.dataset.w = "1";
-  if (n.classList.contains("u")) { lastQ = n.textContent.toLowerCase(); return; }
+  if (n.classList.contains("u")) { n.title = "Ketuk untuk mengubah dan kirim ulang"; lastQ = n.textContent.toLowerCase(); return; }
   var p = n.querySelector(":scope > p"); if (p) typeIt(p);
   if (!lastQ || n.querySelector(".bfb,.ckl")) return;
   var s = SGD; SG.forEach(function (g) { if (s === SGD && g[0].test(lastQ)) s = g[1]; });
@@ -84,7 +84,13 @@ function saveChat() {
 function botInit() {
   var m = $w("bm"); if (!m || m.dataset.w) return false; m.dataset.w = "1";
   new MutationObserver(function (ml) { ml.forEach(function (r) { [].forEach.call(r.addedNodes, onMsg); }); }).observe(m, {childList: true});
-  cmdUI();
+  cmdUI(); hRestore(m);
+  new MutationObserver(hLater).observe(m, {childList: true, subtree: false});
+  var bq = $w("bq"); if (bq) bq.insertAdjacentHTML("beforeend", '<button type="button" data-wb="clr">Hapus riwayat</button>');
+  $w("bp").addEventListener("click", function (e) {
+    var c = e.target.closest("[data-wb]"); if (c) { hClear(); return; }
+    var u = e.target.closest(".bmsg.u"); if (u && !window.getSelection().toString()) { var i = $w("bi"); i.value = u.textContent; i.focus(); }
+  });
   var h = document.querySelector(".bhb"), x = $w("b-x");
   if (h && x) { var b = document.createElement("button"); b.type = "button"; b.title = "Simpan percakapan (.txt)"; b.textContent = "Simpan"; b.onclick = saveChat; h.insertBefore(b, x); }
   $w("bp").addEventListener("change", function (e) {
@@ -105,13 +111,14 @@ function enh(ta) {
   ta.dataset.w = "1"; var key = "tkw_d:" + ta.dataset.k, tb = document.createElement("div"); tb.className = "wtb";
   try { var d = localStorage.getItem(key); if (d && !ta.value) { ta.value = d; ta.dispatchEvent(new Event("input", {bubbles: true})); tb.dataset.r = "1"; } } catch (x) {}
   ta.addEventListener("input", function () { try { if (ta.value) localStorage.setItem(key, ta.value); else localStorage.removeItem(key); } catch (x) {} });
-  tb.innerHTML = (tb.dataset.r ? '<span class="wdr">Draf dipulihkan</span>' : "") + TPL.map(function (t, i) { return '<button type="button" data-t="' + i + '">' + t[0] + '</button>'; }).join("") + EM.map(function (e) { return '<button type="button" class="em" data-e="' + e + '" aria-label="Sisipkan ' + e + '">' + e + '</button>'; }).join("") + (SRc ? '<button type="button" data-mic="1" aria-label="Dikte suara">\uD83C\uDFA4 Dikte</button>' : "") + '<button type="button" data-dl="1">Unduh chat</button>';
-  ta.insertAdjacentElement("afterend", tb);
+  tb.innerHTML = (tb.dataset.r ? '<span class="wdr">Draf dipulihkan</span>' : "") + TPL.map(function (t, i) { return '<button type="button" data-t="' + i + '">' + t[0] + '</button>'; }).join("") + EM.map(function (e) { return '<button type="button" class="em" data-e="' + e + '" aria-label="Sisipkan ' + e + '">' + e + '</button>'; }).join("") + (SRc ? '<button type="button" data-mic="1" aria-label="Dikte suara">\uD83C\uDFA4 Dikte</button>' : "") + '<button type="button" data-dl="1">Unduh chat</button><button type="button" data-sr="1">Cari</button>';
+  ta.insertAdjacentElement("afterend", tb); edApply(ta);
   tb.addEventListener("click", function (e) {
     var b = e.target.closest("button"); if (!b) return;
+    if (b.dataset.sr) { var q = prompt("Cari kata dalam percakapan ini (kosongkan untuk menampilkan semua):"); var th2 = ta.closest(".qa"); if (q === null || !th2) return; q = q.toLowerCase(); [].forEach.call(th2.querySelectorAll(".thread .m"), function (m) { m.hidden = !!q && m.textContent.toLowerCase().indexOf(q) < 0; }); if (q) tg("Menampilkan pesan yang memuat \u201C" + q + "\u201D."); return; }
     if (b.dataset.t) ins(ta, TPL[+b.dataset.t][1]);
     else if (b.dataset.e) ins(ta, b.dataset.e);
-    else if (b.dataset.dl) { var th = ta.closest(".qa"), o = ["Percakapan dengan admin Takok", ""]; [].forEach.call(th ? th.querySelectorAll(".thread .m") : [], function (m) { var c = m.cloneNode(true), s = c.querySelector("small"), w = s ? s.textContent : ""; if (s) s.remove(); o.push("[" + w + "] " + c.textContent.trim()); }); dl("percakapan-admin-takok.txt", o.join("\n\n")); }
+    else if (b.dataset.dl) { var th = ta.closest(".qa"), o = ["Percakapan dengan admin Takok", ""]; [].forEach.call(th ? th.querySelectorAll(".thread .m") : [], function (m) { var c = m.cloneNode(true), s = c.querySelector("small"), w = s ? s.textContent : ""; [].forEach.call(c.querySelectorAll("small,.macts"), function (x) { x.remove(); }); o.push("[" + w + "] " + c.textContent.trim()); }); dl("percakapan-admin-takok.txt", o.join("\n\n")); }
     else if (b.dataset.mic) {
       if (REC2) { REC2.stop(); return; }
       try { REC2 = new SRc(); REC2.lang = "id-ID"; b.classList.add("on"); REC2.onresult = function (ev) { ins(ta, ev.results[0][0].transcript + " "); }; REC2.onend = REC2.onerror = function () { REC2 = null; b.classList.remove("on"); }; REC2.start(); } catch (x) { REC2 = null; b.classList.remove("on"); }
@@ -121,12 +128,68 @@ function enh(ta) {
 document.addEventListener("click", function (e) {
   var s = e.target.closest && e.target.closest('[data-act="send"]');
   if (s) { var ta = s.closest(".qf"); ta = ta && ta.querySelector("textarea"); if (ta) setTimeout(function () { if (!ta.value) { try { localStorage.removeItem("tkw_d:" + ta.dataset.k); } catch (x) {} } }, 400); return; }
-  var m = e.target.closest && e.target.closest(".thread .m");
-  if (m && !window.getSelection().toString()) { var c = m.cloneNode(true), sm = c.querySelector("small"); if (sm) sm.remove(); try { navigator.clipboard.writeText(c.textContent.trim()); tg("Pesan disalin."); } catch (x) {} }
+  var m = e.target.closest && e.target.closest(".thread .m:not(.dl)");
+  if (m && !e.target.closest("button") && !window.getSelection().toString()) { var c = m.cloneNode(true); [].forEach.call(c.querySelectorAll("small,.macts"), function (x) { x.remove(); }); try { navigator.clipboard.writeText(c.textContent.trim()); tg("Pesan disalin."); } catch (x) {} }
 });
 var raf = 0;
 function scan() { raf = 0; botInit(); [].forEach.call(document.querySelectorAll('.qf textarea[data-k^="q:"]:not([data-w])'), enh); }
 new MutationObserver(function () { if (!raf) raf = requestAnimationFrame(scan); }).observe(document.body, {childList: true, subtree: true});
+
+/* ===== Ubah & hapus pesan sendiri ===== */
+var ED = null;
+function edApply(ta) {
+  var qf = ta.closest(".qf"); if (!qf) return;
+  var old = qf.querySelector(".wed"); if (old) old.remove();
+  var sb = qf.querySelector('[data-act="send"]'), on = ED && ta.dataset.k === "q:" + ED.k;
+  if (sb) sb.textContent = on ? "Simpan perubahan" : "Kirim";
+  if (on) ta.insertAdjacentHTML("beforebegin", '<div class="wed">Mengubah pesan. Pesan hanya bisa diubah 15 menit dan sebelum admin membalas. <button type="button" data-wed="x">Batal</button></div>');
+}
+function edStop(ta) { var p = ED ? ED.prev : ""; ED = null; if (ta) { ta.value = p || ""; ta.dispatchEvent(new Event("input", {bubbles: true})); edApply(ta); } }
+document.addEventListener("click", async function (e) {
+  var t = e.target; if (!t.closest) return;
+  var x = t.closest("[data-wed]");
+  if (x) { edStop(x.closest(".qa").querySelector("textarea")); return; }
+  var b = t.closest('[data-act="medit"],[data-act="mdel"]');
+  if (b) {
+    var qa = b.closest(".qa"), ta = qa && qa.querySelector("textarea"); if (!ta) return;
+    if (b.dataset.act === "medit") {
+      var c = b.closest(".m").cloneNode(true); [].forEach.call(c.querySelectorAll("small,.macts"), function (z) { z.remove(); });
+      ED = {k: b.dataset.n, id: +b.dataset.id, prev: ED ? ED.prev : ta.value}; ta.value = c.textContent.trim(); ta.dispatchEvent(new Event("input", {bubbles: true})); edApply(ta); ta.focus(); ta.scrollIntoView({block: "center"});
+    } else if (!b.dataset.c) { b.dataset.c = "1"; b.textContent = "Yakin hapus?"; b.classList.add("warn"); setTimeout(function () { b.dataset.c = ""; b.textContent = "Hapus"; b.classList.remove("warn"); }, 3500); }
+    else { b.disabled = true; try { await api("/api/pesan/hapus", {kunci: b.dataset.n, id: +b.dataset.id}); if (ED && ED.id === +b.dataset.id) edStop(ta); SIG = ""; await tick(); tg("Pesan dihapus."); } catch (z) { err(z.message); b.disabled = false; } }
+    return;
+  }
+  var sb = t.closest('[data-act="send"]'); if (!sb || !ED || sb.dataset.n !== ED.k) return;
+  e.stopImmediatePropagation(); e.preventDefault();
+  var ta2 = sb.closest(".qf").querySelector("textarea"), v = clean(ta2.value); if (!v) return;
+  var g = guard(v, ED.k); if (g) { err(g); return; }
+  sb.disabled = true;
+  try { await api("/api/pesan/ubah", {kunci: ED.k, id: ED.id, isi: v}); edStop(ta2); SIG = ""; await tick(); tg("Pesan diubah."); } catch (z) { err(z.message); }
+  sb.disabled = false;
+}, true);
+
+/* ===== Riwayat chatbot (hanya bila belum masuk akun) ===== */
+var HK = "tkw_h";
+function hSave() {
+  try {
+    var m = $w("bm"); if (!m) return;
+    if (window.S === "user" || window.S === "adm") { localStorage.removeItem(HK); return; }
+    var n = [].filter.call(m.children, function (d) { return d.classList.contains("bmsg") && !d.classList.contains("typ") && !d.querySelector(".wtw"); }).slice(-40);
+    if (n.length > 1) localStorage.setItem(HK, JSON.stringify({t: Date.now(), h: n.map(function (d) { return d.outerHTML; }).join("")}));
+  } catch (x) {}
+}
+function hRestore(m) {
+  try {
+    var o = JSON.parse(localStorage.getItem(HK) || "null"); if (!o || Date.now() - o.t > 43200000 || m.children.length) return;
+    m.innerHTML = o.h; [].forEach.call(m.children, function (d) { d.dataset.w = "1"; });
+    var ck = JSON.parse(localStorage.getItem("tkb_ck") || "{}");
+    [].forEach.call(m.querySelectorAll("input[data-c]"), function (i) { var a = i.dataset.c.split(":"); i.checked = !!(ck[a[0]] && ck[a[0]][a[1]]); });
+    m.insertAdjacentHTML("afterbegin", '<div class="bmsg b" data-w="1"><p class="sys">Percakapan sebelumnya dipulihkan.</p></div>'); m.scrollTop = m.scrollHeight;
+  } catch (x) {}
+}
+var ht = 0;
+function hLater() { clearTimeout(ht); ht = setTimeout(hSave, 1500); }
+function hClear() { try { localStorage.removeItem(HK); } catch (x) {} var m = $w("bm"); if (m) m.innerHTML = ""; }
 
 /* tombol pencarian cepat di bilah atas */
 var tl = document.querySelector(".tools");
