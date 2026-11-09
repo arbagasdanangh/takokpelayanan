@@ -30,9 +30,9 @@ var BIZ = [
     fx: '<span class="u3-fx u3-cb" style="right:12px;bottom:14px">MENU<br>🍜 🥤</span><span class="u3-fx u3-hg" style="left:50%;margin-left:-46px;top:3px">🏮</span>'},
   {k: "56303", n: "Kafe", e: "☕", cat: "food", wall: "#dcc7a8", roof: "#5b3a29", acc: "#8a5233", pr: "table", tx: "brick", tip: HAL,
     fx: '<span class="u3-fx u3-hg" style="left:6px;top:3px">☕</span><span class="u3-fx u3-cb" style="right:10px;bottom:14px">OPEN<br>07–22</span>'},
-  {k: "47911", n: "Toko Online", e: "📦", cat: "online", wall: "#cfe3ff", roof: "#1d4ed8", acc: "#2563eb", pr: "boxes", tx: "", tip: "Toko daring tetap perlu NIB. Periksa juga ketentuan perdagangan elektronik dan kewajiban pajak.",
+  {k: "47901", n: "Toko Online", e: "📦", cat: "online", wall: "#cfe3ff", roof: "#1d4ed8", acc: "#2563eb", pr: "boxes", tx: "", tip: "Toko daring tetap perlu NIB. Periksa juga ketentuan perdagangan elektronik dan kewajiban pajak.",
     fx: '<span class="u3-fx u3-hg" style="right:10px;bottom:16px">📦</span><span class="u3-fx u3-cb" style="left:8px;bottom:12px;background:#1e3a8a;border-color:#93c5fd">KIRIM<br>CEPAT</span>'},
-  {k: "96011", n: "Laundry", e: "🧺", cat: "waste", wall: "#c8f0ee", roof: "#0f766e", acc: "#0d9488", pr: "washer", tx: "", tip: "Usaha laundry perlu memperhatikan pengelolaan air limbah deterjen.",
+  {k: "96100", n: "Laundry", e: "🧺", cat: "waste", wall: "#c8f0ee", roof: "#0f766e", acc: "#0d9488", pr: "washer", tx: "", tip: "Usaha laundry perlu memperhatikan pengelolaan air limbah deterjen.",
     fx: '<span class="u3-fx u3-port" style="right:10px;top:12px"></span><span class="u3-fx u3-hg" style="left:8px;top:6px">🫧</span>'},
   {k: "56210", n: "Katering", e: "🍱", cat: "food", wall: "#fde3a7", roof: "#a16207", acc: "#ea580c", pr: "boxes", tx: "plank", tip: HAL, veh: "moto",
     fx: '<span class="u3-fx u3-hg" style="right:10px;bottom:16px">🍱</span><span class="u3-fx u3-cb" style="left:8px;bottom:12px">PESAN<br>ANTAR</span>'},
@@ -40,21 +40,21 @@ var BIZ = [
     fx: '<span class="u3-fx u3-hg" style="right:10px;bottom:16px">🧵</span><span class="u3-fx u3-hg" style="left:8px;top:6px">👕</span>'},
   {k: "10710", n: "Roti & Kue", e: "🥐", cat: "food", wall: "#fbd5b5", roof: "#9a3412", acc: "#c2410c", pr: "boxes", tx: "brick", tip: HAL,
     fx: '<span class="u3-fx u3-hg" style="left:8px;top:6px">🥖</span><span class="u3-fx u3-cb" style="right:10px;bottom:14px">FRESH<br>🥐 🍞</span>'},
-  {k: "45201", n: "Bengkel Mobil", e: "🔧", cat: "waste", wall: "#d1d5db", roof: "#374151", acc: "#dc2626", pr: "car", tx: "", garage: true, tip: "Oli bekas termasuk limbah B3. Simpan dan serahkan hanya ke pengelola resmi.",
+  {k: "95311", n: "Bengkel Mobil", e: "🔧", cat: "waste", wall: "#d1d5db", roof: "#374151", acc: "#dc2626", pr: "car", tx: "", garage: true, tip: "Oli bekas termasuk limbah B3. Simpan dan serahkan hanya ke pengelola resmi.",
     fx: '<span class="u3-fx u3-hg" style="left:8px;top:6px">🔧</span><span class="u3-fx u3-hg" style="right:8px;top:6px">🛞</span>'},
-  {k: "18110", n: "Percetakan", e: "🖨️", cat: "waste", wall: "#e5e7eb", roof: "#0e7490", acc: "#0891b2", pr: "paper", tx: "", tip: "Tinta dan limbah cetak perlu dikelola dengan benar. Tanyakan kebutuhan izinnya.",
+  {k: "18111", n: "Percetakan", e: "🖨️", cat: "waste", wall: "#e5e7eb", roof: "#0e7490", acc: "#0891b2", pr: "paper", tx: "", tip: "Tinta dan limbah cetak perlu dikelola dengan benar. Tanyakan kebutuhan izinnya.",
     fx: '<span class="u3-fx u3-ban" style="left:6px;bottom:14px"></span><span class="u3-fx u3-hg" style="right:8px;top:6px">🖨️</span>'},
   {k: "47711", n: "Toko Pakaian", e: "👗", cat: "general", wall: "#fbcfe8", roof: "#be185d", acc: "#db2777", pr: "boxes", tx: "", tip: "Toko pakaian umumnya berisiko rendah, tetapi tetap cek kewajiban perizinannya di OSS.",
     fx: '<span class="u3-fx u3-hg" style="left:8px;top:6px">👗</span><span class="u3-fx u3-cb" style="right:10px;bottom:14px;background:#831843;border-color:#f9a8d4">SALE</span>'}
 ,
   {k: "56101", n: "Restoran", e: "🍽️", cat: "food", wall: "#f3d9b1", roof: "#7f1d1d", acc: "#b91c1c", pr: "table", tx: "brick", tip: HAL},
   {k: "47111", n: "Minimarket", e: "🛒", cat: "general", wall: "#dbeafe", roof: "#1e40af", acc: "#dc2626", pr: "boxes", tx: "", tip: "Minimarket umumnya menjual makanan kemasan, jadi cek juga ketentuan produk dan perizinan sesuai tingkat risikonya."},
-  {k: "96111", n: "Pangkas Rambut", e: "💈", cat: "general", wall: "#fee2e2", roof: "#334155", acc: "#2563eb", pr: "boxes", tx: "", tip: "Jasa perorangan seperti ini umumnya berisiko rendah, tetapi tetap cek kewajibannya di OSS."},
-  {k: "96112", n: "Salon Kecantikan", e: "💅", cat: "general", wall: "#fce7f3", roof: "#9d174d", acc: "#db2777", pr: "boxes", tx: "", tip: "Produk kosmetik yang dipakai perlu terdaftar dan higiene alat perlu dijaga. Tanyakan syaratnya ke loket."},
-  {k: "62011", n: "Jasa Aplikasi", e: "💻", cat: "online", wall: "#e0e7ff", roof: "#3730a3", acc: "#4f46e5", pr: "paper", tx: "glass", tip: "Usaha jasa digital tetap perlu NIB. Periksa juga kewajiban pajak dan perlindungan data pribadi."},
+  {k: "96210", n: "Pangkas Rambut", e: "💈", cat: "general", wall: "#fee2e2", roof: "#334155", acc: "#2563eb", pr: "boxes", tx: "", tip: "Jasa perorangan seperti ini umumnya berisiko rendah, tetapi tetap cek kewajibannya di OSS."},
+  {k: "96220", n: "Salon Kecantikan", e: "💅", cat: "general", wall: "#fce7f3", roof: "#9d174d", acc: "#db2777", pr: "boxes", tx: "", tip: "Produk kosmetik yang dipakai perlu terdaftar dan higiene alat perlu dijaga. Tanyakan syaratnya ke loket."},
+  {k: "62199", n: "Jasa Aplikasi", e: "💻", cat: "online", wall: "#e0e7ff", roof: "#3730a3", acc: "#4f46e5", pr: "paper", tx: "glass", tip: "Usaha jasa digital tetap perlu NIB. Periksa juga kewajiban pajak dan perlindungan data pribadi."},
   {k: "73100", n: "Biro Iklan", e: "📣", cat: "general", wall: "#fef9c3", roof: "#a16207", acc: "#ca8a04", pr: "paper", tx: "", tip: "Cek ketentuan reklame bila memasang media luar ruang. Pemasangan reklame punya aturan perizinan sendiri."},
-  {k: "74201", n: "Studio Foto", e: "📷", cat: "general", wall: "#e2e8f0", roof: "#0f172a", acc: "#475569", pr: "boxes", tx: "", tip: "Usaha jasa foto umumnya berisiko rendah. Pastikan lokasi usaha sesuai tata ruang."},
-  {k: "31001", n: "Mebel Kayu", e: "🪑", cat: "waste", wall: "#e7d3b3", roof: "#78350f", acc: "#92400e", pr: "boxes", tx: "plank", tip: "Pastikan kayu berasal dari sumber legal dan kelola limbah serbuk kayu. Tanyakan kebutuhan izinnya."}
+  {k: "74209", n: "Studio Foto", e: "📷", cat: "general", wall: "#e2e8f0", roof: "#0f172a", acc: "#475569", pr: "boxes", tx: "", tip: "Usaha jasa foto umumnya berisiko rendah. Pastikan lokasi usaha sesuai tata ruang."},
+  {k: "31011", n: "Mebel Kayu", e: "🪑", cat: "waste", wall: "#e7d3b3", roof: "#78350f", acc: "#92400e", pr: "boxes", tx: "plank", tip: "Pastikan kayu berasal dari sumber legal dan kelola limbah serbuk kayu. Tanyakan kebutuhan izinnya."}
 ];
 var STEP = ["Pilih KBLI", "Daftar NIB", "Cek perizinan", "Tempat usaha", "Siap buka!"];
 
@@ -371,7 +371,7 @@ function hot(i) {
 /* Usaha dari KBLI mana pun (hasil pencarian atau ketikan sendiri): tampilan dipilih dari golongan pokok (2 digit awal). */
 var DIV = {
   food: ["10", "11", "56", "55"], waste: ["13", "16", "17", "18", "19", "20", "22", "23", "24", "25", "27", "28", "29", "30", "33", "37", "38", "45", "49", "52"],
-  online: ["58", "59", "60", "61", "62", "63", "47912", "73", "74", "82"], general: []
+  online: ["58", "59", "60", "61", "62", "63", "73", "74", "82"], general: []
 };
 var PAL = [["#f6c27a", "#b9440f", "#d9341f"], ["#cfe3ff", "#1d4ed8", "#2563eb"], ["#c8f0ee", "#0f766e", "#0d9488"], ["#e4d4f4", "#6d28d9", "#7c3aed"], ["#fbd5b5", "#9a3412", "#c2410c"], ["#d1d5db", "#374151", "#dc2626"], ["#fbcfe8", "#be185d", "#db2777"], ["#dcfce7", "#166534", "#16a34a"]];
 var EMO = {"05": "⛏️", "06": "🛢️", "07": "⛏️", "08": "⛏️", "09": "⛏️", "12": "🚬", "15": "👞", "17": "📄", "19": "🛢️", "20": "🧪", "21": "💊", "22": "🛞", "23": "🧱", "24": "🔩", "26": "🔌", "27": "💡", "28": "⚙️", "29": "🚗", "30": "🚢", "32": "💎", "33": "🔧", "35": "⚡", "36": "🚰", "37": "🚰", "38": "♻️", "39": "♻️", "42": "🛣️", "50": "🚢", "51": "✈️", "53": "📮", "59": "🎬", "60": "📻", "61": "📡", "64": "🏦", "65": "🛡️", "66": "💳", "71": "📐", "72": "🔬", "75": "🐾", "77": "🔑", "78": "🧑‍💼", "80": "🛡️", "81": "🧹", "82": "🗂️", "84": "🏛️", "87": "🤝", "88": "🤝", "90": "🎭", "91": "📚", "92": "🎲", "94": "🏢", "97": "🏡", "98": "🏠", "99": "🌐", "01": "🌾", "02": "🌲", "03": "🐟", "10": "🍞", "11": "🥤", "13": "🧵", "14": "👕", "16": "🪵", "18": "🖨️", "25": "⚙️", "31": "🪑", "41": "🏗️", "43": "🏗️", "45": "🔧", "46": "📦", "47": "🛍️", "49": "🚚", "52": "📦", "55": "🏨", "56": "🍽️", "58": "📚", "62": "💻", "63": "💻", "68": "🏠", "69": "📑", "70": "💼", "73": "📣", "74": "📷", "79": "🧳", "85": "🎓", "86": "🩺", "93": "🏋️", "95": "🔧", "96": "🧺"};
@@ -379,7 +379,7 @@ function mkBiz(k, n) {
   var d = String(k).slice(0, 2), cat = "general", c; for (c in DIV) if (DIV[c].indexOf(d) > -1) cat = c;
   var pl = PAL[(+String(k).slice(0, 3) || 0) % PAL.length], nm = String(n || "").replace(/^\s+|\s+$/g, "");
   if (nm.length > 26) nm = nm.slice(0, 24) + "…";
-  var pr = cat === "food" ? "table" : cat === "online" ? "paper" : d === "96" ? "washer" : d === "45" ? "car" : "boxes";
+  var pr = cat === "food" ? "table" : cat === "online" ? "paper" : d === "96" ? "washer" : (d === "95" && k === "95311") ? "car" : "boxes";
   var tip = cat === "food" ? HAL : cat === "waste" ? "Kegiatan seperti ini bisa menghasilkan limbah atau memerlukan izin lingkungan dan keselamatan kerja. Tanyakan kebutuhan izinnya ke loket." : cat === "online" ? "Usaha jasa dan digital tetap perlu NIB. Periksa juga kewajiban pajak dan perlindungan data pribadi." : "Cek tingkat risiko KBLI ini di OSS untuk mengetahui perizinan yang perlu dipenuhi. Bila ragu, tanyakan ke loket.";
   return {k: String(k), n: nm || ("KBLI " + k), e: EMO[d] || "🏪", cat: cat, wall: pl[0], roof: pl[1], acc: pl[2], pr: pr, tx: cat === "food" ? "brick" : "", tip: tip, fx: "", custom: 1};
 }

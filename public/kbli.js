@@ -34,6 +34,9 @@ async function sync(v, m) {
     if (j && j.rows && j.rows.length) { D.v = j.v; D.m = j.m || m || {}; prep(j.rows); try { localStorage.setItem(KEY, JSON.stringify({v: D.v, m: D.m, r: D.r})); } catch (e) {} }
   } catch (e) {}
 }
+/* Penunjuk kata sehari-hari -> judul KBLI 2025 yang paling pas (didahulukan di hasil). Hanya untuk urutan pencarian, bukan data resmi. */
+var BOOST = [[/warung|warteg|rumah makan|restoran|resto|nasi|bakso|mie ayam|soto|angkringan/, /^(AKTIVITAS PENYEDIAAN MAKANAN DI BANGUNAN|AKTIVITAS PENYEDIAAN MAKANAN DI BANGUNAN TIDAK)/], [/kopi|kafe|cafe|coffee|kedai|minuman|boba|jus|es /, /^AKTIVITAS (RUMAH MINUM|KEDAI MINUMAN|PENYEDIAAN MINUMAN KELILING)/], [/katering|catering|jasa boga|nasi kotak/, /^AKTIVITAS (JASA BOGA|PENYEDIAAN JASA BOGA)/], [/online|olshop|dropship|marketplace|jualan daring/, /^(PLATFORM DIGITAL INTERMEDIASI PERDAGANGAN ECERAN|JASA INTERMEDIASI PERDAGANGAN ECERAN)/], [/laundry|binatu|cuci baju/, /^AKTIVITAS PENCUCIAN DAN PEMBERSIHAN PRODUK TEKSTIL/], [/salon|barber|pangkas|cukur/, /^AKTIVITAS PENATAAN DAN PANGKAS RAMBUT/], [/kecantikan|rias|makeup|perawatan wajah/, /^AKTIVITAS PERAWATAN KECANTIKAN/], [/spa|pijat|massage/, /^AKTIVITAS SANTE PAR AQUA/], [/bengkel|servis mobil|service mobil/, /^REPARASI MOBIL/], [/bengkel motor|servis motor|service motor/, /^REPARASI DAN PERAWATAN SEPEDA MOTOR/], [/kos|kost|homestay|penginapan|villa|vila/, /^AKTIVITAS (RUMAH TINGGAL SEWA|VILA|HOSTEL|PENYEDIAAN AKOMODASI JANGKA PENDEK)/], [/ojek|ojol/, /^ANGKUTAN OJEK MOTOR/], [/taksi|taxi/, /^ANGKUTAN TAKSI/], [/konveksi|jahit|penjahit|garmen/, /^INDUSTRI (PAKAIAN JADI|PENJAHITAN)/], [/baju|pakaian|kaos|fashion/, /^PERDAGANGAN ECERAN PAKAIAN/], [/sepatu|sandal/, /^PERDAGANGAN ECERAN SEPATU/], [/sablon|percetakan|cetak|print/, /^PENCETAKAN/], [/apotek|obat/, /^PERDAGANGAN ECERAN SEDIAAN FARMASI/], [/klinik/, /^AKTIVITAS KLINIK/], [/dokter/, /^AKTIVITAS PRAKTIK DOKTER/], [/bimbel|les |bimbingan belajar/, /^PENDIDIKAN BIMBINGAN BELAJAR/], [/gym|fitness|kebugaran/, /^FASILITAS PUSAT KEBUGARAN/], [/travel|tour|wisata|umrah/, /^AKTIVITAS (AGEN|BIRO) PERJALANAN/], [/kurir|ekspedisi|paket/, /^AKTIVITAS KURIR/], [/aplikasi|software|website|web |programmer|pemrograman/, /^AKTIVITAS (PEMROGRAMAN|PENGEMBANGAN APLIKASI)|^AKTIVITAS JASA TEKNOLOGI INFORMASI/], [/fotografi|foto /, /^AKTIVITAS FOTOGRAFI/], [/properti|makelar|agen rumah/, /^AKTIVITAS JASA INTERMEDIASI REAL ESTAT/], [/toko kelontong|kelontong|sembako|minimarket|swalayan/, /^PERDAGANGAN ECERAN BERBAGAI MACAM BARANG YANG UTAMANYA MAKANAN/], [/kontraktor|bangun rumah/, /^KONSTRUKSI KONVENSIONAL GEDUNG/]];
+function boost(q, title) { q = q.toLowerCase(); for (var i = 0; i < BOOST.length; i++) if (BOOST[i][0].test(q) && BOOST[i][1].test(title.toUpperCase())) return 9; return 0; }
 function words(q) { return norm(q).replace(/[^a-z0-9 ]+/g, " ").split(/\s+/).filter(function (w) { return w.length > 1 && !STOP[w]; }); }
 function search(q, max) {
   var t = String(q || "").trim(), out = [], i; max = max || 8;
@@ -48,7 +51,8 @@ function search(q, max) {
       g.forEach(function (w, k) { var p = k === 0 ? 3 : 2; if (title.indexOf(w) > -1) best = Math.max(best, p + ((" " + title).indexOf(" " + w) > -1 ? 1 : 0)); else if (text.indexOf(w) > -1) best = Math.max(best, 1); });
       if (best) { hit++; s += best; }
     });
-    if (hit >= need) sc.push([s + (hit === gs.length ? 4 : 0), i]);
+    var bo = boost(t, D.r[i][1]); if (bo) { hit = Math.max(hit, need); s += bo; }
+    if (hit >= need) { if (!/industri|pabrik|besar|grosir|mesin/.test(t.toLowerCase()) && /^(industri |perdagangan besar|aktivitas penunjang)/.test(title)) s -= 3; if (title.indexOf(ws[0]) === 0) s += 2; sc.push([s + (hit === gs.length ? 4 : 0), i]); }
   }
   sc.sort(function (a, b) { return b[0] - a[0] || a[1] - b[1]; });
   return sc.slice(0, max).map(function (x) { return D.r[x[1]]; });

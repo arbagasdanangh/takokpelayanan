@@ -305,3 +305,6 @@ Diuji otomatis di Chromium (HP 390 px dan desktop) dengan API tiruan dari data l
 
 ## Data KBLI bawaan (v20)
 Seluruh KBLI 2025 (1.559 kode, sumber Peraturan BPS 7/2025) sudah dibawa di `public/kbli-2025.json` dan otomatis dipakai pencarian, Ctrl+K, penyisip KBLI Tanya Admin, serta game Bangun Usaha 3D (cari, atau jelajahi per golongan). Bila admin mengimpor data KBLI sendiri di tab "Data KBLI", data impor itu yang didahulukan; menghapusnya mengembalikan ke data bawaan.
+
+## Pandu KBLI (v21-22)
+Tile baru "Pandu KBLI": cari kode dari kata sehari-hari, lihat peringatan "bukan ini?" (diambil dari kalimat "tidak mencakup ... lihat kode ..." di uraian resmi), pilih beberapa KBLI, centang dokumen, lalu cetak/salin "Paket Siap Datang" atau kirim ke Tanya Admin/Asisten. File: `public/kbli-pandu.js`. Contoh usaha di game sudah diperbarui ke kode KBLI 2025.
