@@ -286,3 +286,19 @@ Diuji otomatis di Chromium (HP 390 px dan desktop) dengan API tiruan dari data l
 - **Pemohon**: nomor tiket muncul di setiap gelembung chat (ketuk untuk menyalin), notifikasi "Nomor tiket Anda: ..." setelah mengirim, notifikasi saat tiket selesai, bagian **Tiket saya** di Percakapan Saya (cari, filter Aktif/Selesai, garis waktu status, salin/bagikan ringkasan), pencarian nomor di palet Ctrl+K, dan di Asisten: `/tiket`, "cek tiket", atau langsung ketik nomornya.
 - **Admin**: lencana nomor tiket di daftar inbox, nomor di kepala percakapan, kolom cari inbox bisa memakai nomor tiket (tiket lama dibuka lewat server), dan pesan WhatsApp pemberitahuan menyertakan nomor tiket.
 - Diuji: logika server dengan Redis tiruan (nomor sama dalam satu rangkaian, tiket baru setelah selesai, status Dibalas/Selesai) dan alur pemohon di Chromium. Tampilan admin hanya diperiksa sintaksnya, belum dijalankan di browser. Cache browser: `?v=17`.
+
+## Versi 17: Usaha 3D lebih detail
+
+`public/usaha3d.js` ditulis ulang, `public/style.css` ditambah blok v17. Tetap CSS 3D murni (tanpa library, tanpa gambar, aman untuk CSP).
+
+- Tekstur: bata, papan kayu, genteng, seng, kaca gedung, rumput, paving, aspal, zebra cross, plus bayangan dan kota di latar.
+- Fasad rinci per usaha: jendela berkusen, pintu kaca, lampu dinding, tanda BUKA, pintu rolling bengkel, dekor khas tiap usaha.
+- Properti khas tiap usaha (10 usaha): meja payung, papan menu, pot tanaman, jemuran, rak baju, ban dan drum oli, X-banner, dll.
+- Tahap konstruksi: pagar proyek, perancah, tumpukan bata, molen, pekerja berhelm. Hilang saat grand opening.
+- Grand opening: karangan bunga, balon, lampu hias, pos Takok, antrean pelanggan, mobil dan motor lewat.
+- Kamera: tombol Depan/Samping/Atas/Bebas, miring, zoom, seret (mouse juga vertikal), panah dan +/- di keyboard, Ctrl+roda. Kamera bergerak sendiri saat animasi dan saat jawaban benar.
+- Siang/Senja/Malam bisa dipilih manual (jendela dan lampu menyala saat malam).
+- Detail Tinggi/Hemat, tersimpan di perangkat (HP berprosesor kecil mulai dari Hemat).
+- "Jelajahi maket": 5 pin (papan KBLI, NIB, bangunan, papan nama, pos Takok) dengan penjelasan dan tombol ke Asisten/booking.
+- Soal diacak dari 2 variasi per tahap, plus soal khusus (halal, limbah, toko online) sesuai jenis usaha.
+- Cache `?v=19`. Contoh usaha ditambah jadi 18, ditambah kotak "Cari KBLI lain": bila data KBLI sudah diimpor admin, hasil pencarian bisa langsung dibangun; bila belum, ketik kode 5 digit + nama usaha. Tampilan dipilih otomatis dari golongan pokok KBLI.
