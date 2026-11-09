@@ -4,7 +4,7 @@
 (function () {
 var $b = function (i) { return document.getElementById(i); };
 var ICO = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/><path d="M8.5 10.5h7"/></svg>';
-var MENU = [["Izin usaha / NIB", "mau bikin NIB"], ["Cari kode KBLI", "kbli"], ["Dokumen yang dibawa", "syarat dokumen"], ["Status permohonan", "status permohonan saya"], ["Antrean & tiket saya", "tiket saya"], ["Booking kunjungan", "booking kunjungan"], ["Lokasi & jam", "lokasi dan jam buka"], ["Instansi di MPP", "daftar instansi mpp"], ["Buat pengaduan", "buat pengaduan"], ["Berita terbaru", "berita terbaru"]];
+var MENU = [["Izin usaha / NIB", "mau bikin NIB"], ["Cek kesiapan berkas", "cek kesiapan"], ["Rencana kunjungan", "rencana kunjungan"], ["Jam paling sepi", "jam sepi"], ["Tanya loket dari sini", "/tanya"], ["Cari kode KBLI", "kbli"], ["Dokumen yang dibawa", "syarat dokumen"], ["Status permohonan", "status permohonan saya"], ["Antrean & tiket saya", "tiket saya"], ["Booking kunjungan", "booking kunjungan"], ["Lokasi & jam", "lokasi dan jam buka"], ["Instansi di MPP", "daftar instansi mpp"], ["Buat pengaduan", "buat pengaduan"], ["Berita terbaru", "berita terbaru"]];
 var KAT = ["Pelayanan lambat", "Petugas kurang ramah", "Pungutan tidak wajar", "Sistem/aplikasi bermasalah", "Informasi tidak jelas", "Lainnya"];
 var KB = [
  {id: "nib", t: "Membuat NIB / izin usaha", re: /\b(nib|kbli|oss|umkm|usaha|toko|warung|kopi|restoran|dagang)/, a: [/^loket cs$/i, /analisa/i, /pengambilan/i], d: ["KTP pemilik usaha", "NPWP (pribadi atau badan usaha)", "Email dan nomor HP aktif", "Alamat lokasi usaha", "Pilihan KBLI (jenis kegiatan usaha)", "Perkiraan modal dan jumlah tenaga kerja"]},
@@ -246,6 +246,7 @@ function ask(t) {
     else if (WZ.s === 3 && t.length < 25 && !/^(batal|cancel|tidak jadi)$/i.test(t)) WZ = null;
     else return wiz(t);
   }
+  if (window.BOTX && BOTX.pre) { var px = BOTX.pre(t, s); if (px) return px; }
   if (/^(halo|hai|hi|hello|permisi|selamat|assalam)/.test(s) && s.length < 30) return bot(sapa() + " Ada yang bisa saya bantu?", chips(MENU));
   if (/terima kasih|makasih|thanks|matur nuwun/.test(s)) return bot("Sama-sama! Kalau ada yang masih bingung, tanya lagi kapan saja.");
   if (/darurat|kebakaran|ambulans/.test(s)) return bot("Untuk keadaan darurat, segera hubungi 112. Asisten ini khusus informasi pelayanan publik.");
@@ -281,6 +282,15 @@ function build() {
 }
 function openB() { $b("bp").hidden = false; $b("bf").hidden = true; if (!$b("bm").children.length) bot(sapa() + " Saya Asisten Takok. Tanyakan layanan apa saja: saya carikan loketnya, siapkan daftar dokumen, cek status dan antrean, sampai bantu menyusun pengaduan.", chips(MENU.slice(0, 5)), 600); setTimeout(function () { $b("bi").focus(); }, 60); }
 function closeB() { $b("bp").hidden = true; $b("bf").hidden = false; try { speechSynthesis.cancel(); } catch (x) {} }
+/* Buka halaman Booking dengan loket terpilih (dipakai chatbot dan kartu loket) */
+function goBook(a) {
+  if (needLogin()) { closeB(); return; }
+  closeB(); setPN("bk");
+  var n = 0, iv = setInterval(function () {
+    if ($("bl") && $("bk3")) { clearInterval(iv); $("bl").value = a.split("_")[0]; $("bl").dispatchEvent(new Event("change", {bubbles: true})); $("bk3").value = a; $("bk3").dispatchEvent(new Event("change", {bubbles: true})); }
+    else if (++n > 30) clearInterval(iv);
+  }, 200);
+}
 function toggle(id, fn) { var b = $b(id), on = b.getAttribute("aria-pressed") !== "true"; b.setAttribute("aria-pressed", on); fn(on); }
 function init() {
   build();
@@ -307,14 +317,7 @@ function init() {
     else if (c === "say") speak(b.parentNode.dataset.t || "");
     else if (c === "open") { closeB(); openKey(a); }
     else if (c === "loc") { closeB(); LOC = a; ZN = "Semua"; lc(); qv = ""; $("q").value = ""; MYV = false; window.PN = ""; ui(); var li = $("lki"); if (li && li.scrollIntoView) li.scrollIntoView({behavior: "smooth", block: "center"}); }
-    else if (c === "bk") {
-      if (needLogin()) { closeB(); return; }
-      closeB(); setPN("bk");
-      var n = 0, iv = setInterval(function () {
-        if ($("bl") && $("bk3")) { clearInterval(iv); $("bl").value = a.split("_")[0]; $("bl").dispatchEvent(new Event("change", {bubbles: true})); $("bk3").value = a; $("bk3").dispatchEvent(new Event("change", {bubbles: true})); }
-        else if (++n > 30) clearInterval(iv);
-      }, 200);
-    }
+    else if (c === "bk") goBook(a);
     else if (c === "pn") { if (needLogin()) { closeB(); return; } closeB(); setPN(a); }
     else if (c === "fw") {
       var k = findK(/^loket (informasi|cs)$/i, LOC) || findK(/^loket (informasi|cs)$/i, "pusat");
@@ -355,6 +358,7 @@ function init() {
     var w = e.target.closest("[data-kb]"); if (w) w.querySelector(".ckp").outerHTML = ckp(kb);
   });
   setInterval(function () { var m = document.title.match(/^\((\d+)\)/), n = $b("bn"); n.hidden = !m; n.textContent = m ? m[1] : ""; }, 3000);
+  window.BOTI = {bot: bot, add: add, btn: btn, chips: chips, KB: KB, ckShow: ckShow, ckp: ckp, ck: function () { return CK; }, saveCk: save, ansCard: ansCard, lk: lk, kataHit: kataHit, needIn: needIn, ask: ask, goBook: goBook, closeB: closeB, plainJ: plainJ, MENU: MENU};
   window.openAsisten = openB; window.askAsisten = ask; window.kataCocok = kataCocok; window.kataHit = kataHit; window.fmtJawab = fmtJawab;
 }
 init();

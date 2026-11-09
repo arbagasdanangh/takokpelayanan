@@ -66,7 +66,7 @@ var SG = [
   [/status|progres/, [["Tiket antrean saya", "tiket saya"], ["Booking kunjungan", "booking kunjungan"]]],
   [/mpp|zona|instansi/, [["Lokasi & jam", "lokasi dan jam buka"], ["Booking kunjungan", "booking kunjungan"]]]
 ], SGD = [["Cek status permohonan", "status permohonan saya"], ["Booking kunjungan", "booking kunjungan"], ["Berita terbaru", "berita terbaru"]];
-var CMD = [["/kbli", "Cari kode KBLI", "kbli"], ["/tersimpan", "Daftar KBLI saya", "kbli tersimpan"], ["/ringkas", "Kirim ringkasan chat ke admin", "ringkas percakapan"], ["/status", "Cek status permohonan", "status permohonan saya"], ["/antrean", "Tiket antrean saya", "tiket saya"], ["/dokumen", "Daftar dokumen", "syarat dokumen"], ["/adu", "Buat pengaduan", "buat pengaduan"], ["/mpp", "Instansi di MPP", "daftar instansi mpp"], ["/jam", "Lokasi dan jam buka", "lokasi dan jam buka"], ["/berita", "Berita terbaru", "berita terbaru"]];
+var CMD = [["/pandu", "Cek kesiapan berkas (kuis singkat)", "cek kesiapan"], ["/rencana", "Susun rencana kunjungan", "rencana kunjungan"], ["/progres", "Progres daftar dokumen saya", "progres dokumen"], ["/tanya", "Kirim pertanyaan ke loket dari chat", "/tanya"], ["/sepi", "Cek jam paling sepi", "jam sepi"], ["/kbli", "Cari kode KBLI", "kbli"], ["/tersimpan", "Daftar KBLI saya", "kbli tersimpan"], ["/ringkas", "Kirim ringkasan chat ke admin", "ringkas percakapan"], ["/status", "Cek status permohonan", "status permohonan saya"], ["/antrean", "Tiket antrean saya", "tiket saya"], ["/dokumen", "Daftar dokumen", "syarat dokumen"], ["/adu", "Buat pengaduan", "buat pengaduan"], ["/mpp", "Instansi di MPP", "daftar instansi mpp"], ["/jam", "Lokasi dan jam buka", "lokasi dan jam buka"], ["/berita", "Berita terbaru", "berita terbaru"]];
 var lastQ = "";
 function typeIt(p) {
   var t = p.textContent; if (RM || t.length < 12 || t.length > 420) return;
@@ -78,7 +78,7 @@ function onMsg(n) {
   n.dataset.w = "1";
   if (n.classList.contains("u")) { n.title = "Ketuk untuk mengubah dan kirim ulang"; lastQ = n.textContent.toLowerCase(); return; }
   var p = n.querySelector(":scope > p"); if (p) typeIt(p);
-  if (!lastQ || n.querySelector(".bfb,.ckl")) return;
+  if (!lastQ || n.querySelector(".bfb,.ckl,.nosg")) return;
   var s = SGD; SG.forEach(function (g) { if (s === SGD && g[0].test(lastQ)) s = g[1]; });
   n.insertAdjacentHTML("beforeend", '<div class="bch sg"><span>Lanjut:</span>' + s.map(function (x) { return '<button type="button" data-b="q:' + esc(x[1]) + '">' + esc(x[0]) + '</button>'; }).join("") + '</div>');
 }

@@ -633,3 +633,45 @@ details.row{transition:box-shadow .2s,transform .2s}details.row:hover{transform:
 .mb-go2{background:rgba(255,255,255,.18);color:#fff;border:1.5px solid rgba(255,255,255,.7);box-shadow:none;margin-left:8px}
 @media (prefers-reduced-motion:reduce){.u3-in,.u3-out,.u3-fl,.u3b,.u3walk,.u3door,.u3hero,.u3drive,.u3-cl,.u3-mw,.u3-say.pop{animation:none!important}.u3hero{transform:translate3d(var(--x1),0,var(--z1))}.u3walk,.u3door{transform:translate3d(var(--x0),0,var(--z0))}.u3drive{transform:translate3d(-60px,0,160px)}}
 @media print{.u3-st,.u3-mini{display:none!important}}
+
+/* ===== Versi 15: fitur baru Asisten dan kartu per loket (plus.js) ===== */
+.pdr{border-left-color:var(--acc)}
+.pdr-top{display:flex;align-items:center;gap:14px}
+.pdr-top small{display:block}
+.pdr-ring{--p:0;position:relative;flex:none;width:72px;height:72px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--tick) calc(var(--p)*1%),var(--accsoft) 0)}
+.pdr-ring::before{content:"";position:absolute;inset:8px;border-radius:50%;background:var(--surface)}
+.pdr-ring b{position:relative;font-size:1.05rem;color:var(--ink)}
+.pdr-h{margin:10px 0 2px;font-size:.78rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--mute)}
+.pdr-l{list-style:none;margin:2px 0 0;padding:0}
+.pdr-l li{position:relative;margin:0 0 3px;padding-left:22px;font-size:.92rem}
+.pdr-l li::before{position:absolute;left:0;top:0;font-weight:800}
+.pdr-l.ok li::before{content:"\2713";color:#16a34a}
+.pdr-l.todo li::before{content:"\25CB";color:#ea580c}
+.rnr .tlx li small{display:block;color:var(--mute)}
+.spr{margin:8px 0 2px}.spr>b{display:block;font-size:.85rem;margin-bottom:3px}.spr small{color:var(--mute)}
+.spk{display:inline-grid;place-items:center;min-width:30px;height:26px;padding:0 6px;margin:0 3px 3px 0;border-radius:7px;font-size:.72rem;font-weight:800;color:#fff;vertical-align:top}
+.spk.s{background:#16a34a}.spk.m{background:#ca8a04}.spk.r{background:#ea580c}.spk.x{background:#94a3b8}
+.spl{margin-top:8px}.spl .spk{font-weight:700}
+.sprec{margin:8px 0 0;font-size:.92rem}
+.lx{margin:14px 0 0;padding:10px 12px;border:1px solid var(--line);border-radius:16px;background:var(--bg)}
+.lx-act{display:flex;flex-wrap:wrap;gap:6px}
+.lx-sp{margin-top:8px;padding:8px 10px;border-radius:12px;background:var(--surface);border:1px solid var(--line)}
+.lx-kb{margin-top:10px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}.lx-kb small{color:var(--mute);font-weight:700}
+.lx-faq{margin-top:10px}.lx-faq>summary{cursor:pointer;font-weight:800;color:var(--acc);padding:4px 0}
+.lx-q{margin:6px 0;border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:0 10px}
+.lx-q>summary{cursor:pointer;padding:8px 0;font-weight:700}.lx-q>summary small{font-weight:400;color:var(--mute)}
+.lx-q .bans-b{padding:2px 0 4px}
+.lx-qa{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:0 0 10px}
+.lx-qa small{color:var(--mute)}
+.lxq{margin:0 0 8px}
+.lxq-h{margin:0 0 6px;font-size:.88rem}.lxq-h small{color:var(--mute)}
+.lxq-c,.lxq-a{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:6px}
+.lxq-a small{color:var(--mute);font-weight:700}
+.lxq-w:empty{display:none}
+.lx-w{margin:6px 0 8px;padding:8px 10px;border-radius:12px;background:var(--accsoft)}
+.lx-w small{display:block;margin-top:5px;color:var(--ink)}
+.lx-w.late{background:#fff4e0}.lx-w.late small{color:#7a4a00}
+.lx-w .chip{display:inline-block;margin-top:6px;text-decoration:none}
+:root[data-theme="dark"] .lx-w.late{background:#3a2a10}:root[data-theme="dark"] .lx-w.late small{color:#ffd9a0}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .lx-w.late{background:#3a2a10}:root:not([data-theme="light"]) .lx-w.late small{color:#ffd9a0}}
+@media (max-width:480px){.lx-act .chip,.lxq-c .chip{font-size:.8rem;padding:5px 10px}.pdr-ring{width:60px;height:60px}.pdr-ring::before{inset:7px}}

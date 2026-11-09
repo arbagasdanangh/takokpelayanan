@@ -258,3 +258,24 @@ File baru `public/usaha3d.js` (+ gaya di akhir `style.css`). Maket 3D dibuat **m
 - Server: `usaha` ditambahkan ke daftar `GAMES` (`api/app.py`) dan label admin (`fitur.js`) untuk hitung pemakaian anonim.
 - Aksesibilitas: mode "kurangi gerakan" mematikan animasi (maket tetap bisa diputar manual); langkah ditulis sebagai teks, bukan hanya gambar.
 Diuji otomatis di Chromium (HP 400 px terang, desktop 1100 px gelap): menu, animasi, 5 tantangan, hasil, penyimpanan lencana, tanpa galat skrip. Belum diuji di HP sungguhan; maket memuat sekitar 400 elemen CSS sehingga HP lama bisa terasa berat. Cache browser: berkas kini `?v=15` (muat ulang keras bila tampilan lama).
+
+## Versi 15: Asisten lebih pintar dan kartu per loket (file baru `public/plus.js`)
+Semua berjalan di browser dari data loket dan aturan "Kata cari" yang sudah ada: tanpa AI luar, tanpa server baru. Cache browser: berkas kini `?v=16`.
+
+**Asisten Takok**
+- **Ingat topik, jawab pertanyaan lanjutan**: setelah bertanya soal NIB, cukup ketik "biayanya?", "berapa lama?", "syaratnya?", "jam bukanya?", "di mana?", atau "booking". Jawaban diambil dari baris berlabel (Biaya:, Lama proses:, Syarat:) pada jawaban admin atau uraian loket. Bila datanya tidak ada, Asisten tidak menebak, tetapi menawarkan menanyakannya ke loket.
+- **Pemandu Kesiapan** (`/pandu`, "cek kesiapan"): kuis ya/belum per dokumen, hasil berupa persentase kesiapan, daftar yang sudah siap dan yang kurang, kirim kekurangan ke WhatsApp, atau tanya loket. Jawaban "ya" otomatis mencentang daftar dokumen.
+- **Rencana Kunjungan** (`/rencana`): centang beberapa urusan; Asisten menyusun urutan loket (Pengambilan di akhir) dan menggabungkan dokumen tanpa duplikat (KTP/NPWP), bisa disalin atau dikirim ke WhatsApp.
+- **Progres dokumen** (`/progres`): ringkasan semua daftar dokumen.
+- **Tanya loket dari chat** (`/tanya`, atau `tanya loket cs: isi pertanyaan`): pilih loket, tulis pertanyaan, Asisten memeriksa dulu apakah sudah ada jawabannya (aturan Kata cari), lalu mengirim langsung ke loket. Memakai penjaga NIK dan batas kirim yang sama.
+- **Jam sepi** (`/sepi`): membaca kuota booking nyata (`/api/slot`) untuk 3 hari kerja terdekat dan menyorot jam paling lengang. Perlu masuk.
+
+**Pertanyaan per loket (daftar loket)**
+- **Aksi cepat** di tiap loket: Booking loket ini, Tanya Asisten (konteks loket terisi), Cek jam sepi, Salin info, Bagikan ke WhatsApp.
+- **FAQ per loket** otomatis dari aturan Kata cari yang tujuannya loket itu (Salin, 👍/👎 yang ikut statistik aturan, Tanya admin dengan kutipan topik).
+- **Jenis pertanyaan** (Syarat, Biaya, Lama proses, Status berkas, Jadwal, Keluhan): menambahkan penanda seperti `[Biaya]` dan kalimat awal ke kolom pesan, sehingga admin lebih cepat memilah.
+- **Lampirkan data saya**: satu ketuk menyisipkan nomor permohonan atau tiket booking aktif untuk loket itu.
+- **Meter tunggu balasan**: lama menunggu dibanding median balasan admin; bila jauh lebih lama dari biasanya muncul tombol "Ingatkan admin via WhatsApp".
+
+Perubahan di berkas lama (kecil): `bot.js` (menu, fungsi `goBook`, pengait `BOTX.pre`, objek `BOTI`), `wow.js` (daftar perintah), `style.css` (akhir berkas), `index.html`.
+Diuji otomatis di Chromium (HP 390 px dan desktop) dengan API tiruan dari data loket asli: semua alur lolos tanpa galat skrip. Belum diuji dengan Redis/produksi dan di perangkat sentuh sungguhan. Batasan: panel loket (hasil jam sepi, FAQ terbuka) menutup bila daftar dirender ulang saat ada pesan baru.
