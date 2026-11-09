@@ -65,8 +65,8 @@ function paint(only) {
   if (!O) return; var r = O.querySelector("#kpr"), p = O.querySelector("#kpp");
   if (r) r.innerHTML = hasil(); if (p) p.innerHTML = panel();
 }
-function buka() {
-  if (O) return; var kk = K(); if (kk && !kk.has()) kk.ready().then(function () { paint(); });
+function buka(q0) {
+  if (O) return; if (typeof q0 === "string" && q0) Q = q0.replace(/\b(apa|syarat|bikin|buat|nib|mohon|info|tolong|untuk)\b/gi, " ").replace(/[?!.,]/g, " ").replace(/\s+/g, " ").trim(); var kk = K(); if (kk && !kk.has()) kk.ready().then(function () { paint(); });
   O = document.createElement("div"); O.id = "kp"; O.setAttribute("role", "dialog"); O.setAttribute("aria-modal", "true"); O.setAttribute("aria-label", "Pandu KBLI");
   O.innerHTML = '<div class="kp-w"><div class="kp-top"><div><small>Takok</small><h2>Pandu KBLI</h2></div><button type="button" class="btn" data-kp="tutup" aria-label="Tutup">Tutup</button></div>' +
     '<p class="sys">Cari kode usaha dari 1.559 KBLI 2025. Pilih kode, lihat peringatan "bukan ini?", lalu cetak Paket Siap Datang untuk dibawa ke loket.</p>' +

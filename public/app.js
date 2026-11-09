@@ -36,12 +36,13 @@ function toks(s){return s.toLowerCase().replace(/[^a-z0-9 ]/g," ").split(/\s+/).
 function score(d,t){var h=(d[1]+" "+d[2]+" "+(d[4]||"")).toLowerCase(),n=d[1].toLowerCase(),s=0;t.forEach(function(w){if(h.indexOf(w)>-1)s+=2;if(n.indexOf(w)>-1)s+=3});return s}
 function sysOk(d){return fl==="Semua"||String(d[3]).indexOf(fl)>-1}
 function msgsOf(k){return M.filter(function(x){return x.n===k})}
+function hariRel(ts){var a=new Date(ts),b=new Date(),dd=Math.round((new Date(b.getFullYear(),b.getMonth(),b.getDate())-new Date(a.getFullYear(),a.getMonth(),a.getDate()))/864e5);return dd===0?"Hari ini":dd===1?"Kemarin":hariId(ts)}
 function hariId(ts){return new Date(ts).toLocaleDateString("id-ID",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}
 function fmtMsg(t){return esc(t).replace(/(https?:\/\/[^\s<]+[^\s<.,;:!?)])/g,'<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>').replace(/(^|[\s(])\*([^*\n]+)\*(?=[\s).,!?]|$)/g,'$1<b>$2</b>')}
 var REX=["\uD83D\uDC4D","\u2764\uFE0F","\uD83D\uDE4F","\uD83D\uDE0A","\uD83D\uDE2E"];
 function bubbles(L,mine,rd){
  if(!L.length)return '<p class="sys">Belum ada pesan. Tulis pertanyaan Anda di bawah.</p>';
- var pd="",o=L.map(function(m,i){var d=new Date(m.ts).toDateString(),sep=d!==pd?'<div class="dsep">'+esc(hariId(m.ts))+'</div>':"";pd=d;
+ var pd="",pv=null,o=L.map(function(m,i){var d=new Date(m.ts).toDateString(),sep=d!==pd?'<div class="dsep">'+esc(hariRel(m.ts))+'</div>':"";pd=d;var cont=!sep&&pv&&pv.by===m.by&&!!pv.bot===!!m.bot&&(m.ts-pv.ts)<300000;pv=m;
   var a=' data-n="'+esc(m.n)+'" data-id="'+m.id+'"'+(mine==="admin"?' data-adm="1"':''),acts="",ex="";
   if(!m.dl){
    if(m.by===mine)acts='<span class="macts"><button type="button" data-act="medit"'+a+'>Ubah</button><button type="button" data-act="mdel"'+a+'>Hapus</button></span>';
@@ -49,11 +50,11 @@ function bubbles(L,mine,rd){
    if(mine==="user"&&m.by==="admin")ex='<span class="mrx">'+REX.map(function(e){return '<button type="button" data-act="mre"'+a+' data-e="'+e+'" class="'+(m.re===e?'on':'')+'" aria-label="Reaksi '+e+'">'+e+'</button>'}).join("")+'</span>';
    else if(mine==="admin"&&m.by==="admin"&&m.re)ex='<span class="mrx"><span class="mre" title="Reaksi pemohon">'+m.re+'</span></span>';
    if(mine==="admin"&&m.ed&&m.rv&&m.rv.length)ex+='<details class="mrv"><summary>Diedit pemohon, lihat versi sebelumnya</summary>'+m.rv.map(function(v){return '<div>'+esc(v.isi)+'<small>'+fmt(v.waktu)+'</small></div>'}).join("")+'</details>'}
-  return sep+'<div class="m'+(m.by===mine?' me':'')+(m.dl?' dl':'')+'" data-mid="'+m.id+'">'+(m.dl?'<i class="mdel">'+(m.by===mine?'Pesan ini dihapus':(mine==="user"?'Pesan dihapus oleh admin':'Pesan dihapus oleh pemohon'))+'</i>':fmtMsg(m.text))+'<small>'+(m.by==="admin"?"Admin":"Pemohon")+', '+fmt(m.ts)+(m.ed&&!m.dl?' &middot; diedit':'')+(m.tk?' &middot; <button type="button" class="tkc" data-tk="'+esc(m.tk)+'" title="Ketuk untuk menyalin nomor tiket">'+esc(m.tk)+'</button>':'')+'</small>'+acts+ex+'</div>'}).join("");
+  return sep+'<div class="m'+(m.by===mine?' me':'')+(m.dl?' dl':'')+(m.bot?' pkm':'')+(cont?' pkcont':'')+'" data-mid="'+m.id+'">'+(m.bot&&!m.dl?'<span class="botb">🤖 Asisten Piket · jawaban otomatis</span>':'')+(m.dl?'<i class="mdel">'+(m.by===mine?'Pesan ini dihapus':(mine==="user"?'Pesan dihapus oleh admin':'Pesan dihapus oleh pemohon'))+'</i>':fmtMsg(m.text))+'<small>'+(m.bot?"Asisten Piket":m.by==="admin"?"Pegawai":"Pemohon")+', '+fmt(m.ts)+(m.ed&&!m.dl?' &middot; diedit':'')+(m.tk?' &middot; <button type="button" class="tkc" data-tk="'+esc(m.tk)+'" title="Ketuk untuk menyalin nomor tiket">'+esc(m.tk)+'</button>':'')+'</small>'+acts+ex+'</div>'}).join("");
  var last=L[L.length-1];
  if(mine==="user"&&last.by==="user")o+='<div class="rcpt">'+(rd&&rd>=last.ts?'&#10003;&#10003; Dibaca admin':'&#10003; Terkirim')+'</div>';
  return o}
-function conv(a){return a.map(function(m){return{id:m.id,n:m.kunci,by:m.dari==="admin"?"admin":"user",text:m.isi,ts:m.waktu,dl:m.hapus||0,ed:m.edit||0,re:m.re||"",rv:m.rev||[],tk:m.tk||""}})}
+function conv(a){return a.map(function(m){return{id:m.id,n:m.kunci,by:m.dari==="admin"?"admin":"user",text:m.isi,ts:m.waktu,bot:m.bot||0,dl:m.hapus||0,ed:m.edit||0,re:m.re||"",rv:m.rev||[],tk:m.tk||""}})}
 function guard(t,k){
  if(t.length>800)return "Pesan terlalu panjang (maksimal 800 karakter).";
  if(/\d{16}/.test(t.replace(/[\s.\-]/g,"")))return "Demi keamanan, jangan kirim NIK/KTP lengkap di sini. Berkas asli diserahkan langsung di loket.";
@@ -64,13 +65,21 @@ function guard(t,k){
 function lastBy(){var by={};M.slice().sort(function(a,b){return a.ts-b.ts}).forEach(function(m){by[m.n]=m});return by}
 function title(){var c=0;if(S==="user"){var by=lastBy();for(var k in by)if(by[k].by==="admin")c++}else if(S==="adm")c=T.filter(function(x){return x.pend}).length;document.title=(c?"("+c+") ":"")+"Takok Pelayanan Suroboyo"}
 function entryOf(k){var p=String(k).split("_"),l=LD[p[0]]||[];for(var i=0;i<l.length;i++)if(String(l[i][0])===p[1])return l[i];return null}
+function statusHd(L,last){
+ var tk="",i;for(i=L.length-1;i>=0;i--)if(L[i].tk){tk=L[i].tk;break}
+ var st=!last?["Belum ada pesan","st-n"]:last.by==="user"?["Menunggu balasan","st-w"]:last.bot?["Dijawab otomatis · menunggu pegawai","st-b"]:["Dijawab pegawai","st-ok"];
+ var o='<div class="chd"><span class="stp '+st[1]+'">'+st[0]+'</span>'+(tk?'<span class="tkn">Tiket <b>'+esc(tk)+'</b></span>':'')+'<span class="tkn">'+L.length+' pesan</span></div>';
+ if(CFG.piket==="langsung"||CFG.piket==="tunda")o+='<div class="pkb">🤖 <b>Asisten Piket aktif.</b> '+(CFG.piket==="langsung"?'Pegawai sedang tidak di tempat; pertanyaan Anda dijawab otomatis lebih dulu dan akan diperiksa pegawai.':'Bila pegawai belum membalas dalam beberapa menit, Asisten Piket menjawab sementara.')+'</div>';
+ if(last&&last.bot){var lu=L.filter(function(x){return x.by==="user"}).pop();if(lu&&/nib|kbli|oss|usaha|izin/i.test(lu.text))o+='<div class="pkc"><button type="button" class="btn" data-act="kb" data-q="'+esc(lu.text.slice(0,80))+'">🔎 Cari kode KBLI untuk usaha saya</button></div>'}
+ if(last&&last.bot)o+='<div class="pkc"><button type="button" class="btn" data-act="tq" data-n="'+esc(last.n)+'">Sudah terjawab</button><button type="button" class="send" data-act="esc" data-n="'+esc(last.n)+'">Minta dijawab pegawai</button></div>';
+ return o}
 function chatHtml(k){
  var en=entryOf(k);if(en&&en[5]===false)return '<div class="qa"><p class="sys">Fasilitas ini tidak menerima pertanyaan lewat aplikasi. Silakan bertanya di Ruang Pengaduan atau Loket Informasi.</p></div>';
  if(S!=="user")return '<div class="qa"><h3>Diskusi dengan admin</h3><p class="sys">Masuk sebagai pemohon di bagian atas untuk berdiskusi secara pribadi dengan admin loket ini.</p></div>';
- var L=msgsOf(k),last=L[L.length-1],rt=(MYST[k]||{}).nilai,aw=CFG.wa||"",ex="";
+ var L=msgsOf(k),last=L[L.length-1],rt=(MYST[k]||{}).nilai,aw=CFG.wa||"",ex="",hd=statusHd(L,last);
  if(last&&last.by==="admin")ex+='<div class="rate"><span class="sys">Apakah jawaban membantu? '+(rt?'Penilaian Anda: '+rt+'/5':'')+'</span><span class="btns">'+[1,2,3,4,5].map(function(i){return '<button type="button" class="chip" data-act="rate" data-n="'+k+'" data-v="'+i+'" aria-label="Nilai '+i+' dari 5">'+i+'</button>'}).join("")+'</span></div>';
  if(aw)ex+='<div class="hint"><a class="chip" href="'+esc(waLink(aw,"Halo admin, saya "+ME.nama+" ("+ME.hp+") baru mengirim pertanyaan di "+label(k)+". Mohon dicek di Takok Pelayanan Suroboyo."))+'" target="_blank" rel="noopener noreferrer">Beritahu admin via WhatsApp</a></div>';
- return '<div class="qa"><h3>Diskusi pribadi dengan admin</h3><p class="sys">Hanya Anda dan admin yang dapat melihat percakapan ini. Jangan kirim NIK lengkap, kata sandi, atau kode OTP.'+(BALAS?' Rata-rata admin membalas dalam '+(BALAS<60?"±"+BALAS+" menit":"±"+Math.round(BALAS/60)+" jam")+'.':"")+'</p><div class="thread">'+bubbles(L,"user",MYDB[k])+'</div>'+(L.length?"":QQ.map(function(q){return '<button type="button" class="chip" data-qq="'+esc(q)+'">'+esc(q)+'</button> '}).join(""))+'<div class="qf"><textarea data-k="q:'+k+'" rows="3" maxlength="800" placeholder="Tulis pertanyaan atau balasan Anda" aria-label="Pesan"></textarea><div class="btns" style="justify-content:space-between;align-items:center;width:100%"><small class="sys ctr">0/800 &middot; Enter untuk kirim</small><button type="button" class="send" data-act="send" data-n="'+k+'">Kirim</button></div></div>'+ex+'</div>'}
+ return '<div class="qa"><h3>Diskusi pribadi dengan admin</h3>'+hd+'<p class="sys">Hanya Anda dan admin yang dapat melihat percakapan ini. Jangan kirim NIK lengkap, kata sandi, atau kode OTP.'+(BALAS?' Rata-rata admin membalas dalam '+(BALAS<60?"±"+BALAS+" menit":"±"+Math.round(BALAS/60)+" jam")+'.':"")+'</p><div class="thread">'+bubbles(L,"user",MYDB[k])+'</div>'+(L.length?"":QQ.map(function(q){return '<button type="button" class="chip" data-qq="'+esc(q)+'">'+esc(q)+'</button> '}).join(""))+'<div class="qf"><textarea data-k="q:'+k+'" rows="3" maxlength="800" placeholder="Tulis pertanyaan atau balasan Anda" aria-label="Pesan"></textarea><div class="btns" style="justify-content:space-between;align-items:center;width:100%"><small class="sys ctr">0/800 &middot; Enter untuk kirim</small><button type="button" class="send" data-act="send" data-n="'+k+'">Kirim</button></div></div>'+ex+'</div>'}
 function render(){
  title();
  if(S==="adm"||(S==="user"&&MYV))return;
@@ -146,12 +155,30 @@ $("th").onclick=function(){var r=document.documentElement,dk=r.getAttribute("dat
 $("lc").onclick=function(e){var b=e.target.closest("[data-l]");if(!b)return;LOC=b.dataset.l;ZN="Semua";qv="";$("q").value="";lc();render()};
 $("nb").onclick=function(){try{Notification.requestPermission().then(function(){ui()})}catch(x){err("Browser tidak mengizinkan notifikasi di halaman ini.")}};
 /* ---- Pemohon ---- */
+var MYF="all";
 function myList(){var el=$("v-my");var by=lastBy(),ks=Object.keys(by).sort(function(a,b){return by[b].ts-by[a].ts});
- el.innerHTML='<h3 style="margin:16px 0 8px;font-size:1rem">Percakapan saya</h3>'+(ks.length?'<div class="tl" id="ml"></div>':'<div class="empty">Anda belum memulai percakapan. Buka sebuah loket lalu tulis pertanyaan Anda.</div>');
- var ml=$("ml");if(ml)ks.forEach(function(k){var m=by[k],b=document.createElement("button");b.type="button";b.className="ti";var h=document.createElement("b");h.textContent=label(k);var s=document.createElement("span");s.textContent=(m.by==="admin"?"Admin: ":"Anda: ")+m.text;b.appendChild(h);b.appendChild(s);if(m.by==="admin"){var e=document.createElement("em");e.textContent="Ada balasan";b.appendChild(e)}
-  b.onclick=function(){openKey(k)};ml.appendChild(b)});title()}
+ var nb=ks.filter(function(k){return by[k].by==="admin"}).length,nw=ks.length-nb;
+ var fh=ks.length?'<div class="hint" id="myf" role="group" aria-label="Saring percakapan">'+[["all","Semua ("+ks.length+")"],["rep","Ada balasan ("+nb+")"],["wait","Menunggu ("+nw+")"]].map(function(x){return '<button type="button" class="chip" data-myf="'+x[0]+'" aria-pressed="'+(MYF===x[0])+'">'+x[1]+'</button>'}).join("")+'</div><input class="si" id="mys" type="search" placeholder="Cari percakapan atau nomor tiket" aria-label="Cari percakapan" autocomplete="off">':"";
+ el.innerHTML='<h3 style="margin:16px 0 8px;font-size:1rem">Percakapan saya</h3>'+fh+(ks.length?'<div id="ml"></div>':'<div class="empty">Anda belum memulai percakapan. Buka sebuah loket lalu tulis pertanyaan Anda.</div>');
+ var q=($("mys")||{}).value||"";
+ function draw(){var ml=$("ml");if(!ml)return;ml.innerHTML="";q=($("mys")||{}).value||"";q=q.toLowerCase();
+  var sec=[["rep","Perlu Anda lihat","Ada balasan baru dari pegawai atau Asisten Piket"],["wait","Menunggu balasan","Pertanyaan sudah terkirim"]];
+  sec.forEach(function(sc){if(MYF!=="all"&&MYF!==sc[0])return;
+   var list=ks.filter(function(k){return (by[k].by==="admin")===(sc[0]==="rep")}).filter(function(k){return !q||(label(k)+" "+by[k].text+" "+(by[k].tk||"")).toLowerCase().indexOf(q)>-1});
+   if(!list.length)return;
+   var h=document.createElement("div");h.className="mysec";h.innerHTML='<b>'+sc[1]+' <i>'+list.length+'</i></b><small>'+sc[2]+'</small>';ml.appendChild(h);
+   var box=document.createElement("div");box.className="tl";ml.appendChild(box);
+   list.forEach(function(k){var m=by[k],b=document.createElement("button");b.type="button";b.className="ti";var hh=document.createElement("b");hh.textContent=label(k);var s2=document.createElement("span");s2.textContent=(m.by==="admin"?(m.bot?"Asisten Piket: ":"Pegawai: "):"Anda: ")+m.text.replace(/\n+/g," ").slice(0,110);b.appendChild(hh);b.appendChild(s2);
+    var em=document.createElement("em");em.textContent=m.by==="admin"?(m.bot?"Jawaban otomatis":"Ada balasan"):waitTxt(Date.now()-m.ts);b.appendChild(em);if(m.tk){var t2=document.createElement("small");t2.textContent=m.tk;b.appendChild(t2)}
+    b.onclick=function(){openKey(k)};box.appendChild(b)});});
+  if(!ml.children.length)ml.innerHTML='<div class="empty">Tidak ada percakapan yang cocok.</div>'}
+ draw();var mi=$("mys");if(mi)mi.oninput=draw;var mf=$("myf");if(mf)mf.onclick=function(e){var b=e.target.closest("[data-myf]");if(!b)return;MYF=b.dataset.myf;[].forEach.call(mf.children,function(c){c.setAttribute("aria-pressed",c===b)});draw()};title()}
 $("list").addEventListener("click",async function(e){err("");
  var qq=e.target.closest("[data-qq]");if(qq){var t0=qq.closest(".qa").querySelector("textarea");t0.value=qq.dataset.qq;t0.focus();t0.dispatchEvent(new Event("input",{bubbles:true}));return}
+ var eb=e.target.closest('[data-act="esc"]');
+ if(eb&&S==="user"){eb.disabled=true;try{await api("/api/pesan/eskalasi",{kunci:eb.dataset.n});toast("Permintaan diteruskan. Pegawai akan menjawab langsung.");SIG="";tick()}catch(x){err(x.message);eb.disabled=false}return}
+ var kb=e.target.closest('[data-act="kb"]');if(kb&&window.PanduKBLI){PanduKBLI.buka(kb.dataset.q);return}
+ var tb=e.target.closest('[data-act="tq"]');if(tb){toast("Senang bisa membantu. Pegawai tetap memeriksa jawaban ini.");tb.closest(".pkc").remove();return}
  var rb=e.target.closest('[data-act="rate"]');
  if(rb&&S==="user"){try{await api("/api/nilai",{kunci:rb.dataset.n,nilai:+rb.dataset.v});toast("Terima kasih atas penilaian Anda.");SIG="";tick()}catch(x){err(x.message)}return}
  var b=e.target.closest('[data-act="send"]');if(!b||S!=="user")return;var k=b.dataset.n,ta=b.closest(".qf").querySelector("textarea"),t=clean(ta.value);if(!t)return;
@@ -223,7 +250,7 @@ function admPane(){var p=$("ap");if(!p||S!=="adm")return;
  $("rt").value=keep;var th=$("th2");th.scrollTop=th.scrollHeight}
 $("v-adm").addEventListener("click",async function(e){if(S!=="adm")return;var id=e.target.id,qb=e.target.closest("[data-q]");err("");
  try{
- if(id==="cs"){await api("/api/admin/pengaturan",{wa:$("cw").value,jam:$("cj").value,info:$("ci").value});CFG={wa:ph($("cw").value)||"",jam:clean($("cj").value),info:clean($("ci").value)};an();toast("Pengaturan tersimpan.");return}
+ if(id==="cs"){await api("/api/admin/pengaturan",{wa:$("cw").value,jam:$("cj").value,info:$("ci").value});CFG={piket:CFG.piket,wa:ph($("cw").value)||"",jam:clean($("cj").value),info:clean($("ci").value)};an();toast("Pengaturan tersimpan.");return}
  if(id==="cp"){await api("/api/admin/password",{lama:$("p1").value,baru:$("p2").value});reset("Kata sandi diganti. Silakan masuk kembali.");return}
  if(id==="tqs"){var r=await api("/api/admin/templat",{daftar:$("tq").value.split("\n")});QR=r.daftar;toast("Templat tersimpan ("+QR.length+").");admPane();return}
  if(!SEL)return;
@@ -262,5 +289,5 @@ async function loadKata(v){var key="kata:"+v;try{var c=localStorage.getItem(key)
  try{var r=await api("/api/kata?v="+encodeURIComponent(v));window.KATA=r.kata||[];try{Object.keys(localStorage).forEach(function(k){if(k.indexOf("kata:")===0)localStorage.removeItem(k)});localStorage.setItem(key,JSON.stringify(window.KATA))}catch(e){}}catch(e){}}
 /* ---- Mulai ---- */
 (async function(){try{var j=await api("/api/info");LOCS=j.lokasi.map(function(l){return{id:l.id,nm:l.nama,ur:l.uraian||"",al:l.alamat||"",jam:l.jam||"",tl:l.telp||"",mp:l.maps||""}});LD={};j.loket.forEach(function(r){(LD[r[0]]=LD[r[0]]||[]).push([r[1],r[2],r[3],r[4],r[5]||"",r[6]!==0,r[7]!==0,r[8]||"",r[9]||""])});for(var k in LD)LD[k].sort(function(a,b){return a[0]-b[0]});
- CFG=j.cfg||{};window.BERITA=j.berita||[];window.KATA=j.kata||[];if(j.kv)loadKata(j.kv);if(window.KBLI)KBLI.sync(j.kbv,j.kbm);window.MPPR=j.mpp_roster||[];BALAS=j.balas_menit||null;if(!LD[LOC]&&LOCS.length)LOC=LOCS[0].id;an();lc();
+ CFG=j.cfg||{};CFG.piket=j.piket||"off";window.BERITA=j.berita||[];window.KATA=j.kata||[];if(j.kv)loadKata(j.kv);if(window.KBLI)KBLI.sync(j.kbv,j.kbm);window.MPPR=j.mpp_roster||[];BALAS=j.balas_menit||null;if(!LD[LOC]&&LOCS.length)LOC=LOCS[0].id;an();lc();
  if(j.saya){await startSession(j)}else ui()}catch(x){err("Server belum bisa dihubungi: "+x.message)}})();

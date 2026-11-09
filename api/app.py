@@ -442,6 +442,59 @@ def add_msg(pid, kunci, dari, isi):
     return tk["no"]
 
 
+PIKET_BATAS = 3  # jawaban otomatis beruntun maksimal per percakapan sebelum menunggu pegawai
+
+
+def piket_cfg():
+    """Pengaturan Asisten Piket (pengganti pegawai sementara). mode: off | langsung | tunda (jawab bila belum dibalas dalam N menit)."""
+    c = cfg_all()
+    mode = c.get("piket_mode", "off")
+    try:
+        tunggu = min(240, max(2, int(c.get("piket_tunggu") or 15)))
+    except ValueError:
+        tunggu = 15
+    return {"mode": mode if mode in ("langsung", "tunda") else "off", "tunggu": tunggu, "info": c.get("piket_info", "")}
+
+
+def piket_balas(pid, k, pc=None):
+    """Asisten Piket menjawab pesan terakhir pemohon dari aturan Kata cari + templat topik. Tidak mengubah status 'menunggu pegawai':
+    pegawai tetap melihat percakapan ini sebagai belum dijawab. Kembalikan pesan yang dibuat, atau None."""
+    f = "%s|%s" % (pid, k)
+    if db().cmd("HGET", "pkesc", f):
+        return None
+    ms = [m for m in (parse(x) for x in db().cmd("LRANGE", "msgs:" + f, 0, -1) or []) if m]
+    if not ms or ms[-1]["dari"] != "pemohon" or ms[-1].get("hapus"):
+        return None
+    run = 0
+    for m in reversed(ms):
+        if m["dari"] == "admin" and not m.get("bot"):
+            break
+        if m.get("bot"):
+            run += 1
+    if run >= PIKET_BATAS:
+        return None
+    pc = pc or piket_cfg()
+    pem = parse(db().cmd("HGET", "pemohon", pid), {}) or {}
+    nm = (pem.get("nama") or "").split(" ")[0]
+    a = AN.analyze(ms[-1]["isi"])
+    sar = AN.saran_balasan(ms, kata_cache()[2], pem.get("nama", ""), label(k), label)
+    dari_aturan = [x for x in sar if x["sumber"].startswith("Aturan")]
+    if "Pengaduan / keluhan" in a["topik"] or a["urg"] >= 2:
+        isi = "Halo %s, mohon maaf atas kendala yang Anda alami. Pesan Anda kami tandai sebagai prioritas dan sudah diteruskan ke pegawai %s. Mohon lengkapi kronologi dan nomor permohonan (bila ada) agar lebih cepat ditangani." % (nm, label(k))
+    else:
+        isi = (dari_aturan or sar)[0]["teks"] if sar else AN.TEMPLAT_UMUM.format(nama=nm, loket=label(k))
+    isi += "\n\n🤖 Jawaban otomatis Asisten Piket" + (" (pegawai sedang tidak di tempat)" if pc["mode"] == "langsung" else " (pegawai belum sempat membalas)") + ". Pegawai akan memeriksa dan melengkapi bila perlu."
+    if pc["info"]:
+        isi += "\n" + pc["info"]
+    tk = tiket_aktif(f)
+    mid = int(db().cmd("INCR", "seq:pesan"))
+    t = now_ms()
+    m = {"id": mid, "dari": "admin", "bot": 1, "isi": isi[:1500], "waktu": t, "tk": tk["no"]}
+    db().pipe([["RPUSH", "msgs:" + f, json.dumps(m, ensure_ascii=False)], ["HSET", "tlast", f, json.dumps({"teks": "🤖 " + isi[:96], "waktu": t}, ensure_ascii=False)],
+               ["HINCRBY", "pkn", time.strftime("%Y%m%d", wib()), 1]])
+    return m
+
+
 def muat_semua(limit=200):
     """Muat percakapan terbaru beserta seluruh pesannya untuk analisis (dibatasi agar muat dalam 10 detik)."""
     r = db().pipe([["HGETALL", "tlast"], ["HGETALL", "pemohon"], ["HGETALL", "nilai"], ["HGETALL", "sel"], ["HGETALL", "tla"]])
@@ -718,6 +771,13 @@ class handler(BaseHTTPRequestHandler):
                 return self.user_pesan(ses, ex)
             if path == "/pesan" and method == "POST":
                 return self.user_kirim(ses, b, ex)
+            if path == "/pesan/eskalasi" and method == "POST":
+                k = str(b.get("kunci", ""))
+                if not valid_key(k) or limited("rl:esk:%s" % ses["id"], 6, 3600):
+                    raise HttpError(400, "Permintaan tidak valid atau terlalu sering.")
+                self._eskalasi(ses["id"], k)
+                add_msg(ses["id"], k, "pemohon", "Mohon dijawab langsung oleh pegawai. (Eskalasi dari jawaban otomatis)")
+                return self.json({"ok": True}, extra=ex)
             if path == "/pesan/ubah" and method == "POST":
                 return self.user_ubah(ses, b, ex)
             if path == "/pesan/hapus" and method == "POST":
@@ -823,7 +883,7 @@ class handler(BaseHTTPRequestHandler):
         kata = kata_baca()[0] if (not kv or self.q1("kata")) else []  # data lama / editor admin: sertakan; pengunjung biasa: ambil via /kata?v=
         self.json({"kata": kata, "kv": kv or "", "kata_max": KATA_MAX, "berita": bt, "balas_menit": balas, "mpp_roster": SKM_MPP, "kbv": kbv or "", "kbm": parse(kbm, {}) or {}, "lokasi": [lok_meta_publik(k) for k in LOKASI if not lok_sembunyi(k)],
                    "loket": [[e["lokasi"], e["no"], e["nama"], e["uraian"], e["sistem"], e.get("zona", ""), 1 if e.get("diskusi", True) else 0, 1 if bisa_booking("%s_%s" % (e["lokasi"], e["no"])) else 0, e.get("jam", ""), e.get("tautan", "")] for e in loket_urut()],
-                   "cfg": {k: c.get(k, "") for k in ("wa", "jam", "info", "kuota")}, "saya": who},
+                   "cfg": {k: c.get(k, "") for k in ("wa", "jam", "info", "kuota")}, "piket": piket_cfg()["mode"], "saya": who},
                   extra=self.refresh(ses) if ses and who else ())
 
     def daftar(self, b):
@@ -905,7 +965,20 @@ class handler(BaseHTTPRequestHandler):
             for x in lst or []:
                 m = parse(x)
                 if m:
-                    ms.append({"id": m["id"], "kunci": k, "dari": m["dari"], "isi": m["isi"], "waktu": m["waktu"], "hapus": m.get("hapus", 0), "edit": m.get("edit", 0), "re": m.get("re", ""), "tk": m.get("tk", "")})
+                    ms.append({"id": m["id"], "kunci": k, "dari": m["dari"], "isi": m["isi"], "waktu": m["waktu"], "bot": m.get("bot", 0), "hapus": m.get("hapus", 0), "edit": m.get("edit", 0), "re": m.get("re", ""), "tk": m.get("tk", "")})
+        try:  # mode "tunda": jawab otomatis bila pegawai belum membalas dalam N menit (dipicu saat pemohon membuka percakapan)
+            pc = piket_cfg()
+            if pc["mode"] == "tunda" and ms:
+                akhir = {}
+                for m in sorted(ms, key=lambda x: x["waktu"]):
+                    akhir[m["kunci"]] = m
+                for k2, m in akhir.items():
+                    if m["dari"] == "pemohon" and not m["hapus"] and now_ms() - m["waktu"] >= pc["tunggu"] * 60000:
+                        nb = piket_balas(pid, k2, pc)
+                        if nb:
+                            ms.append({"id": nb["id"], "kunci": k2, "dari": "admin", "bot": 1, "isi": nb["isi"], "waktu": nb["waktu"], "hapus": 0, "edit": 0, "re": "", "tk": nb["tk"]})
+        except Exception as e:
+            print("PIKET", repr(e))
         nl = hall(res[n])
         pm, bk = [], []
         if ip is not None:
@@ -1096,7 +1169,26 @@ class handler(BaseHTTPRequestHandler):
         if int(db().cmd("LLEN", "msgs:%s|%s" % (pid, k)) or 0) >= 200:
             raise HttpError(400, "Percakapan ini sudah penuh. Silakan hubungi loket langsung.")
         tk = add_msg(pid, k, "pemohon", isi)
-        self.json({"ok": True, "tk": tk}, extra=ex)
+        pc = piket_cfg()
+        bot = False
+        if pc["mode"] == "langsung" and not b.get("eskalasi"):
+            try:
+                bot = bool(piket_balas(pid, k, pc))
+            except Exception as e:
+                print("PIKET", repr(e))
+        if b.get("eskalasi"):
+            self._eskalasi(pid, k)
+        self.json({"ok": True, "tk": tk, "bot": bot}, extra=ex)
+
+    def _eskalasi(self, pid, k):
+        """Pemohon meminta dijawab langsung oleh pegawai: hentikan jawaban otomatis dan beri tag Eskalasi."""
+        f = "%s|%s" % (pid, k)
+        t = parse(db().cmd("HGET", "ttag", f), {}) or {}
+        tags = list(t.get("tags") or [])
+        if "Eskalasi" not in tags:
+            tags.append("Eskalasi")
+        t["tags"] = tags
+        db().pipe([["HSET", "pkesc", f, now_ms()], ["HSET", "ttag", f, json.dumps(t, ensure_ascii=False)]])
 
     def _cari_pesan(self, pid, k, mid, dari):
         try:
@@ -1697,8 +1789,20 @@ class handler(BaseHTTPRequestHandler):
                 if not 1 <= k <= 200:
                     raise HttpError(400, "Kuota per jam harus 1 sampai 200.")
                 cmds.append(["HSET", "cfg", "kuota", k])
+            if "piket_mode" in b:
+                if b.get("piket_mode") not in ("off", "langsung", "tunda"):
+                    raise HttpError(400, "Mode Asisten Piket tidak valid.")
+                cmds.append(["HSET", "cfg", "piket_mode", b["piket_mode"]])
+            if "piket_tunggu" in b:
+                cmds.append(["HSET", "cfg", "piket_tunggu", min(240, max(2, int(b.get("piket_tunggu") or 15)))])
+            if "piket_info" in b:
+                cmds.append(["HSET", "cfg", "piket_info", clean(b.get("piket_info", ""), 200)])
             db().pipe(cmds)
-            return self.json({"ok": True}, extra=ex)
+            return self.json({"ok": True, "piket": piket_cfg()}, extra=ex)
+        if r == "piket":
+            pn = hall(db().cmd("HGETALL", "pkn"))
+            hari = time.strftime("%Y%m%d", wib())
+            return self.json({"cfg": piket_cfg(), "hari_ini": int(pn.get(hari, 0)), "total": sum(int(v) for v in pn.values())}, extra=ex)
         if r == "password":
             h = db().cmd("HGET", "cfg", "admin_hash") or ""
             if not check_pw(str(b.get("lama", "")), h):

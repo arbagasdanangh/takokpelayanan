@@ -311,3 +311,7 @@ Tile baru "Pandu KBLI": cari kode dari kata sehari-hari, lihat peringatan "bukan
 
 ## Tebak KBLI Harian (v23)
 Permainan ke-10 di Ruang Main (`public/tebak-kbli.js`): 5 soal harian yang sama untuk semua orang dari 1.559 KBLI 2025 (uraian -> judul, judul -> kode), penjelasan tiap jawaban, hasil bisa dibagikan sebagai kotak hijau/merah, poin penuh hanya untuk permainan harian pertama, plus latihan acak. Pemakaian dihitung anonim di statistik admin seperti permainan lain.
+
+## Asisten Piket + percakapan lebih rapi (v26)
+- **Asisten Piket** (pengganti pegawai sementara): admin buka tab "Asisten Piket" lalu pilih mode: Mati / Pegawai tidak di tempat (langsung menjawab) / Cadangan (menjawab bila pegawai belum membalas dalam N menit). Jawaban dibuat dari aturan "Kata cari chatbot" + templat topik (tanpa AI luar), diberi label "jawaban otomatis", maksimal 3 beruntun, percakapan tetap tercatat "belum dijawab" untuk ditinjau pegawai. Pengaduan/pesan mendesak hanya dijawab dengan pernyataan diteruskan ke pegawai. Warga bisa menekan "Minta dijawab pegawai" (tag Eskalasi). Mode Cadangan dipicu saat warga membuka percakapan (Vercel tidak punya proses latar).
+- **Percakapan rapi**: kartu status + nomor tiket, pemisah hari (Hari ini/Kemarin), pesan beruntun dikelompokkan, gelembung khusus Asisten Piket, daftar "Percakapan saya" dikelompokkan (Perlu Anda lihat / Menunggu balasan) dengan saringan dan pencarian tiket, dan tombol "Cari kode KBLI" ke Pandu KBLI.
