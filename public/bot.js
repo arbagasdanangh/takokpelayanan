@@ -38,10 +38,11 @@ function bot(txt, extra, delay, raw, plain) {
   });
 }
 function needIn(t) { return bot(t, '<div class="bch">' + btn("Masuk / daftar", "login") + '</div>'); }
+function ringkasU(t) { t = plainJ(t).replace(/\s+/g, " ").trim(); return t.length > 140 ? t.slice(0, 140) + "…" : t; }
 function lk(l, d) {
   var k = l.id + "_" + d[0];
-  return '<div class="bc2"><b>' + esc(d[1]) + '</b> <span class="btag">' + esc(l.nm) + '</span><p>' + esc(d[2].slice(0, 140)) + (d[2].length > 140 ? "…" : "") + '</p><div class="ba">' + btn("Buka loket", "open:" + k) + (d[6] !== false ? btn("Booking", "bk:" + k) : "") +
-    '<a target="_blank" rel="noopener noreferrer" href="https://www.google.com/maps/search/?api=1&amp;query=' + encodeURIComponent(l.nm + " Surabaya") + '">Peta</a></div></div>';
+  return '<div class="bc2"><b>' + esc(d[1]) + '</b> <span class="btag">' + esc(l.nm) + '</span><p>' + esc(ringkasU(d[2])) + '</p><div class="ba">' + btn("Buka loket", "open:" + k) + (d[6] !== false ? btn("Booking", "bk:" + k) : "") +
+    '<a target="_blank" rel="noopener noreferrer" href="' + esc(mapsUrl(l)) + '">Peta</a></div></div>';
 }
 function cari(t) {
   var tk = toks(t), R = [];
@@ -53,8 +54,11 @@ function cari(t) {
   return bot("Ini loket yang paling sesuai (" + R.length + " ditemukan):", R.slice(0, 3).map(function (r) { return lk(r.l, r.d); }).join("") + fw);
 }
 function lokasi() {
-  return bot((CFG.jam ? "Jam layanan: " + clean(CFG.jam) + ". " : "") + "Booking tersedia hari kerja pukul 08.00-14.00 (jeda 12.00). Pilih lokasi untuk membuka peta:",
-    '<div class="bch">' + LOCS.map(function (l) { return '<a target="_blank" rel="noopener noreferrer" href="https://www.google.com/maps/search/?api=1&amp;query=' + encodeURIComponent(l.nm + " Surabaya") + '">' + esc(l.nm) + '</a>'; }).join("") + '</div>');
+  var ks = LOCS.map(function (l) {
+    return '<div class="bc2"><b>' + esc(l.nm) + '</b>' + (l.al ? '<p>' + esc(l.al) + '</p>' : '') + (l.jam ? '<small class="bnote">Jam: ' + esc(l.jam) + '</small>' : '') +
+      '<div class="ba"><a target="_blank" rel="noopener noreferrer" href="' + esc(mapsUrl(l)) + '">Peta</a>' + (telHref(l.tl) ? '<a href="' + esc(telHref(l.tl)) + '">Telepon</a>' : '') + btn("Lihat loket", "loc:" + l.id) + '</div></div>';
+  }).join("");
+  return bot((CFG.jam ? "Jam layanan: " + clean(CFG.jam) + ". " : "") + "Booking tersedia hari kerja pukul 08.00-14.00 (jeda 12.00). Pilih tempat pelayanan:", ks);
 }
 async function stat() {
   if (S !== "user") return needIn("Masuk dulu supaya saya bisa menampilkan status permohonan Anda.");
@@ -268,6 +272,7 @@ function init() {
     if (c === "q") ask(a);
     else if (c === "say") speak(b.parentNode.dataset.t || "");
     else if (c === "open") { closeB(); openKey(a); }
+    else if (c === "loc") { closeB(); LOC = a; ZN = "Semua"; lc(); qv = ""; $("q").value = ""; MYV = false; window.PN = ""; ui(); var li = $("lki"); if (li && li.scrollIntoView) li.scrollIntoView({behavior: "smooth", block: "center"}); }
     else if (c === "bk") {
       if (needLogin()) { closeB(); return; }
       closeB(); setPN("bk");

@@ -17,7 +17,15 @@ function ph(s){s=String(s).replace(/[\s.\-()]/g,"");if(/^\+?62/.test(s))s=s.repl
 function waLink(p,t){return p?"https://wa.me/62"+p.slice(1)+"?text="+encodeURIComponent(t):""}
 function cur(){return LD[LOC]||[]}
 function label(k){var p=String(k).split("_"),l=LOCS.filter(function(x){return x.id===p[0]})[0],e=(LD[p[0]]||[]).filter(function(x){return String(x[0])===p[1]})[0];return (l?l.nm:p[0])+(e?" - "+e[1]:(p[1]==="0"?"":" - Loket "+p[1]))}
-function lc(){znui();$("lc").innerHTML=LOCS.map(function(l){return '<button type="button" class="chip" data-l="'+esc(l.id)+'" aria-pressed="'+(l.id===LOC)+'">'+esc(l.nm)+'</button>'}).join("")}
+function lc(){znui();$("lc").innerHTML=LOCS.map(function(l){return '<button type="button" class="chip" data-l="'+esc(l.id)+'" aria-pressed="'+(l.id===LOC)+'">'+esc(l.nm)+'</button>'}).join("");lki()}
+function mapsUrl(l){l=l||{};return l.mp||("https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(l.al?l.al:(l.nm||"")+" Surabaya"))}
+function fmtUr(t){return window.fmtJawab?fmtJawab(t):"<p>"+esc(t)+"</p>"}
+function telHref(t){var d=String(t||"").replace(/[^0-9+]/g,"");return d.length>=5?"tel:"+d:""}
+function lki(){var el=$("lki");if(!el)return;var l=LOCS.filter(function(x){return x.id===LOC})[0];if(!l||!(l.ur||l.al||l.jam||l.tl||l.mp)){el.hidden=true;el.innerHTML="";return}
+ var n=(LD[l.id]||[]).length,m="";if(l.al)m+='<li><b>Alamat</b><span>'+esc(l.al)+'</span></li>';if(l.jam)m+='<li><b>Jam layanan</b><span>'+esc(l.jam)+'</span></li>';if(l.tl)m+='<li><b>Telepon</b><span>'+esc(l.tl)+'</span></li>';
+ el.hidden=false;el.innerHTML='<div class="lki-h"><b>Tentang '+esc(l.nm)+'</b><span class="lki-n">'+n+' loket</span></div>'+(l.ur?'<div class="lki-u">'+fmtUr(l.ur)+'</div>':'')+(m?'<ul class="lki-m">'+m+'</ul>':'')+
+ '<div class="btns"><a class="chip" href="'+esc(mapsUrl(l))+'" target="_blank" rel="noopener noreferrer">Buka peta</a>'+(telHref(l.tl)?'<a class="chip" href="'+esc(telHref(l.tl))+'">Telepon</a>':'')+(l.al?'<button type="button" class="chip" data-lki="salin">Salin alamat</button>':'')+'</div>'}
+document.addEventListener("click",function(e){var b=e.target.closest&&e.target.closest("[data-lki]");if(!b)return;var l=LOCS.filter(function(x){return x.id===LOC})[0];if(!l)return;try{navigator.clipboard.writeText(l.al).then(function(){toast("Alamat disalin.")},function(){toast(l.al)})}catch(x){toast(l.al)}});
 async function api(path,body){var o={credentials:"same-origin",headers:{}};if(body!==undefined){o.method="POST";o.headers["Content-Type"]="application/json";o.body=JSON.stringify(body)}
  var u=path.split("?"),r=await fetch("/api/app?p="+encodeURIComponent(u[0].replace(/^\/api/,""))+(u[1]?"&"+u[1]:""),o),j={};try{j=await r.json()}catch(e){}
  if(!r.ok){if(r.status===401&&S!=="out"&&path.indexOf("/masuk")<0){reset("Sesi berakhir. Silakan masuk kembali.")}throw new Error(j.error||"Terjadi kesalahan ("+r.status+")")}return j}
@@ -76,7 +84,7 @@ function render(){
  if(!rows.length){var oth="";if(t.length)LOCS.forEach(function(l){if(l.id===LOC)return;var c=(LD[l.id]||[]).filter(function(d){return score(d,t)>0}).length;if(c)oth+='<button type="button" class="chip" data-go="'+esc(l.id)+'">'+esc(l.nm)+' ('+c+')</button> '});$("list").innerHTML='<div class="empty">Belum ada loket yang cocok di lokasi ini. Coba kata lain, atau datangi Loket Informasi atau Loket CS untuk konsultasi.'+(oth?'<p>Ada hasil di lokasi lain:</p>'+oth:'')+'</div>';return}
  PZ=null;$("list").innerHTML=rows.map(function(r,i){var d=r.d,hd=(LOC==="mpp"&&d[4]&&d[4]!==PZ)?zhead(d[4]):"",k=LOC+"_"+d[0],first=t.length&&i===0,L=S==="user"?msgsOf(k):[],last=L[L.length-1];
   var c=last?(last.by==="admin"?'<span class="cnt hot">Ada balasan</span>':'<span class="cnt">Menunggu balasan</span>'):'';
-  return hd+'<details data-n="'+k+'"'+zst(d)+' class="row'+(first?' best':'')+'"'+(first||op[k]?' open':'')+'><summary><span class="no" aria-label="Nomor loket">'+d[0]+'</span><span class="nm">'+esc(d[1])+'</span>'+c+'<span class="tag">'+esc(d[4]||String(d[3]).split(" / ")[0])+'</span></summary><div class="body"><p>'+esc(d[2])+'</p><p class="sys">Sistem: '+esc(d[3])+'</p>'+chatHtml(k)+'</div></details>'}).join("");
+  return hd+'<details data-n="'+k+'"'+zst(d)+' class="row'+(first?' best':'')+'"'+(first||op[k]?' open':'')+'><summary><span class="no" aria-label="Nomor loket">'+d[0]+'</span><span class="nm">'+esc(d[1])+'</span>'+c+'<span class="tag">'+esc(d[4]||String(d[3]).split(" / ")[0])+'</span></summary><div class="body"><div class="ur">'+fmtUr(d[2])+'</div><p class="sys">Sistem: '+esc(d[3])+(d[7]?' &middot; Jam: '+esc(d[7]):'')+'</p>'+(d[8]?'<p class="sys"><a href="'+esc(d[8])+'" target="_blank" rel="noopener noreferrer">Informasi resmi layanan ini</a></p>':'')+chatHtml(k)+'</div></details>'}).join("");
  [].forEach.call(document.querySelectorAll("#list [data-k]"),function(e){var k=e.dataset.k;if(KEEP[k])e.value=KEEP[k];if(FOC&&FOC.k===k){e.focus();try{e.setSelectionRange(FOC.s,FOC.e)}catch(x){}}});
  if(OPENK){var el=document.querySelector('details[data-n="'+OPENK+'"]');OPENK=null;if(el)el.scrollIntoView({block:"start"})}}
 function openKey(k){LOC=k.split("_")[0];ZN="Semua";lc();qv="";$("q").value="";OPENK=k;MYV=false;window.PN="";ui()}
@@ -252,6 +260,6 @@ EX.push("BPJS Kesehatan","Pajak");
 async function loadKata(v){var key="kata:"+v;try{var c=localStorage.getItem(key);if(c){window.KATA=JSON.parse(c);return}}catch(e){}
  try{var r=await api("/api/kata?v="+encodeURIComponent(v));window.KATA=r.kata||[];try{Object.keys(localStorage).forEach(function(k){if(k.indexOf("kata:")===0)localStorage.removeItem(k)});localStorage.setItem(key,JSON.stringify(window.KATA))}catch(e){}}catch(e){}}
 /* ---- Mulai ---- */
-(async function(){try{var j=await api("/api/info");LOCS=j.lokasi.map(function(l){return{id:l.id,nm:l.nama}});LD={};j.loket.forEach(function(r){(LD[r[0]]=LD[r[0]]||[]).push([r[1],r[2],r[3],r[4],r[5]||"",r[6]!==0,r[7]!==0])});for(var k in LD)LD[k].sort(function(a,b){return a[0]-b[0]});
+(async function(){try{var j=await api("/api/info");LOCS=j.lokasi.map(function(l){return{id:l.id,nm:l.nama,ur:l.uraian||"",al:l.alamat||"",jam:l.jam||"",tl:l.telp||"",mp:l.maps||""}});LD={};j.loket.forEach(function(r){(LD[r[0]]=LD[r[0]]||[]).push([r[1],r[2],r[3],r[4],r[5]||"",r[6]!==0,r[7]!==0,r[8]||"",r[9]||""])});for(var k in LD)LD[k].sort(function(a,b){return a[0]-b[0]});
  CFG=j.cfg||{};window.BERITA=j.berita||[];window.KATA=j.kata||[];if(j.kv)loadKata(j.kv);window.MPPR=j.mpp_roster||[];BALAS=j.balas_menit||null;if(!LD[LOC]&&LOCS.length)LOC=LOCS[0].id;an();lc();
  if(j.saya){await startSession(j)}else ui()}catch(x){err("Server belum bisa dihubungi: "+x.message)}})();

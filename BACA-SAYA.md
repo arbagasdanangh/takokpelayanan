@@ -188,3 +188,24 @@ Batasan: nama lokasi (SPP Pusat, MPP Surabaya, dst.) dan nomor urut loket belum 
 - **Balasan cepat** ("Terima kasih", "Sudah jelas", "Masih bingung") muncul bila pesan terakhir dari admin.
 - **Tautan otomatis bisa diketuk** dan format `*tebal*` di pesan.
 Batasan: bila admin menghapus balasannya, percakapan tetap dianggap sudah dijawab; label analisis topik/nada tidak dihitung ulang setelah ubah/hapus.
+
+
+## Versi 11: Editor tempat pelayanan, uraian berformat, Ruang Main baru
+**Perbaikan penting:** di versi 10, endpoint `GET /api/admin/loket` berada setelah penjaga "hanya POST", sehingga Editor loket selalu gagal memuat data (404). Sekarang sudah dipindah ke tempat yang benar.
+
+**Editor loket (tab admin) kini punya dua bagian**
+- **Tempat pelayanan**: ubah nama, uraian, alamat, jam layanan, telepon, tautan peta; tambah tempat baru (maks. 30); urutkan dengan tombol naik/turun; sembunyikan/tampilkan; kembalikan ke bawaan. Ada ringkasan kelengkapan uraian per tempat. Data disimpan di Redis (hash `lokx`), langsung tampil tanpa deploy. Tempat yang disembunyikan tidak tampil, tidak menerima booking/pertanyaan baru, riwayat tetap aman.
+- **Loket & uraian**: pilih tempat pelayanan lalu ubah per loket. Uraian bisa berformat (tombol Tebal, Poin, Langkah, Kerangka; `**tebal**`, `- ` poin, `1. ` langkah, label `Syarat:`/`Biaya:`) dengan **pratinjau langsung**, batas 2.000 karakter. Kolom baru: jam layanan loket dan tautan informasi resmi. Filter **Uraian belum diisi**, tombol **Simpan & loket berikutnya** untuk mengisi uraian MPP satu per satu.
+- **Isi massal**: unduh templat CSV per tempat, isi di Excel/Google Sheets, lalu tempel atau pilih berkas CSV (UTF-8). Ada pratinjau (diubah / sama / dilewati) sebelum diterapkan (`POST /api/admin/loket/massal`, maks. 400 baris).
+- Endpoint baru: `POST /api/admin/lokasi/simpan`, `/lokasi/urutan`, `/lokasi/reset`, `/loket/massal`.
+
+**Sisi pengunjung**: kartu "Tentang <tempat pelayanan>" di beranda (uraian, alamat, jam, telepon, Buka peta, Salin alamat); uraian loket tampil berformat beserta jam dan tautan resmi; chatbot memakai alamat/peta yang diisi admin dan punya tombol "Lihat loket" per tempat.
+
+**Ruang Main (file `public/main.js`)**: 8 permainan, 4 baru:
+- **Tebak Kata**: kata 5 huruf harian (sama untuk semua orang), 6 kesempatan, keyboard layar dan fisik, hasil bisa dibagikan sebagai kotak warna; ada mode latihan acak. Tebakan tidak dicek ke kamus.
+- **Tangkap Berkas**: arcade 45 detik di kanvas. Geser dengan jari/mouse/panah, kombo hingga x4, stempel emas, jam pasir (waktu +4 dan melambat), berkas merah mengurangi nyawa.
+- **Kuis Suroboyo**: 5 dari 14 soal tentang Kota Pahlawan, dengan penjelasan, bonus kecepatan dan runtun.
+- **Roda Takok**: putar gratis sekali sehari, poin 10 sampai 100 plus tips layanan.
+- **Tantangan Harian**: 3 tantangan acak per hari (+20 poin tiap tantangan), statistik pribadi, 7 lencana baru (total 15), judul level sampai "Legenda Suroboyo", getar bila Suara dinyalakan. Semua tetap di perangkat; server hanya menghitung jumlah main anonim (`kata`, `tangkap`, `suro`, `roda` ditambahkan).
+Daftar kata Tebak Kata ada di `KW`, soal kuis di `SQ`, hadiah roda di `WH` (`main.js`). Cache browser: berkas kini `?v=12`.
+Catatan: belum diuji di perangkat sentuh sungguhan; diuji otomatis di Chromium (desktop) untuk alur utama.

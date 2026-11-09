@@ -454,3 +454,49 @@ details.row{transition:box-shadow .2s,transform .2s}details.row:hover{transform:
 .mrv{margin-top:6px;font-size:.78rem}.mrv summary{cursor:pointer;font-weight:700;color:var(--acc)}.mrv div{padding:4px 8px;margin-top:4px;border-left:3px solid var(--line);opacity:.85}
 .wpin{background:#fff8e1;color:#4a3500;border:1px solid #ffd966;border-radius:14px;padding:8px 12px;margin:0 0 10px;font-size:.84rem}.wpin div{display:flex;gap:8px;justify-content:space-between;padding:3px 0}.wpin button{border:0;background:none;font-size:1.1rem;cursor:pointer;color:inherit}
 .wtb .qr{background:var(--accsoft)}.thread .m a{color:inherit;text-decoration:underline;word-break:break-all}
+
+/* ===== Versi 11: tempat pelayanan, uraian berformat, editor, permainan baru ===== */
+.lki{margin:0 0 14px;padding:14px 16px;border-radius:18px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);border-left:5px solid var(--tick)}
+.lki-h{display:flex;align-items:center;gap:8px;justify-content:space-between}.lki-h b{font-size:1.02rem}
+.lki-n{font-size:.75rem;font-weight:800;background:var(--accsoft);color:var(--acc);padding:2px 10px;border-radius:99px}
+.lki-u{margin:6px 0}.lki-u p,.ur p{margin:.3em 0}.ur ul,.ur ol,.lki-u ul,.lki-u ol{margin:.3em 0;padding-left:1.3em}
+.lki-m{list-style:none;margin:8px 0;padding:0;display:grid;gap:4px;font-size:.88rem}
+.lki-m li{display:flex;gap:8px}.lki-m b{flex:none;min-width:84px;color:var(--mute);font-weight:700}
+.lki .btns{margin-top:8px}
+.ur{line-height:1.5}
+.lk-bar{height:7px;border-radius:99px;background:var(--accsoft);overflow:hidden;margin-top:4px}
+.lk-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--acc),#16a34a);border-radius:99px;transition:width .4s}
+.lk-sum{display:grid;gap:6px;margin:0 0 10px}.lk-st{margin:8px 0 0}.lk-h{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.lk-tb{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0}.lk-2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (max-width:520px){.lk-2{grid-template-columns:1fr}}
+.lk-pv{margin:8px 0;padding:10px 12px;border:1px dashed var(--line);border-radius:12px;background:var(--bg)}
+.lk-imp{max-height:300px;overflow:auto;display:grid;gap:6px;margin:8px 0}
+.lk-ir{padding:6px 10px;border-radius:10px;border:1px solid var(--line);background:var(--bg)}.lk-ir p{margin:2px 0 0}
+.lk-ir.chg{border-color:#d97706}.lk-ir.bad{border-color:#dc2626;opacity:.85}.lk-ir small{color:var(--mute)}
+/* Games v11 */
+.gc.hot{border-color:var(--tick);box-shadow:0 0 0 2px color-mix(in srgb,var(--tick) 55%,transparent),var(--shadow)}
+.gm-qs{display:grid;gap:8px}.gm-q{display:flex;gap:10px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:8px 12px}
+.gm-q>div{flex:1;min-width:0}.gm-q small{font-weight:800;color:var(--mute)}.gm-q.ok{border-color:#16a34a;background:color-mix(in srgb,#16a34a 12%,var(--surface))}.gm-q.ok small{color:#16a34a}
+.qc{flex:none;width:24px;height:24px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center;font-weight:900;color:#fff}.gm-q.ok .qc{background:#16a34a;border-color:#16a34a}
+.gm h2 small{font-weight:500}
+.gm-st{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.gm-st div{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:8px 4px;text-align:center}.gm-st b{display:block;font-size:1.15rem;color:var(--acc)}.gm-st small{color:var(--mute);font-size:.7rem}
+.rs-t{text-align:center;margin:10px 0}.gm-tip{background:var(--surface);border:1px solid var(--line);border-left:5px solid var(--tick);border-radius:14px;padding:10px 14px;margin:10px 0}.gm-tip p{margin:4px 0 0}
+/* Tebak Kata */
+.kb{display:grid;gap:6px;justify-content:center;margin:10px 0}.kr{display:grid;grid-template-columns:repeat(5,52px);gap:6px}
+.kt{display:grid;place-items:center;height:52px;border:2px solid var(--line);border-radius:10px;font:800 1.5rem/1 system-ui,sans-serif;font-style:normal;background:var(--surface);color:var(--ink);text-transform:uppercase}
+.kt.on{border-color:var(--acc);animation:ktp .12s}.kt.g{background:#16a34a;border-color:#16a34a;color:#fff}.kt.y{background:#d49b00;border-color:#d49b00;color:#fff}.kt.x{background:#64748b;border-color:#64748b;color:#fff}
+.kt.fl{animation:ktf .5s both;animation-delay:calc(var(--i)*.18s)}
+@keyframes ktf{0%{transform:rotateX(0)}50%{transform:rotateX(90deg)}100%{transform:rotateX(0)}}@keyframes ktp{50%{transform:scale(1.1)}}
+.kr.shk{animation:shkx .35s}@keyframes shkx{20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
+.kkr{display:flex;gap:4px;justify-content:center;margin:0 0 6px}.kk{flex:1;max-width:38px;height:46px;border:0;border-radius:8px;font:700 .95rem system-ui,sans-serif;background:var(--accsoft);color:var(--ink);cursor:pointer;padding:0}
+.kk.w{max-width:56px;font-size:.8rem}.kk.g{background:#16a34a;color:#fff}.kk.y{background:#d49b00;color:#fff}.kk.x{background:#64748b;color:#fff;opacity:.7}
+.kg{color:#16a34a}.ky{color:#b8860b}
+/* Tangkap Berkas */
+.tg{position:relative;max-width:360px;margin:8px auto}.tg canvas{display:block;width:100%;height:auto;aspect-ratio:3/4;border-radius:18px;touch-action:none;box-shadow:var(--shadow);background:#0f2a63}
+.tg-ov{position:absolute;inset:0;display:grid;place-content:center;justify-items:center;gap:10px;border-radius:18px;background:rgba(8,20,60,.6);color:#fff;font-size:1.3rem}.tg-ov[hidden]{display:none}
+.tg-b{touch-action:none;user-select:none;padding:10px 22px}
+/* Roda */
+.wh{position:relative;width:min(300px,80vw);margin:14px auto}.wh svg{display:block;width:100%;filter:drop-shadow(0 6px 12px rgba(0,0,0,.25))}
+.wp{position:absolute;left:50%;top:-8px;z-index:2;width:0;height:0;margin-left:-12px;border:12px solid transparent;border-top:24px solid #ef4444;filter:drop-shadow(0 2px 2px rgba(0,0,0,.3))}
+@media (prefers-reduced-motion:reduce){.kt.fl,.kr.shk{animation:none}.lk-bar i{transition:none}}
+.lkc>.pb{justify-self:start;align-self:start}.lkc>b{display:inline}

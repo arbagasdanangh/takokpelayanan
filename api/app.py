@@ -242,33 +242,81 @@ def cek_tanggal(tgl, jam):
 def bisa_booking(k):
     """Loket yang menerima booking kunjungan (bukan telepon/WA/survei)."""
     e = LOKET.get(str(k))
-    return bool(e) and not e.get("sembunyi") and not re.search(r"telepon|via wa|hotline|skm", e["nama"], re.I)
+    return bool(e) and not e.get("sembunyi") and not lok_sembunyi(e["lokasi"]) and not re.search(r"telepon|via wa|hotline|skm", e["nama"], re.I)
 
 
 def kategori_ikm(v):
     return "A (Sangat Baik)" if v >= 88.31 else "B (Baik)" if v >= 76.61 else "C (Kurang Baik)" if v >= 65 else "D (Tidak Baik)"
 
 
-LOKASI = {l["id"]: l["nm"] for l in SEED["lokasi"]}
+LOK_BASE = {l["id"]: l["nm"] for l in SEED["lokasi"]}
+LOKASI = dict(LOK_BASE)  # diisi ulang di tempat (in-place) oleh refresh_loket: urutan = urutan tampil
+LOK_ORDER = [l["id"] for l in SEED["lokasi"]]
+LOKMETA = {}  # id -> {uraian, alamat, jam, telp, maps, sembunyi}
 BASE = {"%s_%s" % (e["lokasi"], e["no"]): dict(e) for e in SEED["loket"]}
 LOKET = {k: dict(v) for k, v in BASE.items()}
-_LX = {"t": 0.0, "raw": None}
-LX_FIELD = ("nama", "uraian", "sistem", "zona", "diskusi", "sembunyi")
+_LX = {"t": 0.0, "raw": None, "rawl": None}
+LX_FIELD = ("nama", "uraian", "sistem", "zona", "diskusi", "sembunyi", "jam", "tautan")
+LK_TEXT = (("uraian", 2000), ("alamat", 200), ("jam", 120), ("telp", 40))
+LOK_ID_RE = re.compile(r"^[a-z0-9]{2,16}$")
+URAIAN_MAX = 2000
+
+
+def aman_url(u):
+    """Hanya tautan http(s) tanpa spasi/tanda kutip; selain itu dikosongkan."""
+    u = str(u or "").strip()[:300]
+    return u if re.match(r"^https?://[^\s\"'<>]+$", u) else ""
+
+
+def lok_sembunyi(lok):
+    return bool(LOKMETA.get(lok, {}).get("sembunyi"))
+
+
+def lok_meta_publik(i, semua=False):
+    m = LOKMETA.get(i, {})
+    d = {"id": i, "nama": LOKASI.get(i, i), "uraian": m.get("uraian", ""), "alamat": m.get("alamat", ""), "jam": m.get("jam", ""), "telp": m.get("telp", ""), "maps": m.get("maps", "")}
+    if semua:
+        d.update(sembunyi=bool(m.get("sembunyi")), asli=i in LOK_BASE, diubah=i in (_LX["rawl"] or {}))
+    return d
 
 
 def refresh_loket(maks=10):
-    """Gabungkan data bawaan (_data.py) dengan hasil edit admin (Redis hash loketx). Dipakai ulang antar permintaan selama `maks` detik."""
+    """Gabungkan data bawaan (_data.py) dengan hasil edit admin (Redis hash loketx = loket, lokx = tempat pelayanan). Dipakai ulang antar permintaan selama `maks` detik."""
     if time.time() - _LX["t"] < maks:
         return
     try:
-        raw = hall(db().cmd("HGETALL", "loketx"))
+        raw, rawl = [hall(x) for x in db().pipe([["HGETALL", "loketx"], ["HGETALL", "lokx"]])]
     except Exception as e:  # Redis gagal: pakai data terakhir
         print("LOKETX", repr(e))
         return
     _LX["t"] = time.time()
-    if raw == _LX["raw"]:
+    if raw == _LX["raw"] and rawl == _LX["rawl"]:
         return
-    _LX["raw"] = raw
+    _LX["raw"], _LX["rawl"] = raw, rawl
+    # --- tempat pelayanan ---
+    nama, meta, urut = dict(LOK_BASE), {}, {i: n * 10 for n, i in enumerate(LOK_ORDER)}
+    for i, v in rawl.items():
+        o = parse(v, None)
+        if not isinstance(o, dict) or not LOK_ID_RE.match(i):
+            continue
+        if i not in nama:
+            nama[i] = str(o.get("nama", ""))[:60] or i
+            urut[i] = 1000 + len(urut)
+        elif o.get("nama"):
+            nama[i] = str(o["nama"])[:60]
+        if isinstance(o.get("urut"), int):
+            urut[i] = o["urut"]
+        m = {f: str(o.get(f, ""))[:n] for f, n in LK_TEXT}
+        m["maps"] = aman_url(o.get("maps"))
+        m["sembunyi"] = bool(o.get("sembunyi"))
+        meta[i] = m
+    order = sorted(nama, key=lambda i: (urut.get(i, 9999), i))
+    LOKASI.clear()
+    LOKASI.update({i: nama[i] for i in order})
+    LOK_ORDER[:] = order
+    LOKMETA.clear()
+    LOKMETA.update(meta)
+    # --- loket ---
     new = {k: dict(v) for k, v in BASE.items()}
     for k, v in raw.items():
         o = parse(v, None)
@@ -278,15 +326,17 @@ def refresh_loket(maks=10):
         if k in new:
             new[k].update({f: o[f] for f in LX_FIELD if f in o})
         else:
-            new[k] = {"lokasi": lok, "no": int(no), "nama": str(o.get("nama", ""))[:80], "uraian": str(o.get("uraian", ""))[:1000], "sistem": str(o.get("sistem", ""))[:120],
+            new[k] = {"lokasi": lok, "no": int(no), "nama": str(o.get("nama", ""))[:80], "uraian": str(o.get("uraian", ""))[:URAIAN_MAX], "sistem": str(o.get("sistem", ""))[:120],
                       "zona": str(o.get("zona", ""))[:20], "diskusi": bool(o.get("diskusi", True)), "sembunyi": bool(o.get("sembunyi")), "baru": True}
+        new[k]["jam"] = str(new[k].get("jam", "") or "")[:120]
+        new[k]["tautan"] = aman_url(new[k].get("tautan"))
     LOKET.clear()
     LOKET.update(new)
 
 
 def loket_urut(semua=False):
-    ur = {l["id"]: i for i, l in enumerate(SEED["lokasi"])}
-    return sorted([e for e in LOKET.values() if semua or not e.get("sembunyi")], key=lambda e: (ur.get(e["lokasi"], 99), e["no"]))
+    ur = {i: n for n, i in enumerate(LOK_ORDER)}
+    return sorted([e for e in LOKET.values() if semua or not (e.get("sembunyi") or lok_sembunyi(e["lokasi"]))], key=lambda e: (ur.get(e["lokasi"], 99), e["no"]))
 
 
 def valid_key(k):
@@ -662,7 +712,7 @@ class handler(BaseHTTPRequestHandler):
         db().pipe([["HINCRBY", "miss", t, 1], ["HSET", "missw", t, now_ms()], ["HINCRBY", "kmd", time.strftime("%Y%m%d", wib()), 1]])
         return self.json({"ok": True})
 
-    GAMES = ("cocok", "susun", "urut", "kuis")
+    GAMES = ("cocok", "susun", "urut", "kuis", "kata", "tangkap", "suro", "roda")
 
     def game_main(self, b):
         """Hitung pemakaian Ruang Main secara anonim (tanpa IP/identitas): total per permainan dan per hari."""
@@ -713,8 +763,8 @@ class handler(BaseHTTPRequestHandler):
         balas = round(rt[len(rt) // 2]) if len(rt) >= 3 else None
         kv = db().cmd("HGET", "kata2", "v")
         kata = kata_baca()[0] if (not kv or self.q1("kata")) else []  # data lama / editor admin: sertakan; pengunjung biasa: ambil via /kata?v=
-        self.json({"kata": kata, "kv": kv or "", "kata_max": KATA_MAX, "berita": bt, "balas_menit": balas, "mpp_roster": SKM_MPP, "lokasi": [{"id": k, "nama": v} for k, v in LOKASI.items()],
-                   "loket": [[e["lokasi"], e["no"], e["nama"], e["uraian"], e["sistem"], e.get("zona", ""), 1 if e.get("diskusi", True) else 0, 1 if bisa_booking("%s_%s" % (e["lokasi"], e["no"])) else 0] for e in loket_urut()],
+        self.json({"kata": kata, "kv": kv or "", "kata_max": KATA_MAX, "berita": bt, "balas_menit": balas, "mpp_roster": SKM_MPP, "lokasi": [lok_meta_publik(k) for k in LOKASI if not lok_sembunyi(k)],
+                   "loket": [[e["lokasi"], e["no"], e["nama"], e["uraian"], e["sistem"], e.get("zona", ""), 1 if e.get("diskusi", True) else 0, 1 if bisa_booking("%s_%s" % (e["lokasi"], e["no"])) else 0, e.get("jam", ""), e.get("tautan", "")] for e in loket_urut()],
                    "cfg": {k: c.get(k, "") for k in ("wa", "jam", "info", "kuota")}, "saya": who},
                   extra=self.refresh(ses) if ses and who else ())
 
@@ -951,7 +1001,7 @@ class handler(BaseHTTPRequestHandler):
         pid, k, isi = ses["id"], str(b.get("kunci", "")), clean(b.get("isi", ""), 800)
         if not valid_key(k) or not isi:
             raise HttpError(400, "Pesan tidak valid.")
-        if LOKET[k].get("sembunyi") or not LOKET[k].get("diskusi", True):
+        if LOKET[k].get("sembunyi") or lok_sembunyi(LOKET[k]["lokasi"]) or not LOKET[k].get("diskusi", True):
             raise HttpError(400, "Fasilitas ini tidak menerima pertanyaan lewat aplikasi.")
         if re.search(r"\d{16}", re.sub(r"[\s.\-]", "", isi)):
             raise HttpError(400, "Demi keamanan, jangan kirim NIK/KTP lengkap di sini.")
@@ -1210,6 +1260,11 @@ class handler(BaseHTTPRequestHandler):
                 per_unit.append(dict(ringkas(rs), lokasi=LOKASI.get(l, l), nama=nama, zona=(rs[0].get("zona") or "")))
             per_unit.sort(key=lambda x: -x["ikm"])
             return self.json({"unsur": SKM_UNSUR, "total": ringkas(rows), "per": per, "per_zona": per_zona, "per_unit": per_unit[:80], "saran": saran}, extra=ex)
+        if r == "loket" and method == "GET":
+            refresh_loket(0)
+            return self.json({"lokasi": [lok_meta_publik(k, True) for k in LOKASI],
+                              "loket": [dict(e, kunci="%s_%s" % (e["lokasi"], e["no"]), asli=("%s_%s" % (e["lokasi"], e["no"])) in BASE,
+                                             diubah=(("%s_%s" % (e["lokasi"], e["no"])) in (_LX["raw"] or {}))) for e in loket_urut(True)]}, extra=ex)
         if method != "POST":
             raise HttpError(404, "Tidak ditemukan.")
         if r == "permohonan/baru":
@@ -1272,14 +1327,9 @@ class handler(BaseHTTPRequestHandler):
             except (TypeError, ValueError):
                 raise HttpError(400, "Data tidak valid.")
             return (self._ubah if r == "pesan/ubah" else self._hapus)(pid, str(b.get("kunci", "")), b, "admin", ex)
-        if r == "loket" and method == "GET":
-            refresh_loket(0)
-            return self.json({"lokasi": [{"id": k, "nama": v} for k, v in LOKASI.items()],
-                              "loket": [dict(e, kunci="%s_%s" % (e["lokasi"], e["no"]), asli=("%s_%s" % (e["lokasi"], e["no"])) in BASE,
-                                             diubah=(("%s_%s" % (e["lokasi"], e["no"])) in (_LX["raw"] or {}))) for e in loket_urut(True)]}, extra=ex)
         if r == "loket/simpan" and method == "POST":
             lok, kunci = str(b.get("lokasi", "")), str(b.get("kunci", ""))
-            nama, uraian = clean(b.get("nama", ""), 80), clean(b.get("uraian", ""), 1000)
+            nama, uraian = clean(b.get("nama", ""), 80), clean(b.get("uraian", ""), URAIAN_MAX)
             if lok not in LOKASI or len(nama) < 2:
                 raise HttpError(400, "Pilih lokasi dan isi nama loket (minimal 2 huruf).")
             if kunci:
@@ -1291,16 +1341,120 @@ class handler(BaseHTTPRequestHandler):
                     raise HttpError(400, "Jumlah loket tambahan sudah mencapai batas.")
                 kunci = "%s_%d" % (lok, max([e["no"] for e in LOKET.values() if e["lokasi"] == lok] + [0]) + 1)
             d = {"nama": nama, "uraian": uraian, "sistem": clean(b.get("sistem", ""), 120), "zona": clean(b.get("zona", ""), 20),
-                 "diskusi": bool(b.get("diskusi", True)), "sembunyi": bool(b.get("sembunyi", False))}
+                 "diskusi": bool(b.get("diskusi", True)), "sembunyi": bool(b.get("sembunyi", False)),
+                 "jam": clean(b.get("jam", ""), 120), "tautan": aman_url(b.get("tautan"))}
             db().cmd("HSET", "loketx", kunci, json.dumps(d, ensure_ascii=False))
             _LX["t"] = 0.0
             refresh_loket(0)
             return self.json({"ok": True, "kunci": kunci}, extra=ex)
+        if r == "loket/massal" and method == "POST":
+            # Ubah uraian (dan kolom lain bila diisi) banyak loket sekaligus, mis. dari tempelan spreadsheet. Loket dicari lewat kunci, atau lokasi + nomor/nama.
+            items = b.get("items")
+            if not isinstance(items, list) or not items or len(items) > 400:
+                raise HttpError(400, "Kirim 1 sampai 400 baris.")
+            refresh_loket(0)
+            by_nama = {}
+            for e in LOKET.values():
+                by_nama.setdefault((e["lokasi"], re.sub(r"\s+", " ", e["nama"]).strip().lower()), []).append(e)
+            cmds, hasil, lewat, seen = [], 0, [], set()
+            for n, it in enumerate(items, 1):
+                if not isinstance(it, dict):
+                    continue
+                e = LOKET.get(str(it.get("kunci", "")))
+                if not e:
+                    lk_ = str(it.get("lokasi", ""))
+                    if lk_ in LOKASI and str(it.get("no", "")).isdigit():
+                        e = LOKET.get("%s_%d" % (lk_, int(it["no"])))
+                    if not e and lk_ in LOKASI:
+                        c = by_nama.get((lk_, re.sub(r"\s+", " ", str(it.get("nama", ""))).strip().lower()), [])
+                        e = c[0] if len(c) == 1 else None
+                if not e:
+                    lewat.append({"baris": n, "alasan": "loket tidak dikenali"})
+                    continue
+                k = "%s_%s" % (e["lokasi"], e["no"])
+                if k in seen:
+                    lewat.append({"baris": n, "alasan": "loket yang sama muncul dua kali"})
+                    continue
+                seen.add(k)
+                d = {"nama": e["nama"], "uraian": e["uraian"], "sistem": e["sistem"], "zona": e.get("zona", ""), "diskusi": e.get("diskusi", True),
+                     "sembunyi": bool(e.get("sembunyi")), "jam": e.get("jam", ""), "tautan": e.get("tautan", "")}
+                if "uraian" in it:
+                    d["uraian"] = clean(it["uraian"], URAIAN_MAX)
+                if "sistem" in it and clean(it["sistem"], 120):
+                    d["sistem"] = clean(it["sistem"], 120)
+                if "jam" in it:
+                    d["jam"] = clean(it["jam"], 120)
+                if "tautan" in it:
+                    d["tautan"] = aman_url(it["tautan"])
+                cmds.append(["HSET", "loketx", k, json.dumps(d, ensure_ascii=False)])
+                hasil += 1
+            if cmds:
+                if len(_LX["raw"] or {}) + len(cmds) > 1200:
+                    raise HttpError(400, "Terlalu banyak data loket tersimpan.")
+                db().pipe(cmds)
+                _LX["t"] = 0.0
+                refresh_loket(0)
+            return self.json({"ok": True, "diubah": hasil, "dilewati": lewat[:50]}, extra=ex)
         if r == "loket/reset" and method == "POST":
             kunci = str(b.get("kunci", ""))
             if kunci not in BASE:
                 raise HttpError(400, "Hanya loket bawaan yang bisa dikembalikan. Loket tambahan cukup disembunyikan.")
             db().cmd("HDEL", "loketx", kunci)
+            _LX["t"] = 0.0
+            refresh_loket(0)
+            return self.json({"ok": True}, extra=ex)
+        # ---- tempat pelayanan (lokasi): nama, uraian, alamat, jam, telepon, peta, tampil/sembunyi, urutan ----
+        if r == "lokasi/simpan" and method == "POST":
+            refresh_loket(0)
+            i = str(b.get("id", "")).strip()
+            nama = clean(b.get("nama", ""), 60)
+            if len(nama) < 3:
+                raise HttpError(400, "Nama tempat pelayanan minimal 3 huruf.")
+            baru = not i
+            if baru:
+                if len(LOKASI) >= 30:
+                    raise HttpError(400, "Jumlah tempat pelayanan sudah mencapai batas (30).")
+                dasar = re.sub(r"[^a-z0-9]", "", nama.lower())[:12] or "lokasi"
+                i, n = dasar, 2
+                while i in LOKASI or not LOK_ID_RE.match(i):
+                    i = (dasar[:12] + str(n))[:16]
+                    n += 1
+            elif i not in LOKASI:
+                raise HttpError(404, "Tempat pelayanan tidak ditemukan.")
+            lama = parse(db().cmd("HGET", "lokx", i), {}) or {}
+            d = {"nama": nama, "sembunyi": bool(b.get("sembunyi", False))}
+            for f, n in LK_TEXT:
+                d[f] = clean(b.get(f, ""), n)
+            d["maps"] = aman_url(b.get("maps"))
+            if b.get("maps") and not d["maps"]:
+                raise HttpError(400, "Tautan peta harus diawali https:// atau http://")
+            d["urut"] = lama["urut"] if isinstance(lama.get("urut"), int) else (len(LOK_ORDER) * 10 + 1000 if baru else LOK_ORDER.index(i) * 10)
+            db().cmd("HSET", "lokx", i, json.dumps(d, ensure_ascii=False))
+            _LX["t"] = 0.0
+            refresh_loket(0)
+            return self.json({"ok": True, "id": i}, extra=ex)
+        if r == "lokasi/urutan" and method == "POST":
+            refresh_loket(0)
+            ids = b.get("ids")
+            if not isinstance(ids, list) or sorted(map(str, ids)) != sorted(LOKASI):
+                raise HttpError(400, "Daftar urutan tidak cocok dengan tempat pelayanan yang ada. Muat ulang halaman.")
+            lama = {i: parse(v, {}) or {} for i, v in (_LX["rawl"] or {}).items()}
+            cmds = []
+            for n, i in enumerate(ids):
+                d = dict(lama.get(i, {}))
+                d["urut"] = n * 10
+                if i not in lama or "nama" not in d:
+                    d["nama"] = LOKASI[i]
+                cmds.append(["HSET", "lokx", i, json.dumps(d, ensure_ascii=False)])
+            db().pipe(cmds)
+            _LX["t"] = 0.0
+            refresh_loket(0)
+            return self.json({"ok": True}, extra=ex)
+        if r == "lokasi/reset" and method == "POST":
+            i = str(b.get("id", ""))
+            if i not in LOK_BASE:
+                raise HttpError(400, "Hanya tempat pelayanan bawaan yang bisa dikembalikan. Yang tambahan cukup disembunyikan.")
+            db().cmd("HDEL", "lokx", i)
             _LX["t"] = 0.0
             refresh_loket(0)
             return self.json({"ok": True}, extra=ex)

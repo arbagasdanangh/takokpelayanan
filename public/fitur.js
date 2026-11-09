@@ -339,7 +339,7 @@ async function aRing(el) {
     aGame(j.game) +
     '<h2 class="sec">Layar antrean</h2><div class="card"><p class="sys" style="margin:0">Tampilkan nomor yang dipanggil di TV atau layar ruang tunggu. Layar mengumumkan dengan suara bila diaktifkan.</p><div class="btns"><a class="btn" href="/?layar=1" target="_blank" rel="noopener">Buka layar antrean</a></div></div>';
 }
-var GNAMA = {cocok: "Cocok Bentuk", susun: "Susun Bentuk", urut: "Ingat Urutan", kuis: "Kuis Kilat Loket"};
+var GNAMA = {cocok: "Cocok Bentuk", susun: "Susun Bentuk", urut: "Ingat Urutan", kuis: "Kuis Kilat Loket", kata: "Tebak Kata", tangkap: "Tangkap Berkas", suro: "Kuis Suroboyo", roda: "Roda Takok"};
 function aGame(g) {
   if (!g) return "";
   var ks = Object.keys(g.per), tot = ks.reduce(function (a, k) { return a + g.per[k]; }, 0), mx = Math.max.apply(null, ks.map(function (k) { return g.per[k]; }).concat([1])), mh = Math.max.apply(null, g.hari.map(function (x) { return x.n; }).concat([1]));
