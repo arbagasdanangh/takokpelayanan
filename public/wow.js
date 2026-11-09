@@ -70,7 +70,7 @@ var CMD = [["/kbli", "Cari kode KBLI", "kbli"], ["/tersimpan", "Daftar KBLI saya
 var lastQ = "";
 function typeIt(p) {
   var t = p.textContent; if (RM || t.length < 12 || t.length > 420) return;
-  var i = 0, m = $w("bm"); p.textContent = ""; p.classList.add("wtw");
+  var i = 0, m = $w("bm"); p.dataset.full = t; p.textContent = ""; p.classList.add("wtw");
   (function step() { i = Math.min(t.length, i + 3); p.textContent = t.slice(0, i); m.scrollTop = m.scrollHeight; if (i < t.length) setTimeout(step, 16); else p.classList.remove("wtw"); })();
 }
 function onMsg(n) {

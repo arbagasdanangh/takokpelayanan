@@ -505,7 +505,7 @@ function ktOptsBase() {
 function ktDirty(v) {
   KDIRTY = v;
   var st = $("kt-st");
-  if (st) { st.textContent = v ? "Ada perubahan yang belum disimpan" : "Semua perubahan sudah tersimpan"; st.className = "sys" + (v ? " kt-dirty" : ""); }
+  if (st) { var sm = window.innerWidth < 560; st.textContent = v ? (sm ? "Belum disimpan" : "Ada perubahan yang belum disimpan") : (sm ? "Tersimpan" : "Semua perubahan sudah tersimpan"); st.className = "sys" + (v ? " kt-dirty" : ""); }
 }
 function ktRead() {
   [].forEach.call(document.querySelectorAll("#ktl .kt"), function (c) {

@@ -91,7 +91,7 @@ button:focus-visible,summary:focus-visible,textarea:focus-visible,input:focus-vi
 .foot .rb{display:inline-block;background:var(--acc);color:var(--onacc);font-weight:800;padding:8px 22px;border-radius:12px 12px 12px 12px;transform:rotate(-1.5deg)}
 .foot .rb2{display:block;width:max-content;max-width:90%;margin:-6px auto 0;background:var(--tick);color:var(--tickink);font-weight:800;padding:6px 20px;border-radius:12px;transform:rotate(-1.5deg)}
 .foot svg{display:block;width:100%;height:70px;margin-top:10px;fill:var(--acc);opacity:.22}
-@media (max-width:560px){.tag{display:none}.body{padding-left:14px}.menu{gap:8px}}
+@media (max-width:560px){.row:not(.kt)>summary>.tag{display:none}.body{padding-left:14px}.menu{gap:8px}}
 @media (prefers-reduced-motion:no-preference){.tile{transition:transform .15s}}
 .zh{display:flex;align-items:center;gap:8px;margin:20px 0 8px;font-size:1.05rem;font-weight:800}.zh .zd{width:12px;height:12px;border-radius:50%;background:var(--zc)}.zh small{color:var(--mute);font-weight:600;font-size:.8rem}
 .bdg{display:inline-block;color:#fff;font-size:.78rem;font-weight:700;padding:2px 11px;border-radius:99px;margin:4px 0}
@@ -483,9 +483,9 @@ details.row{transition:box-shadow .2s,transform .2s}details.row:hover{transform:
 .rs-t{text-align:center;margin:10px 0}.gm-tip{background:var(--surface);border:1px solid var(--line);border-left:5px solid var(--tick);border-radius:14px;padding:10px 14px;margin:10px 0}.gm-tip p{margin:4px 0 0}
 /* Tebak Kata */
 .kb{display:grid;gap:6px;justify-content:center;margin:10px 0}.kr{display:grid;grid-template-columns:repeat(5,52px);gap:6px}
-.kt{display:grid;place-items:center;height:52px;border:2px solid var(--line);border-radius:10px;font:800 1.5rem/1 system-ui,sans-serif;font-style:normal;background:var(--surface);color:var(--ink);text-transform:uppercase}
-.kt.on{border-color:var(--acc);animation:ktp .12s}.kt.g{background:#16a34a;border-color:#16a34a;color:#fff}.kt.y{background:#d49b00;border-color:#d49b00;color:#fff}.kt.x{background:#64748b;border-color:#64748b;color:#fff}
-.kt.fl{animation:ktf .5s both;animation-delay:calc(var(--i)*.18s)}
+.kwt{display:grid;place-items:center;height:52px;border:2px solid var(--line);border-radius:10px;font:800 1.5rem/1 system-ui,sans-serif;font-style:normal;background:var(--surface);color:var(--ink);text-transform:uppercase}
+.kwt.on{border-color:var(--acc);animation:ktp .12s}.kwt.g{background:#16a34a;border-color:#16a34a;color:#fff}.kwt.y{background:#d49b00;border-color:#d49b00;color:#fff}.kwt.x{background:#64748b;border-color:#64748b;color:#fff}
+.kwt.fl{animation:ktf .5s both;animation-delay:calc(var(--i)*.18s)}
 @keyframes ktf{0%{transform:rotateX(0)}50%{transform:rotateX(90deg)}100%{transform:rotateX(0)}}@keyframes ktp{50%{transform:scale(1.1)}}
 .kr.shk{animation:shkx .35s}@keyframes shkx{20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
 .kkr{display:flex;gap:4px;justify-content:center;margin:0 0 6px}.kk{flex:1;max-width:38px;height:46px;border:0;border-radius:8px;font:700 .95rem system-ui,sans-serif;background:var(--accsoft);color:var(--ink);cursor:pointer;padding:0}
@@ -498,7 +498,7 @@ details.row{transition:box-shadow .2s,transform .2s}details.row:hover{transform:
 /* Roda */
 .wh{position:relative;width:min(300px,80vw);margin:14px auto}.wh svg{display:block;width:100%;filter:drop-shadow(0 6px 12px rgba(0,0,0,.25))}
 .wp{position:absolute;left:50%;top:-8px;z-index:2;width:0;height:0;margin-left:-12px;border:12px solid transparent;border-top:24px solid #ef4444;filter:drop-shadow(0 2px 2px rgba(0,0,0,.3))}
-@media (prefers-reduced-motion:reduce){.kt.fl,.kr.shk{animation:none}.lk-bar i{transition:none}}
+@media (prefers-reduced-motion:reduce){.kwt.fl,.kr.shk{animation:none}.lk-bar i{transition:none}}
 .lkc>.pb{justify-self:start;align-self:start}.lkc>b{display:inline}
 
 /* ===== Versi 12: KBLI, pemeriksa pertanyaan ===== */
@@ -512,3 +512,36 @@ details.row{transition:box-shadow .2s,transform .2s}details.row:hover{transform:
 .ap-c{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 2px}.ap-p{border:1px solid var(--line);background:var(--bg);color:var(--acc);border-radius:99px;padding:4px 12px;font:600 .78rem system-ui,sans-serif;cursor:pointer}.ap-p.ok{background:#16a34a;border-color:#16a34a;color:#fff}.ap-p.kbl{border-style:dashed}
 .apk{margin-top:8px}.apr{display:block;width:100%;text-align:left;border:0;border-radius:10px;background:none;color:var(--ink);font:inherit;font-size:.88rem;padding:8px 10px;cursor:pointer}.apr:hover{background:var(--accsoft)}.apr b{font-family:ui-monospace,Menlo,monospace;color:var(--acc);margin-right:6px}
 @media (prefers-reduced-motion:reduce){.ap-m i{transition:none}}
+/* ===== v13: Kata cari chatbot, tampilan HP dan komponen baru ===== */
+.kt>summary::after{content:"";flex:none;width:8px;height:8px;margin:12px 4px 0 auto;border-right:2px solid var(--mute);border-bottom:2px solid var(--mute);transform:rotate(45deg);transition:transform .15s}.kt[open]>summary::after{transform:rotate(-135deg);margin-top:16px}
+.kt-chips .tag{display:inline-block}
+.ktm-card{margin:0 0 12px}.ktm-sum{margin:8px 0 0;font-size:.85rem;color:var(--mute)}
+.ktm2{display:grid;gap:6px;padding:10px 0;border-top:1px dashed var(--line)}.ktm2.hot{border-left:4px solid var(--tick);padding-left:10px}
+.ktm2-t{display:flex;flex-wrap:wrap;align-items:center;gap:6px}.ktm2 .ktq{font-weight:700;flex:1 1 auto;min-width:0;overflow-wrap:anywhere}
+.ktn{background:var(--accsoft);color:var(--acc);font-weight:800}.ktpri{background:#fde8e8;color:#b91c1c;border-radius:99px;font-size:.7rem;font-weight:800;padding:2px 9px}
+.ktm2-w{color:var(--warn);font-weight:600}.ktlink{border:0;background:none;color:var(--acc);font:inherit;font-weight:700;text-decoration:underline;cursor:pointer;padding:0}
+.ktm2-a{display:flex;gap:8px;flex-wrap:wrap}.btn.pri{background:var(--acc);color:var(--onacc);border-color:var(--acc)}
+.kt-q{display:flex;flex-wrap:wrap;gap:6px;font-size:.78rem;border-radius:12px;padding:6px 10px}.kt-q.ok{background:#e6f7ee;color:#157347}.kt-q.warn{background:#fff6e0;color:#8a5a00}
+.kt-sg{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.kt-sgl{display:flex;flex-wrap:wrap;gap:6px}.ktadd{border:1px dashed var(--acc);background:var(--surface);color:var(--acc);cursor:pointer;font:inherit;font-size:.78rem;font-weight:700;border-radius:99px;padding:3px 10px}
+.thread .m .macts button[data-kjadi]{color:var(--acc);opacity:1}
+@media (max-width:700px){
+ #atabs{flex-wrap:nowrap;overflow-x:auto;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;padding:2px 2px 8px;margin-inline:-2px;scrollbar-width:none;-webkit-mask-image:linear-gradient(90deg,#000 92%,transparent);mask-image:linear-gradient(90deg,#000 92%,transparent)}
+ #atabs::-webkit-scrollbar{display:none}#atabs .chip{flex:none;scroll-snap-align:start;white-space:nowrap}
+}
+@media (max-width:560px){
+ .kt-act{display:flex;overflow-x:auto;gap:8px;scroll-snap-type:x proximity;padding-bottom:6px;margin-inline:-2px;scrollbar-width:none}.kt-act::-webkit-scrollbar{display:none}
+ .kt-act .kta{flex:0 0 138px;scroll-snap-align:start}
+ .kt-filter{flex-direction:column;align-items:stretch}.kt-filter .si,.kt-filter select.si{min-width:0;width:100%;flex:none;font-size:16px}
+ .kt-pgr .kt-go{width:100%;justify-content:center}.kt-pgr #kt-tidy{width:100%}.kt-pgr{gap:6px}
+ .kt summary{gap:10px;padding:10px 12px}.kt .no{min-width:34px;height:34px;font-size:.95rem}
+ .kt-body{padding:10px 12px 14px}.kt-body .si,.kt-body textarea{font-size:16px}.kt-body textarea{min-height:150px}
+ .ktfmt{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}.ktfmt::-webkit-scrollbar{display:none}.ktfmt .btn{flex:none}
+ .kt-body .btns{display:grid;grid-template-columns:1fr 1fr;gap:8px}.kt-body .btns .btn{width:100%}
+ .ktm2-a .btn{flex:1}
+ .ktbar{max-width:calc(100% - 132px);padding:6px 12px 6px 6px}.ktbar .sys{font-size:.76rem;white-space:nowrap}
+ .card .si,.card textarea{font-size:16px}
+}
+@media (max-width:560px){
+ .kt-pgr{display:flex;flex-wrap:wrap;justify-content:center}.kt-pgr>.sys{order:-1;width:100%;text-align:center;margin:0 0 2px}.kt-pgr>.btn{flex:1 1 auto;padding-inline:10px}.kt-pgr .kt-go .si{width:100%;flex:1}.kt-pgr .kt-go{gap:8px}
+}
+@media (max-width:560px){body:has(.ktbar) .bfab{bottom:calc(76px + env(safe-area-inset-bottom,0px))!important}.ktbar{max-width:calc(100% - 24px)}}

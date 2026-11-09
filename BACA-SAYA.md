@@ -226,3 +226,23 @@ Catatan: belum diuji di perangkat sentuh sungguhan; diuji otomatis di Chromium (
 **Tanya Admin**: panel **Kejelasan pertanyaan** (apa yang diurus, nomor permohonan/NIB, kendala; ketuk yang belum ada untuk menyisipkan templatnya) dan tombol **Sisipkan KBLI** (cari lalu sisip "KBLI 56xxx (judul)" ke pesan).
 
 Catatan: sinonim pencarian hanya memperluas kata kunci, bukan data resmi. Tes otomatis memakai data KBLI **fiktif**; belum diuji dengan daftar resmi lengkap (1.559 baris) maupun di HP.
+
+## Versi 13: perbaikan Kata cari (HP) dan fitur pintar untuk chatbot dan pertanyaan warga
+**Bug yang diperbaiki (penting).** Game Tebak Kata (v11) memakai kelas CSS `.kt` untuk kotak hurufnya, padahal admin Kata cari chatbot juga memakai `.kt` untuk kartu aturan. Akibatnya semua kartu aturan tinggi 52 px, hurufnya besar dan kapital, dan form edit terpotong sehingga aturan tidak bisa dibuka atau diedit. Kotak game kini memakai kelas `.kwt` (`style.css`, `main.js`). Juga: kata kunci di ringkasan aturan sebelumnya disembunyikan di layar kecil (`.tag{display:none}`); sekarang aturan itu hanya berlaku untuk baris loket publik.
+
+**Tampilan HP (halaman Kata cari)**
+- Tab admin menjadi satu baris yang bisa digeser, tab aktif otomatis tergulir ke tengah.
+- Kartu aksi (Tambah aturan, Impor, Tempel, Ekspor, Templat) bisa digeser ke samping.
+- Aturan: kata kunci tampil sebagai chip, ada panah buka-tutup, form edit lebih lega (huruf 16 px agar iOS tidak memperbesar layar, tombol format bisa digeser, tombol aksi dua kolom).
+- Pencarian dan filter bertumpuk penuh, pager dirapikan (teks halaman di atas, tombol sebaris, lompat ke nomor selebar layar).
+- Bilah Simpan memakai teks pendek ("Tersimpan" / "Belum disimpan") dan tombol Tanya Asisten naik di atasnya sehingga tidak bertabrakan.
+
+**Fitur baru (file `public/kata-plus.js`, tanpa perubahan server)**
+1. **Pertanyaan belum terjawab dikelompokkan**: varian serupa digabung per topik (kemiripan kata), diurutkan dari yang paling sering, label **Prioritas** untuk 3x atau lebih, daftar varian, dan peringatan **"Mungkin sudah tercakup aturan #n"** dengan tombol Lihat. "Buat aturan" memakai kata kunci dari semua varian; "Abaikan" menghapus seluruh varian topik itu.
+2. **Saran kata kunci otomatis** di tiap aturan: diambil dari isi jawaban (singkatan seperti KTP/SIM dan nama diri diberi bobot) dan nama loket; ketuk chip untuk menambahkannya.
+3. **Cek kualitas aturan** langsung saat mengetik: kata kunci kurang dari 2, jawaban terlalu singkat atau terlalu panjang tanpa poin, belum ada loket tujuan; hijau bila lengkap.
+4. **Jadikan aturan chatbot**: di Kotak masuk, tombol di balasan admin membuat aturan baru dari pertanyaan warga (kata kunci) dan jawaban admin (isi), lengkap dengan loket percakapan, lalu membuka tab Kata cari. Periksa dan hapus data pribadi sebelum Simpan.
+5. **Chatbot: "Maksud Anda...?"**: bila pertanyaan tidak ditemukan dan ada salah ketik (mis. "skckk", "mengemudy"), muncul saran kata yang benar dari kata kunci aturan dan nama loket; ketuk untuk langsung bertanya.
+
+Cache browser: semua berkas kini `?v=14`. Bila tampilan lama masih muncul setelah deploy, muat ulang keras.
+Diuji otomatis di Chromium (ukuran HP 390 px dan desktop 1100 px, dengan data tiruan); belum diuji di perangkat sentuh sungguhan maupun dengan data produksi.

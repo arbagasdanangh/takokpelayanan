@@ -410,8 +410,8 @@ function kataPaint(flip) {
   var rows = "", r, c, st = {}, KB = ["QWERTYUIOP", "ASDFGHJKL", "#ZXCVBNM<"];
   for (r = 0; r < 6; r++) {
     var g = KS.g[r], t = "";
-    if (g !== undefined) { var ev = evalW(g, KS.w); for (c = 0; c < 5; c++) t += '<i class="kt ' + ev[c] + (flip && r === KS.g.length - 1 ? " fl" : "") + '" style="--i:' + c + '">' + g[c] + "</i>"; }
-    else for (c = 0; c < 5; c++) t += '<i class="kt' + (r === KS.g.length && KS.cur[c] ? " on" : "") + '">' + (r === KS.g.length ? (KS.cur[c] || "") : "") + "</i>";
+    if (g !== undefined) { var ev = evalW(g, KS.w); for (c = 0; c < 5; c++) t += '<i class="kwt ' + ev[c] + (flip && r === KS.g.length - 1 ? " fl" : "") + '" style="--i:' + c + '">' + g[c] + "</i>"; }
+    else for (c = 0; c < 5; c++) t += '<i class="kwt' + (r === KS.g.length && KS.cur[c] ? " on" : "") + '">' + (r === KS.g.length ? (KS.cur[c] || "") : "") + "</i>";
     rows += '<div class="kr" id="kr' + r + '">' + t + "</div>";
   }
   KS.g.forEach(function (g) { var ev = evalW(g, KS.w); for (var i = 0; i < 5; i++) { var o = st[g[i]], n = ev[i]; if (o === "g" || (o === "y" && n !== "g")) continue; st[g[i]] = n; } });
