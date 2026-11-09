@@ -500,3 +500,15 @@ details.row{transition:box-shadow .2s,transform .2s}details.row:hover{transform:
 .wp{position:absolute;left:50%;top:-8px;z-index:2;width:0;height:0;margin-left:-12px;border:12px solid transparent;border-top:24px solid #ef4444;filter:drop-shadow(0 2px 2px rgba(0,0,0,.3))}
 @media (prefers-reduced-motion:reduce){.kt.fl,.kr.shk{animation:none}.lk-bar i{transition:none}}
 .lkc>.pb{justify-self:start;align-self:start}.lkc>b{display:inline}
+
+/* ===== Versi 12: KBLI, pemeriksa pertanyaan ===== */
+.kd-h{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.kd-k{font:800 1.25rem/1 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--acc);letter-spacing:.04em;background:var(--accsoft);padding:3px 10px;border-radius:10px}
+.kd-r{font-size:.72rem;font-weight:800;padding:2px 9px;border-radius:99px;color:#fff;background:#64748b}.kd-r.r-r{background:#16a34a}.kd-r.r-mr{background:#d49b00}.kd-r.r-mt{background:#ea580c}.kd-r.r-t{background:#dc2626}
+.kd-c h3{margin:8px 0 4px;font-size:1.02rem}.kd-u,.kd-m{margin:4px 0;font-size:.9rem;line-height:1.45}
+.wkb li.kd{display:block;cursor:default;padding:10px 12px}.wkb li.kd:hover{background:none}
+.kbc{border-left:4px solid var(--tick)}
+.ap{margin:6px 0 10px;padding:10px 12px;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+.ap-h{display:flex;align-items:center;gap:10px;font-size:.85rem}.ap-m{flex:none;width:72px;height:8px;border-radius:99px;background:var(--accsoft);overflow:hidden}.ap-m i{display:block;height:100%;border-radius:99px;background:#dc2626;transition:width .3s}.ap-m i.n1{background:#d49b00}.ap-m i.n2{background:#65a30d}.ap-m i.n3{background:#16a34a}
+.ap-c{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 2px}.ap-p{border:1px solid var(--line);background:var(--bg);color:var(--acc);border-radius:99px;padding:4px 12px;font:600 .78rem system-ui,sans-serif;cursor:pointer}.ap-p.ok{background:#16a34a;border-color:#16a34a;color:#fff}.ap-p.kbl{border-style:dashed}
+.apk{margin-top:8px}.apr{display:block;width:100%;text-align:left;border:0;border-radius:10px;background:none;color:var(--ink);font:inherit;font-size:.88rem;padding:8px 10px;cursor:pointer}.apr:hover{background:var(--accsoft)}.apr b{font-family:ui-monospace,Menlo,monospace;color:var(--acc);margin-right:6px}
+@media (prefers-reduced-motion:reduce){.ap-m i{transition:none}}

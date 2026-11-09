@@ -209,3 +209,20 @@ Batasan: bila admin menghapus balasannya, percakapan tetap dianggap sudah dijawa
 - **Tantangan Harian**: 3 tantangan acak per hari (+20 poin tiap tantangan), statistik pribadi, 7 lencana baru (total 15), judul level sampai "Legenda Suroboyo", getar bila Suara dinyalakan. Semua tetap di perangkat; server hanya menghitung jumlah main anonim (`kata`, `tangkap`, `suro`, `roda` ditambahkan).
 Daftar kata Tebak Kata ada di `KW`, soal kuis di `SQ`, hadiah roda di `WH` (`main.js`). Cache browser: berkas kini `?v=12`.
 Catatan: belum diuji di perangkat sentuh sungguhan; diuji otomatis di Chromium (desktop) untuk alur utama.
+
+
+## Versi 12: Data KBLI, pencarian cepat, Asisten, dan Tanya Admin
+**Perbaikan bug dari v11:** batas ukuran POST per jalur hanya 10 KB, sehingga "Isi massal uraian loket" akan ditolak server (`413`). Sekarang `/admin/loket/massal` dan `/admin/kbli/impor` boleh sampai 1,5 MB.
+
+**KBLI (penting, baca dulu).** OSS memakai **KBLI 2025** (Peraturan BPS 7/2025, sekitar 1.559 kode 5 digit) sejak 15 Juni 2026; KBLI 2020 sudah tidak dipakai untuk pendaftaran baru. Takok **tidak membawa daftar KBLI sendiri** supaya tidak ada kode yang keliru. Cara mengisi:
+1. Admin > tab **Data KBLI** > unduh templat CSV (atau tempel dari Excel resmi OSS/BPS). Kolom: Kode (5 angka), Judul, Uraian, Risiko, Perizinan, KBLI 2020. Judul kolom dikenali otomatis.
+2. Klik **Periksa**, lalu **Terapkan**. Data disimpan di Redis (hash `kbli`, per 500 baris, diganti atomik dengan `RENAME`), pengunjung mengunduhnya sekali dan menyimpannya di browser (URL berversi, cache CDN setahun).
+3. Sebelum data diimpor, pengunjung hanya melihat tautan ke oss.go.id.
+
+**Pencarian Cepat (Ctrl+K)**: ketik `kbli warung kopi`, atau langsung kata/kode; hasil KBLI tampil dengan rincian (risiko berwarna, perizinan, padanan 2020), tombol Salin kode, Simpan ke daftar, Tanya admin, Tanya Asisten. Bahasa sehari-hari (warung, toko online, laundry, konveksi, dll.) diperluas otomatis ke istilah KBLI (`SYN` di `kbli.js`). Juga ada riwayat 5 pencarian terakhir.
+
+**Asisten Takok**: ketik `kbli <kegiatan>` atau kode 5 angka; kartu KBLI dengan Salin/Rincian/Simpan/Tanya admin. **Daftar KBLI saya** (maks. 20): salin semua, kirim ke WhatsApp atau ke admin. Perintah baru: `/kbli`, `/tersimpan`, `/ringkas` (merangkum percakapan lalu mengirim ke admin dengan satu ketuk). Aturan "Kata cari" admin tetap diprioritaskan bila data KBLI belum ada.
+
+**Tanya Admin**: panel **Kejelasan pertanyaan** (apa yang diurus, nomor permohonan/NIB, kendala; ketuk yang belum ada untuk menyisipkan templatnya) dan tombol **Sisipkan KBLI** (cari lalu sisip "KBLI 56xxx (judul)" ke pesan).
+
+Catatan: sinonim pencarian hanya memperluas kata kunci, bukan data resmi. Tes otomatis memakai data KBLI **fiktif**; belum diuji dengan daftar resmi lengkap (1.559 baris) maupun di HP.

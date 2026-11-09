@@ -10,9 +10,21 @@ function tg(m) { if (window.toast) toast(m); }
 /* ===== Palet pencarian cepat (Ctrl+K) ===== */
 var ACT = [["Tanya Asisten Takok", "bf"], ["Booking kunjungan", "t8"], ["Tanya admin", "t5"], ["Status permohonan", "t7"], ["Buat pengaduan", "t6"], ["Survei kepuasan", "t9"], ["Ruang Main (permainan)", "mbgo"], ["Ganti tema", "th"]];
 var PI = 0, PR = [];
+function recents() { try { var a = JSON.parse(localStorage.getItem("tk_rs") || "[]"); return Array.isArray(a) ? a.slice(0, 5) : []; } catch (x) { return []; } }
+function rec(q) { q = (q || "").trim(); if (q.length < 3) return; try { var a = recents().filter(function (x) { return x !== q; }); a.unshift(q); localStorage.setItem("tk_rs", JSON.stringify(a.slice(0, 5))); } catch (x) {} }
+function palDetail(r) {
+  rec(($w("wki") || {}).value); PR = []; $w("wkl").innerHTML = '<li class="kd" role="presentation"><button type="button" class="btn" data-pd="back">&larr; Kembali</button>' + KBLI.detailHtml(r) + '</li>';
+}
 function palClose() { var o = $w("wk"); if (o) o.remove(); }
 function palList(q) {
   q = (q || "").trim(); PR = [];
+  var kO = /^kbli\b/i.test(q), kq = q.replace(/^kbli\s*/i, "").trim(), K = window.KBLI;
+  if (K && (kO || /^\d{5}$/.test(q) || q.length > 2)) {
+    if (K.has()) { if (kq.length > 1 || kO && kq) K.search(kq, kO ? 10 : 3).forEach(function (r) { PR.push({t: r[0] + " \u00B7 " + r[1], sub: "KBLI" + (r[3] ? " \u00B7 risiko " + r[3].toLowerCase() : ""), ic: "\uD83D\uDCBC", keep: true, run: function () { palDetail(r); }}); }); }
+    else if (kO || /^\d{5}$/.test(q)) PR.push({t: "Cari KBLI di OSS", sub: "Data KBLI belum dimuat di Takok", ic: "\uD83D\uDCBC", run: function () { window.open("https://oss.go.id", "_blank", "noopener"); }});
+  }
+  if (!q) recents().forEach(function (x) { PR.push({t: x, sub: "Pencarian terakhir", ic: "\uD83D\uDD58", keep: true, run: function () { var i = $w("wki"); i.value = x; PI = 0; palList(x); i.focus(); }}); });
+  if (kO && PR.length) { if (PI >= PR.length) PI = 0; return palDraw(); }
   if (q.length > 1 && window.LOCS) {
     var tk = toks(q), R = [];
     LOCS.forEach(function (l) { (LD[l.id] || []).forEach(function (d) { var s = score(d, tk); if (s > 0) R.push({s: s, t: d[1], sub: l.nm, k: l.id + "_" + d[0]}); }); });
@@ -20,14 +32,17 @@ function palList(q) {
     R.slice(0, 6).forEach(function (r) { PR.push({t: r.t, sub: r.sub, ic: "\uD83D\uDCCD", run: function () { openKey(r.k); }}); });
   }
   ACT.forEach(function (a) { if (!q || a[0].toLowerCase().indexOf(q.toLowerCase()) > -1) PR.push({t: a[0], sub: "Menu", ic: "\u26A1", run: function () { var e = $w(a[1]); if (e) e.click(); }}); });
-  if (PI >= PR.length) PI = 0;
+  if (PI >= PR.length) PI = 0; palDraw();
+}
+function palDraw() {
+  var q = ($w("wki") || {}).value || "";
   $w("wkl").innerHTML = PR.length ? PR.map(function (r, i) { return '<li role="option" data-i="' + i + '"' + (i === PI ? ' class="on" aria-selected="true"' : "") + '><span>' + r.ic + '</span><b>' + esc(r.t) + '</b><small>' + esc(r.sub) + '</small></li>'; }).join("") : '<li class="no">Tidak ada yang cocok. Coba kata lain, atau tanya Asisten.</li>';
 }
-function palGo(i) { var r = PR[i]; if (r) { palClose(); r.run(); } }
+function palGo(i) { var r = PR[i]; if (r) { if (r.keep) { r.run(); return; } rec($w("wki") ? $w("wki").value : ""); palClose(); r.run(); } }
 function pal() {
   if ($w("wk")) { palClose(); return; }
   var o = document.createElement("div"); o.id = "wk"; o.setAttribute("role", "dialog"); o.setAttribute("aria-label", "Pencarian cepat");
-  o.innerHTML = '<div class="wkb"><input id="wki" placeholder="Cari loket atau menu... (Esc untuk tutup)" autocomplete="off" aria-label="Cari cepat"><ul id="wkl" role="listbox"></ul><small>\u2191\u2193 pilih &middot; Enter buka &middot; Ctrl+K</small></div>';
+  o.innerHTML = '<div class="wkb"><input id="wki" placeholder="Cari loket, menu, atau KBLI (mis. kbli warung kopi)..." autocomplete="off" aria-label="Cari cepat"><ul id="wkl" role="listbox"></ul><small>\u2191\u2193 pilih &middot; Enter buka &middot; Ctrl+K</small></div>';
   document.body.appendChild(o); PI = 0; palList("");
   var i = $w("wki"); i.focus();
   i.addEventListener("input", function () { PI = 0; palList(i.value); });
@@ -36,7 +51,7 @@ function pal() {
     else if (e.key === "ArrowUp") { e.preventDefault(); PI = (PI - 1 + PR.length) % Math.max(PR.length, 1); palList(i.value); }
     else if (e.key === "Enter") { e.preventDefault(); palGo(PI); }
   });
-  o.addEventListener("click", function (e) { var li = e.target.closest("li[data-i]"); if (li) palGo(+li.dataset.i); else if (e.target === o) palClose(); });
+  o.addEventListener("click", function (e) { if (e.target.closest("[data-pd=back]")) { palList(i.value); i.focus(); return; } var li = e.target.closest("li[data-i]"); if (li) palGo(+li.dataset.i); else if (e.target === o) palClose(); });
 }
 document.addEventListener("keydown", function (e) {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); pal(); }
@@ -45,13 +60,13 @@ document.addEventListener("keydown", function (e) {
 
 /* ===== Asisten: efek mengetik, saran lanjutan, perintah /, simpan chat, konfeti ===== */
 var SG = [
-  [/nib|usaha|oss|umkm|kbli/, [["Daftar dokumen NIB", "syarat dokumen nib"], ["Booking kunjungan", "booking kunjungan"], ["Lokasi & jam", "lokasi dan jam buka"]]],
+  [/nib|usaha|oss|umkm|kbli/, [["Cari kode KBLI", "kbli"], ["Daftar dokumen NIB", "syarat dokumen nib"], ["Booking kunjungan", "booking kunjungan"], ["Lokasi & jam", "lokasi dan jam buka"]]],
   [/sip|dokter|bidan|klinik|apoteker/, [["Daftar dokumen SIP", "syarat dokumen sip"], ["Booking kunjungan", "booking kunjungan"]]],
   [/pbg|imb|slf|bangunan|rumah/, [["Daftar dokumen PBG", "syarat dokumen pbg"], ["Booking kunjungan", "booking kunjungan"]]],
   [/status|progres/, [["Tiket antrean saya", "tiket saya"], ["Booking kunjungan", "booking kunjungan"]]],
   [/mpp|zona|instansi/, [["Lokasi & jam", "lokasi dan jam buka"], ["Booking kunjungan", "booking kunjungan"]]]
 ], SGD = [["Cek status permohonan", "status permohonan saya"], ["Booking kunjungan", "booking kunjungan"], ["Berita terbaru", "berita terbaru"]];
-var CMD = [["/status", "Cek status permohonan", "status permohonan saya"], ["/antrean", "Tiket antrean saya", "tiket saya"], ["/dokumen", "Daftar dokumen", "syarat dokumen"], ["/adu", "Buat pengaduan", "buat pengaduan"], ["/mpp", "Instansi di MPP", "daftar instansi mpp"], ["/jam", "Lokasi dan jam buka", "lokasi dan jam buka"], ["/berita", "Berita terbaru", "berita terbaru"]];
+var CMD = [["/kbli", "Cari kode KBLI", "kbli"], ["/tersimpan", "Daftar KBLI saya", "kbli tersimpan"], ["/ringkas", "Kirim ringkasan chat ke admin", "ringkas percakapan"], ["/status", "Cek status permohonan", "status permohonan saya"], ["/antrean", "Tiket antrean saya", "tiket saya"], ["/dokumen", "Daftar dokumen", "syarat dokumen"], ["/adu", "Buat pengaduan", "buat pengaduan"], ["/mpp", "Instansi di MPP", "daftar instansi mpp"], ["/jam", "Lokasi dan jam buka", "lokasi dan jam buka"], ["/berita", "Berita terbaru", "berita terbaru"]];
 var lastQ = "";
 function typeIt(p) {
   var t = p.textContent; if (RM || t.length < 12 || t.length > 420) return;
@@ -112,7 +127,7 @@ function enh(ta) {
   try { var d = localStorage.getItem(key); if (d && !ta.value) { ta.value = d; ta.dispatchEvent(new Event("input", {bubbles: true})); tb.dataset.r = "1"; } } catch (x) {}
   ta.addEventListener("input", function () { try { if (ta.value) localStorage.setItem(key, ta.value); else localStorage.removeItem(key); } catch (x) {} });
   tb.innerHTML = (tb.dataset.r ? '<span class="wdr">Draf dipulihkan</span>' : "") + TPL.map(function (t, i) { return '<button type="button" data-t="' + i + '">' + t[0] + '</button>'; }).join("") + EM.map(function (e) { return '<button type="button" class="em" data-e="' + e + '" aria-label="Sisipkan ' + e + '">' + e + '</button>'; }).join("") + (SRc ? '<button type="button" data-mic="1" aria-label="Dikte suara">\uD83C\uDFA4 Dikte</button>' : "") + '<button type="button" data-dl="1">Unduh chat</button><button type="button" data-sr="1">Cari</button>';
-  ta.insertAdjacentElement("afterend", tb); edApply(ta); pinDraw(ta.closest(".qa"), ta.dataset.k.slice(2));
+  ta.insertAdjacentElement("afterend", tb); if (window.askPlus) askPlus(ta, tb); edApply(ta); pinDraw(ta.closest(".qa"), ta.dataset.k.slice(2));
   var ms = ta.closest(".qa") ? ta.closest(".qa").querySelectorAll(".thread .m") : [], lm = ms[ms.length - 1];
   if (lm && !lm.classList.contains("me") && !lm.classList.contains("dl")) tb.insertAdjacentHTML("afterbegin", QR2.map(function (q, i) { return '<button type="button" class="qr" data-q2="' + i + '">' + q[0] + '</button>'; }).join(""));
   tb.addEventListener("click", function (e) {

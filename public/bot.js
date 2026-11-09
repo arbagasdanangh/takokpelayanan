@@ -4,7 +4,7 @@
 (function () {
 var $b = function (i) { return document.getElementById(i); };
 var ICO = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/><path d="M8.5 10.5h7"/></svg>';
-var MENU = [["Izin usaha / NIB", "mau bikin NIB"], ["Dokumen yang dibawa", "syarat dokumen"], ["Status permohonan", "status permohonan saya"], ["Antrean & tiket saya", "tiket saya"], ["Booking kunjungan", "booking kunjungan"], ["Lokasi & jam", "lokasi dan jam buka"], ["Instansi di MPP", "daftar instansi mpp"], ["Buat pengaduan", "buat pengaduan"], ["Berita terbaru", "berita terbaru"]];
+var MENU = [["Izin usaha / NIB", "mau bikin NIB"], ["Cari kode KBLI", "kbli"], ["Dokumen yang dibawa", "syarat dokumen"], ["Status permohonan", "status permohonan saya"], ["Antrean & tiket saya", "tiket saya"], ["Booking kunjungan", "booking kunjungan"], ["Lokasi & jam", "lokasi dan jam buka"], ["Instansi di MPP", "daftar instansi mpp"], ["Buat pengaduan", "buat pengaduan"], ["Berita terbaru", "berita terbaru"]];
 var KAT = ["Pelayanan lambat", "Petugas kurang ramah", "Pungutan tidak wajar", "Sistem/aplikasi bermasalah", "Informasi tidak jelas", "Lainnya"];
 var KB = [
  {id: "nib", t: "Membuat NIB / izin usaha", re: /\b(nib|kbli|oss|umkm|usaha|toko|warung|kopi|restoran|dagang)/, a: [/^loket cs$/i, /analisa/i, /pengambilan/i], d: ["KTP pemilik usaha", "NPWP (pribadi atau badan usaha)", "Email dan nomor HP aktif", "Alamat lokasi usaha", "Pilihan KBLI (jenis kegiatan usaha)", "Perkiraan modal dan jumlah tenaga kerja"]},
@@ -43,6 +43,38 @@ function lk(l, d) {
   var k = l.id + "_" + d[0];
   return '<div class="bc2"><b>' + esc(d[1]) + '</b> <span class="btag">' + esc(l.nm) + '</span><p>' + esc(ringkasU(d[2])) + '</p><div class="ba">' + btn("Buka loket", "open:" + k) + (d[6] !== false ? btn("Booking", "bk:" + k) : "") +
     '<a target="_blank" rel="noopener noreferrer" href="' + esc(mapsUrl(l)) + '">Peta</a></div></div>';
+}
+/* ---- Versi 12: KBLI, daftar KBLI saya, ringkasan chat ke admin ---- */
+var RSM = "", OSSL = '<div class="bch"><a target="_blank" rel="noopener noreferrer" href="https://oss.go.id">Buka OSS (oss.go.id)</a></div>';
+function kbliKartu(r) {
+  var f = KBLI.favs().indexOf(r[0]) > -1;
+  return '<div class="bc2 kbc"><div class="kd-h"><b class="kd-k">' + r[0] + '</b>' + (r[3] ? '<span class="kd-r r-' + KBLI.risk(r) + '">' + esc(r[3]) + '</span>' : '') + '</div><p><b>' + esc(r[1]) + '</b></p>' + (r[4] ? '<small class="bnote">Perizinan: ' + esc(r[4]) + '</small>' : '') +
+    '<div class="ba">' + btn("Salin kode", "kcp:" + r[0]) + btn("Rincian", "kdt:" + r[0]) + btn(f ? "Hapus dari daftar" : "Simpan", "ksv:" + r[0]) + btn("Tanya admin", "kfw:" + r[0]) + '</div></div>';
+}
+function kbliFav() {
+  var K = window.KBLI, rows = (K ? K.favs() : []).map(function (k) { return K.byKode(k); }).filter(Boolean);
+  if (!rows.length) return bot("Daftar KBLI Anda masih kosong. Cari dulu, misalnya \"kbli warung kopi\", lalu ketuk Simpan pada kode yang cocok.", chips([["KBLI warung makan", "kbli warung makan"], ["KBLI toko online", "kbli toko online"]]));
+  return bot("Daftar KBLI Anda (" + rows.length + " kode). Satu NIB bisa memuat beberapa kode; pilih yang benar-benar Anda jalankan.", rows.map(kbliKartu).join("") +
+    '<div class="bch">' + btn("Salin semua", "kall:") + btn("Kirim ke WhatsApp", "kwa:") + btn("Kirim ke admin", "kfw:*") + btn("Kosongkan", "kclr:") + '</div>');
+}
+function kbliTeks() { var K = window.KBLI; return (K ? K.favs() : []).map(function (k) { var r = K.byKode(k); return r ? r[0] + " - " + r[1] : ""; }).filter(Boolean).join("\n"); }
+function kbli(t, s) {
+  var K = window.KBLI, kw = /\bkbli\b|kode (usaha|bidang|oss)|bidang usaha/.test(s), num = t.match(/\b\d{5}\b/);
+  if (/(daftar|keranjang)\s*kbli|kbli\s*(tersimpan|saya)|kbli yang (saya )?simpan/.test(s)) return kbliFav();
+  if (!kw && !(num && K && K.has() && K.byKode(num[0]))) return null;
+  if (!K || !K.has()) { var k0 = kataKartu(s); if (k0) return k0; return bot("Data KBLI belum dimuat di Takok (admin perlu mengimpor daftar resmi dulu). Sementara itu, cari kode yang tepat langsung di OSS, atau tanyakan ke admin.", OSSL + '<div class="bch">' + btn("Teruskan ke admin", "fw:" + t.slice(0, 150)) + '</div>'); }
+  var q = t.replace(/\bkbli\b|\bkode\b|bidang usaha|\boss\b/ig, " ").replace(/\s+/g, " ").trim();
+  if (!q) return bot("Ketik kegiatan usahanya, misalnya \"kbli warung kopi\" atau \"kbli toko online\", atau langsung kodenya (5 angka).", chips([["KBLI warung makan", "kbli warung makan"], ["KBLI toko online", "kbli toko online"], ["KBLI jasa laundry", "kbli laundry"]]));
+  var R = K.search(q, 4);
+  if (!R.length) return bot("Saya belum menemukan KBLI untuk \"" + q + "\". Coba kata lain (misalnya jenis barang atau jasanya), atau tanyakan ke admin.", '<div class="bch">' + btn("Teruskan ke admin", "fw:" + t.slice(0, 150)) + '</div>' + OSSL);
+  return bot("Ini kode KBLI yang paling mendekati (" + R.length + " teratas; " + clean(K.judul()) + "). Pilih yang paling sesuai dengan kegiatan usaha sebenarnya; kode akhir dan tingkat risiko ditetapkan di OSS.", R.map(kbliKartu).join("") + '<div class="bch">' + btn("Daftar KBLI saya", "kfv:") + '</div>');
+}
+function ringkas() {
+  var us = [].map.call($("bm").querySelectorAll(".bmsg.u"), function (n) { return n.textContent.trim(); }).filter(function (x) { return x && !/ringkas|^rincian kbli|^daftar kbli/i.test(x); }).slice(-6);
+  if (!us.length) return bot("Belum ada percakapan yang bisa diringkas. Tanyakan sesuatu dulu, lalu ketik /ringkas.");
+  var kb = kbliTeks();
+  RSM = ("Ringkasan percakapan saya dengan Asisten Takok:\n- " + us.map(function (x) { return x.slice(0, 120); }).join("\n- ") + (kb ? "\nKBLI yang saya simpan:\n" + kb : "") + "\n\nMohon bantuan admin untuk hal di atas.").slice(0, 780);
+  return bot("Ini ringkasan yang akan dikirim ke admin. Anda masih bisa mengubahnya di kotak pesan sebelum mengirim.", '<div class="bc2"><p style="white-space:pre-wrap;margin:0">' + esc(RSM) + '</p></div><div class="bch">' + btn("Kirim ke admin", "rsm:") + '</div>');
 }
 function cari(t) {
   var tk = toks(t), R = [];
@@ -217,6 +249,8 @@ function ask(t) {
   if (/^(halo|hai|hi|hello|permisi|selamat|assalam)/.test(s) && s.length < 30) return bot(sapa() + " Ada yang bisa saya bantu?", chips(MENU));
   if (/terima kasih|makasih|thanks|matur nuwun/.test(s)) return bot("Sama-sama! Kalau ada yang masih bingung, tanya lagi kapan saja.");
   if (/darurat|kebakaran|ambulans/.test(s)) return bot("Untuk keadaan darurat, segera hubungi 112. Asisten ini khusus informasi pelayanan publik.");
+  var kq = kbli(t, s); if (kq) return kq;
+  if (/^\/?ringkas|ringkas(kan)? (chat|percakapan)|kirim ringkasan/.test(s)) return ringkas();
   var kc = kataKartu(s); if (kc) return kc;
   if (/status|progres|perkembangan|sudah jadi/.test(s)) return stat();
   if (/antre|antri|tiket saya|jadwal saya/.test(s)) return antre();
@@ -288,6 +322,15 @@ function init() {
     }
     else if (c === "ck") { var kb = KB.filter(function (x) { return x.id === a; })[0]; if (kb) { add("u", esc(kb.t)); ckShow(kb); } }
     else if (c === "wa") ckWa(a);
+    else if (c === "kcp") KBLI.copy(a, "Kode " + a + " disalin.");
+    else if (c === "kdt") { var kr = KBLI.byKode(a); if (kr) { add("u", "Rincian KBLI " + a); bot("Rincian KBLI " + a + ":", KBLI.detailHtml(kr, false)); } }
+    else if (c === "ksv") { var on = KBLI.toggleFav(a); b.textContent = on ? "Hapus dari daftar" : "Simpan"; if (window.toast) toast(on ? "Disimpan ke daftar KBLI Anda." : "Dihapus dari daftar."); }
+    else if (c === "kfv") { add("u", "Daftar KBLI saya"); kbliFav(); }
+    else if (c === "kfw") { var kr2 = a === "*" ? null : KBLI.byKode(a); closeB(); if (a === "*") KBLI.tanyaAdmin(null, "Saya ingin berkonsultasi tentang KBLI berikut:\n" + kbliTeks() + "\nKegiatan usaha saya: "); else if (kr2) KBLI.tanyaAdmin(kr2); }
+    else if (c === "kall") KBLI.copy(kbliTeks(), "Daftar KBLI disalin.");
+    else if (c === "kwa") window.open("https://wa.me/?text=" + encodeURIComponent("Daftar KBLI saya:\n" + kbliTeks() + "\n\nTakok Pelayanan Suroboyo: " + location.origin), "_blank", "noopener");
+    else if (c === "kclr") { KBLI.clearFavs(); var kp = b.closest(".bmsg"); if (kp) kp.insertAdjacentHTML("beforeend", "<p>Daftar dikosongkan.</p>"); }
+    else if (c === "rsm") { var rk = findK(/^loket (informasi|cs)$/i, LOC) || findK(/^loket (informasi|cs)$/i, "pusat"); if (rk && RSM) { KEEP["q:" + rk] = RSM; closeB(); openKey(rk); needLogin(); } }
     else if (c === "cp") {
       var cd = b.closest(".bans"), tx = cd ? cd.dataset.a : "";
       try { navigator.clipboard.writeText(tx); b.textContent = "Tersalin \u2713"; setTimeout(function () { b.textContent = "Salin"; }, 1800); } catch (x) { b.textContent = "Tidak bisa menyalin"; }

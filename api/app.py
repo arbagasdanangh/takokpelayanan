@@ -475,6 +475,33 @@ def kata_cache():
 
 
 
+KBLI_MAX = 2500
+_KB = {"v": None, "rows": [], "m": {}}
+
+
+def kbli_baca():
+    """Baca data KBLI (hash kbli: p0, p1, ... berisi baris [kode, judul, uraian, risiko, perizinan, padanan2020]; v = versi; m = metadata)."""
+    h = hall(db().cmd("HGETALL", "kbli"))
+    rows = []
+    for i in range(int(h.get("np", 0) or 0)):
+        rows += parse(h.get("p%d" % i), []) or []
+    return rows, h.get("v") or "", parse(h.get("m"), {}) or {}
+
+
+def kbli_baris(x):
+    """Rapikan satu baris impor. Kembalikan None bila kode bukan 5 angka."""
+    if not isinstance(x, (list, tuple)) or len(x) < 2:
+        return None
+    kode = re.sub(r"\D", "", str(x[0]))
+    if len(kode) != 5:
+        return None
+    g = lambda i, n: clean(x[i], n) if len(x) > i else ""
+    judul = g(1, 200)
+    if len(judul) < 2:
+        return None
+    return [kode, judul, g(2, 500), g(3, 40), g(4, 120), g(5, 80)]
+
+
 def kata_peta_loket():
     by_label, by_nama = {}, {}
     for k in LOKET:
@@ -627,7 +654,7 @@ class handler(BaseHTTPRequestHandler):
                 if "application/json" not in (self.headers.get("Content-Type") or ""):
                     raise HttpError(415, "Format permintaan tidak valid.")
                 n = int(self.headers.get("Content-Length") or 0)
-                if n > {"/admin/kata": 700000, "/admin/kata/impor": 4200000}.get(path, 10000):
+                if n > {"/admin/kata": 700000, "/admin/kata/impor": 4200000, "/admin/loket/massal": 1500000, "/admin/kbli/impor": 1500000}.get(path, 10000):
                     raise HttpError(413, "Permintaan terlalu besar.")
                 try:
                     body = json.loads(self.rfile.read(n) or b"{}")
@@ -647,6 +674,8 @@ class handler(BaseHTTPRequestHandler):
             return self.info(self.session())
         if path == "/kata" and method == "GET":
             return self.kata_publik()
+        if path == "/kbli" and method == "GET":
+            return self.kbli_publik()
         if path == "/daftar" and method == "POST":
             return self.daftar(b)
         if path == "/masuk" and method == "POST":
@@ -748,6 +777,17 @@ class handler(BaseHTTPRequestHandler):
         hdr = [("Cache-Control", "public, max-age=86400, s-maxage=31536000, immutable")] if (v and self.q1("v") == v) else [("Cache-Control", "no-store")]
         return self.json({"v": v or "", "kata": ringan}, extra=hdr)
 
+    def kbli_publik(self):
+        """Data KBLI untuk pengunjung. URL memuat nomor versi, jadi boleh di-cache CDN selama satu tahun."""
+        v = db().cmd("HGET", "kbli", "v")
+        if not v:
+            return self.json({"v": "", "m": {}, "rows": []}, extra=[("Cache-Control", "no-store")])
+        if _KB["v"] != v:
+            rows, v2, m = kbli_baca()
+            _KB.update(v=v2, rows=rows, m=m)
+        hdr = [("Cache-Control", "public, max-age=86400, s-maxage=31536000, immutable")] if self.q1("v") == _KB["v"] else [("Cache-Control", "no-store")]
+        return self.json({"v": _KB["v"], "m": _KB["m"], "rows": _KB["rows"]}, extra=hdr)
+
     def info(self, ses):
         who = None
         if ses and ses["r"] == "adm":
@@ -762,8 +802,9 @@ class handler(BaseHTTPRequestHandler):
         rt = sorted(float(x) for x in db().cmd("LRANGE", "rt", -50, -1) or [])
         balas = round(rt[len(rt) // 2]) if len(rt) >= 3 else None
         kv = db().cmd("HGET", "kata2", "v")
+        kbv, kbm = db().pipe([["HGET", "kbli", "v"], ["HGET", "kbli", "m"]])
         kata = kata_baca()[0] if (not kv or self.q1("kata")) else []  # data lama / editor admin: sertakan; pengunjung biasa: ambil via /kata?v=
-        self.json({"kata": kata, "kv": kv or "", "kata_max": KATA_MAX, "berita": bt, "balas_menit": balas, "mpp_roster": SKM_MPP, "lokasi": [lok_meta_publik(k) for k in LOKASI if not lok_sembunyi(k)],
+        self.json({"kata": kata, "kv": kv or "", "kata_max": KATA_MAX, "berita": bt, "balas_menit": balas, "mpp_roster": SKM_MPP, "kbv": kbv or "", "kbm": parse(kbm, {}) or {}, "lokasi": [lok_meta_publik(k) for k in LOKASI if not lok_sembunyi(k)],
                    "loket": [[e["lokasi"], e["no"], e["nama"], e["uraian"], e["sistem"], e.get("zona", ""), 1 if e.get("diskusi", True) else 0, 1 if bisa_booking("%s_%s" % (e["lokasi"], e["no"])) else 0, e.get("jam", ""), e.get("tautan", "")] for e in loket_urut()],
                    "cfg": {k: c.get(k, "") for k in ("wa", "jam", "info", "kuota")}, "saya": who},
                   extra=self.refresh(ses) if ses and who else ())
@@ -1508,6 +1549,32 @@ class handler(BaseHTTPRequestHandler):
             db().pipe([["HSET", "kata2n", "v", v], ["RENAME", "kata2n", "kata2"]])  # RENAME bersifat atomik: pengunjung tidak pernah melihat daftar setengah jadi
             _KC["v"] = None
             return self.json({"ok": True, "n": n, "v": v}, extra=ex)
+        if r == "kbli/impor":
+            rows = b.get("rows")
+            bagian, total = max(0, int(b.get("bagian") or 0)), max(1, int(b.get("total") or 1))
+            if not isinstance(rows, list) or len(rows) > 700 or bagian >= total or total > 12:
+                raise HttpError(400, "Data tidak valid.")
+            out = [x for x in (kbli_baris(y) for y in rows) if x]
+            if bagian == 0:
+                db().cmd("DEL", "kblin")
+            n = int(db().pipe([["HSET", "kblin", "p%d" % bagian, json.dumps(out, ensure_ascii=False)], ["HINCRBY", "kblin", "n", len(out)]])[1])
+            if n > KBLI_MAX:
+                db().cmd("DEL", "kblin")
+                raise HttpError(400, "Maksimal %d kode." % KBLI_MAX)
+            if bagian < total - 1:
+                return self.json({"ok": True, "bagian": bagian}, extra=ex)
+            if n < 1:
+                db().cmd("DEL", "kblin")
+                raise HttpError(400, "Tidak ada baris yang valid. Kode harus 5 angka dan judul tidak boleh kosong.")
+            v = str(now_ms())
+            m = {"sumber": clean(b.get("sumber", ""), 120), "n": n, "tgl": time.strftime("%Y-%m-%d", wib())}
+            db().pipe([["HSET", "kblin", "np", total], ["HSET", "kblin", "v", v], ["HSET", "kblin", "m", json.dumps(m, ensure_ascii=False)], ["RENAME", "kblin", "kbli"]])
+            _KB["v"] = None
+            return self.json({"ok": True, "n": n, "v": v}, extra=ex)
+        if r == "kbli/hapus":
+            db().cmd("DEL", "kbli")
+            _KB["v"] = None
+            return self.json({"ok": True}, extra=ex)
         if r == "catatan":
             pid, k = int(b.get("pid") or 0), str(b.get("kunci", ""))
             if not valid_key(k):
