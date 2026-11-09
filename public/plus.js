@@ -426,4 +426,81 @@ var raf2 = 0;
 new MutationObserver(function () { if (!raf2) raf2 = requestAnimationFrame(function () { raf2 = 0; scanLx(); }); }).observe($p("list"), {childList: true, subtree: true});
 setInterval(function () { [].forEach.call(document.querySelectorAll(".lxq"), function (w) { var h = waitHtml(w.dataset.key), z = w.querySelector(".lxq-w"); if (z && z.innerHTML !== h) z.innerHTML = h; }); }, 60000);
 scanLx();
+/* ============================================================
+   C. Tiket pertanyaan: setiap komentar membawa nomor tiket (TKT-YYMM-NNNNN)
+   Satu tiket = satu rangkaian pertanyaan di satu loket. Pesan baru setelah ditandai selesai membuka tiket baru.
+   ============================================================ */
+var STEPS = ["Diterima", "Dibaca admin", "Dibalas", "Selesai"], TCOL = {"Diterima": "#64748b", "Dibaca admin": "#1a46b5", "Dibalas": "#d97706", "Selesai": "#15803d"}, TF = "all", TQ2 = "";
+function tkWhen(ms) { return fmt(ms); }
+function tkLine(t) {
+  var i = STEPS.indexOf(t.status);
+  return '<ol class="tks">' + STEPS.map(function (x, n) { return '<li class="' + (n < i ? "done" : n === i ? "now" : "") + '"><i></i><span>' + x + '</span></li>'; }).join("") + '</ol>';
+}
+function tkInfo(t) {
+  var bits = ["Dibuat " + tkWhen(t.buka)];
+  if (t.balas) bits.push("balasan pertama " + dur((t.balas - t.buka) / 60000) + " setelah dibuat");
+  else if (t.status !== "Selesai") bits.push(BALAS ? "biasanya dibalas ±" + dur(BALAS) : "menunggu balasan");
+  if (t.tutup) bits.push("selesai " + tkWhen(t.tutup));
+  bits.push(t.n + " pesan");
+  return bits.join(" · ");
+}
+function tkText(t) { return "Tiket " + t.no + "\nLoket: " + label(t.kunci) + "\nStatus: " + t.status + "\n" + tkInfo(t) + "\n\nTakok Pelayanan Suroboyo: " + location.origin; }
+function tkCardHtml(t) {
+  var first = M.filter(function (m) { return m.n === t.kunci && m.tk === t.no && m.by === "user" && !m.dl; }).sort(function (a, b) { return a.ts - b.ts; })[0];
+  return '<div class="tkcard" data-no="' + esc(t.no) + '" data-key="' + esc(t.kunci) + '"><div class="tkcard-h"><button type="button" class="tkc" data-tk="' + esc(t.no) + '" title="Salin nomor tiket">' + esc(t.no) + '</button><i class="pb" style="background:' + (TCOL[t.status] || "#64748b") + '">' + esc(t.status) + '</i></div><b>' + esc(label(t.kunci)) + '</b>' + (first ? '<p class="tkq">' + esc(first.text.length > 110 ? first.text.slice(0, 110) + "…" : first.text) + '</p>' : '') + tkLine(t) + '<small>' + esc(tkInfo(t)) + '</small><div class="tkact"><button type="button" class="chip" data-tkx="buka">Buka percakapan</button><button type="button" class="chip" data-tkx="salin">Salin ringkasan</button><button type="button" class="chip" data-tkx="wa">Bagikan</button></div></div>';
+}
+function tiketUI() {
+  var host = $p("v-my"); if (!host || S !== "user" || host.querySelector(".tkbox")) return;
+  var box = document.createElement("div"); box.className = "tkbox";
+  host.insertAdjacentElement("afterbegin", box); drawTiket();
+}
+function drawTiket() {
+  var box = document.querySelector("#v-my .tkbox"); if (!box) return;
+  var L = (window.TKT || []).filter(function (t) { return (TF === "all" || (TF === "aktif" ? t.status !== "Selesai" : t.status === "Selesai")) && (!TQ2 || (t.no + " " + label(t.kunci)).toLowerCase().indexOf(TQ2) >= 0); });
+  var na = (window.TKT || []).filter(function (t) { return t.status !== "Selesai"; }).length;
+  box.innerHTML = '<h3 style="margin:16px 0 4px;font-size:1rem">Tiket saya</h3><p class="sys" style="margin:0 0 8px">Setiap pertanyaan yang Anda kirim mendapat nomor tiket. Sebutkan nomornya bila menghubungi admin.' + (na ? " <b>" + na + " tiket aktif.</b>" : "") + '</p>' +
+    '<div class="tkf"><input type="search" id="tkq" placeholder="Cari nomor tiket atau loket" value="' + esc(TQ2) + '" aria-label="Cari tiket">' + [["all", "Semua"], ["aktif", "Aktif"], ["selesai", "Selesai"]].map(function (f) { return '<button type="button" class="chip" data-tkf="' + f[0] + '" aria-pressed="' + (TF === f[0]) + '">' + f[1] + '</button>'; }).join("") + '</div>' +
+    (L.length ? L.map(tkCardHtml).join("") : '<div class="empty">' + ((window.TKT || []).length ? "Tidak ada tiket untuk filter ini." : "Belum ada tiket. Kirim pertanyaan ke sebuah loket untuk mendapat nomor tiket.") + '</div>');
+}
+(function () { var o = window.myList; if (typeof o === "function") window.myList = function () { o.apply(this, arguments); tiketUI(); }; })();
+
+document.addEventListener("click", function (e) {
+  var c = e.target.closest && e.target.closest(".tkc");
+  if (c) { e.stopImmediatePropagation(); e.preventDefault(); copyTxt(c.dataset.tk, "Nomor tiket " + c.dataset.tk + " disalin."); return; }
+  var f = e.target.closest && e.target.closest("[data-tkf]");
+  if (f) { TF = f.dataset.tkf; drawTiket(); return; }
+  var x = e.target.closest && e.target.closest("[data-tkx]"); if (!x) return;
+  var card = x.closest(".tkcard"), t = (window.TKT || []).filter(function (z) { return z.no === card.dataset.no; })[0]; if (!t) return;
+  if (x.dataset.tkx === "buka") openKey(t.kunci); else if (x.dataset.tkx === "salin") copyTxt(tkText(t), "Ringkasan tiket disalin."); else waOpen(tkText(t));
+}, true);
+document.addEventListener("input", function (e) { if (e.target && e.target.id === "tkq") { TQ2 = e.target.value.toLowerCase().trim(); var pos = e.target.selectionStart; drawTiket(); var n = $p("tkq"); if (n) { n.focus(); try { n.setSelectionRange(pos, pos); } catch (x) {} } } });
+
+/* Chatbot: "tiket saya", "cek tiket", atau ketik nomornya langsung */
+var R_TIKET = /^\/?tiket\b|cek tiket|status tiket|nomor tiket|tiket (pertanyaan|saya)|tkt-?\d{4}-?\d+/i;
+function tiketChat(t0) {
+  if (S !== "user") return I.needIn("Masuk dulu untuk melihat tiket pertanyaan Anda.");
+  var m = t0.toUpperCase().replace(/\s/g, "").match(/TKT-?(\d{4})-?(\d+)/), L = window.TKT || [];
+  if (m) {
+    var no = "TKT-" + m[1] + "-" + m[2], t = L.filter(function (z) { return z.no === no; })[0];
+    if (!t) return bot("Tiket " + no + " tidak ada di akun Anda. Periksa lagi nomornya; saya hanya bisa menampilkan tiket milik akun yang sedang masuk.", NS);
+    return bot("Ini status tiket Anda:", NS + tkCardHtml(t));
+  }
+  if (!L.length) return bot("Anda belum punya tiket. Setiap pertanyaan ke loket otomatis mendapat nomor tiket.", NS + row(bx("Kirim pertanyaan ke loket", "tqs0")));
+  var act = L.filter(function (z) { return z.status !== "Selesai"; });
+  return bot(act.length ? "Anda punya " + act.length + " tiket aktif:" : "Semua tiket Anda sudah selesai. Tiket terakhir:", NS + (act.length ? act : L).slice(0, 3).map(tkCardHtml).join("") + (L.length > 3 ? '<p class="bnote">Daftar lengkap ada di Percakapan Saya, bagian Tiket saya.</p>' : ""));
+}
+var _pre = window.BOTX.pre;
+window.BOTX.pre = function (t, s) { if (!TQ && R_TIKET.test(s)) return tiketChat(t); return _pre(t, s); };
+$p("bp").addEventListener("click", function (e) { var b = e.target.closest("[data-x]"); if (!b) return; if (b.dataset.x === "tqs0") { b.disabled = true; I.add("u", "Kirim pertanyaan ke loket"); tanyaStart(""); } });
+
+/* Admin: cari nomor tiket (termasuk tiket lama) langsung dari kolom cari inbox */
+document.addEventListener("input", function (e) {
+  if (!e.target || e.target.id !== "as" || S !== "adm") return;
+  var v = e.target.value.trim().toUpperCase();
+  if (!/^TKT-\d{4}-\d{3,}$/.test(v)) return;
+  clearTimeout(window._tkT); window._tkT = setTimeout(async function () {
+    try { var r = await api("/api/admin/tiket?no=" + encodeURIComponent(v)); if (r && r.pid) { var cu = T.filter(function (z) { return z.pid === r.pid && z.kunci === r.kunci; })[0]; pick(cu || r); toast("Tiket " + r.tk + " dibuka."); } }
+    catch (x) { toast(x.message); }
+  }, 350);
+});
 })();

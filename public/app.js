@@ -5,7 +5,7 @@ var EX=["Mau bikin NIB","SIP dokter","Bayar retribusi IPT","Pasang reklame","Izi
 var $=function(i){return document.getElementById(i)};
 var S="out",ME=null,CFG={},LOCS=[],LD={},LOC="pusat",fl="Semua",qv="";
 var M=[],MYST={},T=[],SEL=null,SM=[],KEEP={},FOC=null,SENT=[],MYV=false,OPENK=null,AF={st:"pend",loc:"all",q:"",tp:"",sn:"",so:"prio"},LAST=Date.now(),SEEN=null,SEENA=null,TIMER=null,AUTH="masuk",SIG="",ASIG="";
-var APP=location.origin+"/",MYDB={},BALAS=null;
+var APP=location.origin+"/",MYDB={},BALAS=null,TKT=[],TKS=null;
 var TAGS=["Mendesak","Tindak lanjut","Eskalasi","Menunggu berkas","Kasus khusus"],BULK={},TPSIG="";
 var QQ=["Apa saja persyaratannya?","Berapa lama prosesnya?","Apakah ada biaya?","Bagaimana cara mengajukannya?"];
 var QR=["Terima kasih, pertanyaan Anda sudah kami terima dan sedang kami proses.","Silakan datang ke loket terkait dengan membawa dokumen asli dan fotokopi persyaratan.","Mohon lengkapi berkas yang kurang, lalu ajukan kembali melalui sistem yang sesuai.","Untuk penjelasan lebih lanjut, kami akan menghubungi Anda melalui WhatsApp."];
@@ -49,11 +49,11 @@ function bubbles(L,mine,rd){
    if(mine==="user"&&m.by==="admin")ex='<span class="mrx">'+REX.map(function(e){return '<button type="button" data-act="mre"'+a+' data-e="'+e+'" class="'+(m.re===e?'on':'')+'" aria-label="Reaksi '+e+'">'+e+'</button>'}).join("")+'</span>';
    else if(mine==="admin"&&m.by==="admin"&&m.re)ex='<span class="mrx"><span class="mre" title="Reaksi pemohon">'+m.re+'</span></span>';
    if(mine==="admin"&&m.ed&&m.rv&&m.rv.length)ex+='<details class="mrv"><summary>Diedit pemohon, lihat versi sebelumnya</summary>'+m.rv.map(function(v){return '<div>'+esc(v.isi)+'<small>'+fmt(v.waktu)+'</small></div>'}).join("")+'</details>'}
-  return sep+'<div class="m'+(m.by===mine?' me':'')+(m.dl?' dl':'')+'" data-mid="'+m.id+'">'+(m.dl?'<i class="mdel">'+(m.by===mine?'Pesan ini dihapus':(mine==="user"?'Pesan dihapus oleh admin':'Pesan dihapus oleh pemohon'))+'</i>':fmtMsg(m.text))+'<small>'+(m.by==="admin"?"Admin":"Pemohon")+', '+fmt(m.ts)+(m.ed&&!m.dl?' &middot; diedit':'')+'</small>'+acts+ex+'</div>'}).join("");
+  return sep+'<div class="m'+(m.by===mine?' me':'')+(m.dl?' dl':'')+'" data-mid="'+m.id+'">'+(m.dl?'<i class="mdel">'+(m.by===mine?'Pesan ini dihapus':(mine==="user"?'Pesan dihapus oleh admin':'Pesan dihapus oleh pemohon'))+'</i>':fmtMsg(m.text))+'<small>'+(m.by==="admin"?"Admin":"Pemohon")+', '+fmt(m.ts)+(m.ed&&!m.dl?' &middot; diedit':'')+(m.tk?' &middot; <button type="button" class="tkc" data-tk="'+esc(m.tk)+'" title="Ketuk untuk menyalin nomor tiket">'+esc(m.tk)+'</button>':'')+'</small>'+acts+ex+'</div>'}).join("");
  var last=L[L.length-1];
  if(mine==="user"&&last.by==="user")o+='<div class="rcpt">'+(rd&&rd>=last.ts?'&#10003;&#10003; Dibaca admin':'&#10003; Terkirim')+'</div>';
  return o}
-function conv(a){return a.map(function(m){return{id:m.id,n:m.kunci,by:m.dari==="admin"?"admin":"user",text:m.isi,ts:m.waktu,dl:m.hapus||0,ed:m.edit||0,re:m.re||"",rv:m.rev||[]}})}
+function conv(a){return a.map(function(m){return{id:m.id,n:m.kunci,by:m.dari==="admin"?"admin":"user",text:m.isi,ts:m.waktu,dl:m.hapus||0,ed:m.edit||0,re:m.re||"",rv:m.rev||[],tk:m.tk||""}})}
 function guard(t,k){
  if(t.length>800)return "Pesan terlalu panjang (maksimal 800 karakter).";
  if(/\d{16}/.test(t.replace(/[\s.\-]/g,"")))return "Demi keamanan, jangan kirim NIK/KTP lengkap di sini. Berkas asli diserahkan langsung di loket.";
@@ -123,7 +123,7 @@ document.addEventListener("visibilitychange",function(){if(S!=="out")startPoll()
 async function tick(){try{
  if(S==="user"){var j=await api("/api/pesan"),arr=conv(j.pesan).sort(function(a,b){return a.ts-b.ts});
   if(window.pmhCheck)pmhCheck(j.pmh||[]);if(window.bkCheck)bkCheck(j.bk||[]);if(SEEN)arr.forEach(function(m){if(m.by==="admin"&&!SEEN[m.id])notify("Admin membalas",label(m.n),function(){openKey(m.n)})});
-  SEEN={};arr.forEach(function(m){SEEN[m.id]=1});var sg=arr.length+":"+(arr.length?arr[arr.length-1].id:0)+JSON.stringify(j.status)+JSON.stringify(j.dibaca||{})+arr.map(function(x){return x.ed+(x.dl?"d":"")+x.re}).join("");
+  SEEN={};arr.forEach(function(m){SEEN[m.id]=1});TKT=j.tiket||[];if(TKS){TKT.forEach(function(t){if(t.status==="Selesai"&&TKS[t.no]&&TKS[t.no]!=="Selesai")notify("Tiket selesai",t.no+" - "+label(t.kunci),function(){openKey(t.kunci)})})}TKS={};TKT.forEach(function(t){TKS[t.no]=t.status});var sg=JSON.stringify(TKT.map(function(t){return t.no+t.status+t.n}))+arr.length+":"+(arr.length?arr[arr.length-1].id:0)+JSON.stringify(j.status)+JSON.stringify(j.dibaca||{})+arr.map(function(x){return x.ed+(x.dl?"d":"")+x.re}).join("");
   if(sg!==SIG){SIG=sg;M=arr;MYST=j.status;MYDB=j.dibaca||{};render();if(MYV)myList()}}
  if(S==="adm"){var a=await api("/api/admin/percakapan"),cur2={};a.daftar.forEach(function(x){if(x.pend)cur2[x.pid+"|"+x.kunci+"|"+x.waktu]=x});
   if(SEENA)for(var id in cur2)if(!SEENA[id])notify("Pesan baru",cur2[id].nama+" - "+label(cur2[id].kunci),(function(x){return function(){pick(x)}})(cur2[id]));
@@ -156,7 +156,7 @@ $("list").addEventListener("click",async function(e){err("");
  if(rb&&S==="user"){try{await api("/api/nilai",{kunci:rb.dataset.n,nilai:+rb.dataset.v});toast("Terima kasih atas penilaian Anda.");SIG="";tick()}catch(x){err(x.message)}return}
  var b=e.target.closest('[data-act="send"]');if(!b||S!=="user")return;var k=b.dataset.n,ta=b.closest(".qf").querySelector("textarea"),t=clean(ta.value);if(!t)return;
  var g=guard(t,k);if(g){err(g);return}b.disabled=true;SENT.push(Date.now());
- try{await api("/api/pesan",{kunci:k,isi:t});ta.value="";delete KEEP["q:"+k];SIG="";await tick()}catch(x){err(x.message);b.disabled=false}});
+ try{var rs=await api("/api/pesan",{kunci:k,isi:t});ta.value="";delete KEEP["q:"+k];SIG="";await tick();if(rs&&rs.tk)toast("Pesan terkirim. Nomor tiket Anda: "+rs.tk,"Salin",function(){try{navigator.clipboard.writeText(rs.tk)}catch(x){}})}catch(x){err(x.message);b.disabled=false}});
 /* ---- Admin ---- */
 function pick(x){SEL={pid:x.pid,kunci:x.kunci,nama:x.nama,hp:x.hp,email:x.email};SM=[];admList();admPane();tick()}
 function admUI(){var d=$("v-adm");if(d.dataset.on==="1"){admList();return}d.dataset.on="1";
@@ -176,7 +176,7 @@ function admOk(x,hari){
  if(AF.loc!=="all"&&x.kunci.indexOf(AF.loc+"_")!==0)return false;
  if(AF.tp&&(x.meta.topik||[]).indexOf(AF.tp)<0)return false;
  if(AF.sn!==""&&String(x.meta.senti)!==AF.sn)return false;
- if(AF.q&&(x.nama+" "+x.hp+" "+x.email+" "+((x.tag&&x.tag.pic)||"")).toLowerCase().indexOf(AF.q)<0)return false;
+ if(AF.q&&(x.nama+" "+x.hp+" "+x.email+" "+((x.tag&&x.tag.pic)||"")+" "+(x.tk||"")).toLowerCase().indexOf(AF.q)<0)return false;
  return true}
 function admList(){var el=$("al");if(!el||S!=="adm")return;title();var all=T,now=Date.now(),hari=iso(wibDate(0));
  var pn=all.filter(function(x){return x.pend}).length,rs=all.filter(function(x){return x.nilai}),avg=rs.length?(rs.reduce(function(a,x){return a+x.nilai},0)/rs.length).toFixed(1):"";
@@ -197,6 +197,7 @@ function admList(){var el=$("al");if(!el||S!=="adm")return;title();var all=T,now
   var h=document.createElement("b");h.textContent=x.nama+" - "+label(x.kunci);var s=document.createElement("span");s.textContent=x.teks;b.appendChild(h);b.appendChild(s);
   var bd='';if(x.pend){var pl=prLvl(x.skor);bd+=pb("Prioritas "+pl[0]+" "+x.skor,pl[1],"Skor prioritas dihitung dari urgensi, nada pesan, dan lama menunggu");bd+=pb("Menunggu "+waitTxt(now-x.lu),now-x.lu>864e5?"#dc2626":now-x.lu>144e5?"#d97706":"#64748b")}else bd+=pb(x.selesai?"Selesai":"Sudah dijawab","#15803d");
   if(x.meta.senti<0)bd+=pb("Keluhan","#b91c1c");else if(x.meta.senti>0)bd+=pb("Puas","#15803d");
+  if(x.tk)bd+=pb(x.tk,"#475569","Nomor tiket pertanyaan");
   (x.meta.topik||[]).slice(0,1).forEach(function(t){bd+=pb(t,"#1a46b5")});
   ((x.tag&&x.tag.tags)||[]).forEach(function(t){bd+=pb(t,"#7c3aed")});
   if(x.tag&&x.tag.pic)bd+=pb("PIC "+x.tag.pic,"#0d9488");
@@ -207,10 +208,10 @@ function pick(x){var cu=T.filter(function(t){return t.pid===x.pid&&t.kunci===x.k
 function admPane(){var p=$("ap");if(!p||S!=="adm")return;
  if(!SEL){p.innerHTML='<div class="empty">Pilih percakapan di sebelah kiri. Tips: tekan <b>J</b>/<b>K</b> untuk pindah percakapan, <b>Ctrl+Enter</b> untuk mengirim.</div>';return}
  var keep=$("rt")?$("rt").value:"",lb=label(SEL.kunci),msg="Halo "+SEL.nama+", admin admin sudah membalas pertanyaan Anda ("+lb+"). Silakan buka Takok Pelayanan Suroboyo untuk membacanya: "+APP;
- var wa=waLink(SEL.hp,msg),mail=SEL.email?"mailto:"+SEL.email+"?subject="+encodeURIComponent("Balasan admin - "+lb)+"&body="+encodeURIComponent(msg):"";
+ var ltk=SM.length?SM[SM.length-1].tk:"";if(ltk)msg+=" (Tiket "+ltk+")";var wa=waLink(SEL.hp,msg),mail=SEL.email?"mailto:"+SEL.email+"?subject="+encodeURIComponent("Balasan admin - "+lb)+"&body="+encodeURIComponent(msg):"";
  var an=SEL.an,tg=SEL.tag||{tags:[],pic:"",tl:""},pl=prLvl(SEL.skor||0),mt=SEL.meta||{topik:[]};
  var dl=p.querySelector("details.lab"),da=p.querySelector("details.ana"),labOpen=dl?dl.open:!!(tg.tags.length||tg.pic||tg.tl),anaOpen=da?da.open:true;
- var head='<h3>'+esc(SEL.nama)+'</h3><p class="sys" style="margin:0 0 6px">'+esc(lb)+'<br>HP: '+esc(SEL.hp||"-")+' | Email: '+esc(SEL.email||"-")+'</p>';
+ var head='<h3>'+esc(SEL.nama)+(ltk?' <button type="button" class="tkc tkc-h" data-tk="'+esc(ltk)+'" title="Salin nomor tiket">'+esc(ltk)+'</button>':'')+'</h3><p class="sys" style="margin:0 0 6px">'+esc(lb)+'<br>HP: '+esc(SEL.hp||"-")+' | Email: '+esc(SEL.email||"-")+'</p>';
  var ana='';
  if(an){ana='<details class="set ana"'+(anaOpen?' open':'')+'><summary>Analisis otomatis'+(an.topik.length?' &middot; '+esc(an.topik[0]):'')+'</summary><div class="hint" style="margin:6px 0">'+pb("Nada: "+sentTxt(an.senti),an.senti<0?"#b91c1c":an.senti>0?"#15803d":"#64748b")+pb("Urgensi: "+["Biasa","Cukup mendesak","Mendesak"][an.urg],an.urg>1?"#dc2626":an.urg?"#d97706":"#64748b")+(an.tunggu_menit!=null?pb("Menunggu "+waitTxt(an.tunggu_menit*60000),an.tunggu_menit>1440?"#dc2626":"#d97706"):pb("Sudah dibalas","#15803d"))+(SEL.skor?pb("Prioritas "+pl[0]+" "+SEL.skor,pl[1]):"")+an.topik.map(function(t){return pb(t,"#1a46b5")}).join("")+'</div><ul class="bul">'+an.baris.map(function(l){return '<li>'+esc(l)+'</li>'}).join("")+'</ul></details>'}
  var lab='<details class="set lab"'+(labOpen?' open':'')+'><summary>Label, petugas, dan tindak lanjut</summary><div class="hint" style="margin:6px 0">'+TAGS.map(function(t){return '<button type="button" class="chip" data-tg="'+esc(t)+'" aria-pressed="'+(tg.tags.indexOf(t)>-1)+'">'+esc(t)+'</button>'}).join("")+'</div><div class="fgrid"><input class="si" id="lpic" maxlength="40" placeholder="Petugas yang menangani" aria-label="Petugas" value="'+esc(tg.pic||"")+'"><input class="si" id="ltl" type="date" aria-label="Tanggal tindak lanjut" value="'+esc(tg.tl||"")+'"><button type="button" class="btn" id="lbs">Simpan label</button></div></details>';

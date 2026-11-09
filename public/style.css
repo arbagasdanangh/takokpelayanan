@@ -675,3 +675,24 @@ details.row{transition:box-shadow .2s,transform .2s}details.row:hover{transform:
 :root[data-theme="dark"] .lx-w.late{background:#3a2a10}:root[data-theme="dark"] .lx-w.late small{color:#ffd9a0}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .lx-w.late{background:#3a2a10}:root:not([data-theme="light"]) .lx-w.late small{color:#ffd9a0}}
 @media (max-width:480px){.lx-act .chip,.lxq-c .chip{font-size:.8rem;padding:5px 10px}.pdr-ring{width:60px;height:60px}.pdr-ring::before{inset:7px}}
+
+/* ===== Tiket pertanyaan ===== */
+.tkc{display:inline;border:0;background:var(--accsoft);color:var(--acc);font:inherit;font-size:.72rem;font-weight:800;letter-spacing:.02em;padding:1px 7px;border-radius:999px;cursor:pointer}
+.tkc:hover{filter:brightness(.95)}
+.tkc-h{font-size:.74rem;margin-left:6px;vertical-align:middle}
+.tkcard{margin:0 0 10px;padding:12px 14px;border:1px solid var(--line);border-radius:16px;background:var(--surface)}
+.tkcard-h{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px}
+.tkcard .tkc{font-size:.8rem;padding:2px 9px}
+.tkq{margin:4px 0 6px;color:var(--mute);font-size:.9rem}
+.tkcard>small{display:block;color:var(--mute);margin:4px 0 8px}
+.tkact{display:flex;flex-wrap:wrap;gap:6px}
+.tks{list-style:none;display:flex;margin:10px 0 4px;padding:0}
+.tks li{flex:1;position:relative;text-align:center;font-size:.68rem;color:var(--mute)}
+.tks li i{display:block;width:12px;height:12px;margin:0 auto 4px;border-radius:50%;background:var(--line);position:relative;z-index:1}
+.tks li::before{content:"";position:absolute;top:5px;left:-50%;width:100%;height:2px;background:var(--line)}
+.tks li:first-child::before{display:none}
+.tks li.done i,.tks li.now i{background:var(--acc)}.tks li.done::before,.tks li.now::before{background:var(--acc)}
+.tks li.now{color:var(--ink);font-weight:800}.tks li.now i{box-shadow:0 0 0 4px var(--accsoft)}
+.tkf{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:0 0 10px}
+.tkf input{flex:1 1 160px;min-width:0}
+.tkf input{padding:9px 14px;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--ink);font:inherit;font-size:.9rem}

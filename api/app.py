@@ -384,8 +384,8 @@ def parse(s, d=None):
 # ---------------- Logika data ----------------
 def threads():
     r = db().pipe([["HGETALL", "tlu"], ["HGETALL", "tla"], ["HGETALL", "tlast"], ["HGETALL", "sel"], ["HGETALL", "nilai"], ["HGETALL", "pemohon"],
-                   ["HGETALL", "ttag"], ["HGETALL", "tmeta"]])
-    tlu, tla, tlast, sel, nilai, pem, ttag, tmeta = [hall(x) for x in r]
+                   ["HGETALL", "ttag"], ["HGETALL", "tmeta"], ["HGETALL", "tkt"]])
+    tlu, tla, tlast, sel, nilai, pem, ttag, tmeta, tkt = [hall(x) for x in r]
     pem = {k: parse(v, {}) for k, v in pem.items()}
     now = now_ms()
     out = []
@@ -400,7 +400,7 @@ def threads():
         mt = parse(tmeta.get(f), None)
         meta = AN.meta_ringkas(mt if mt else AN.meta_gabung({}, AN.analyze(l.get("teks", ""))))
         tag = parse(ttag.get(f), {}) or {}
-        out.append({"pid": int(pid), "kunci": kunci, "nama": p["nama"], "hp": p["hp"], "email": p.get("email", ""),
+        out.append({"pid": int(pid), "kunci": kunci, "nama": p["nama"], "hp": p["hp"], "email": p.get("email", ""), "tk": (parse(tkt.get(f), {}) or {}).get("no", ""),
                     "teks": l.get("teks", ""), "waktu": l.get("waktu", 0), "pend": pend, "lu": lu,
                     "nilai": int(nilai[f]) if f in nilai else None, "meta": meta, "tag": tag, "selesai": sl > 0 and not pend,
                     "skor": AN.skor_prioritas(meta, tag, pend, lu, now)})
@@ -408,11 +408,27 @@ def threads():
 
 
 
+def tiket_aktif(f):
+    """Tiket = satu rangkaian pertanyaan di satu loket. Setiap pesan membawa nomor tiketnya.
+    Pesan baru setelah percakapan ditandai selesai membuka tiket baru (format TKT-YYMM-NNNNN)."""
+    cur, sl = db().pipe([["HGET", "tkt", f], ["HGET", "sel", f]])
+    cur, sl = parse(cur, None), int(sl or 0)
+    if cur and not (sl and sl >= cur.get("t", 0)):
+        return cur
+    n = int(db().cmd("INCR", "seq:tiket"))
+    t = now_ms()
+    no = "TKT-%s-%05d" % (time.strftime("%y%m", time.gmtime(t / 1000 + 7 * 3600)), n)
+    cur = {"no": no, "t": t}
+    db().pipe([["HSET", "tkt", f, json.dumps(cur)], ["HSET", "tktidx", no, f]])
+    return cur
+
+
 def add_msg(pid, kunci, dari, isi):
     f = "%s|%s" % (pid, kunci)
+    tk = tiket_aktif(f)
     mid = int(db().cmd("INCR", "seq:pesan"))
     t = now_ms()
-    m = {"id": mid, "dari": dari, "isi": isi, "waktu": t}
+    m = {"id": mid, "dari": dari, "isi": isi, "waktu": t, "tk": tk["no"]}
     cmds = [["RPUSH", "msgs:" + f, json.dumps(m, ensure_ascii=False)], ["SADD", "pk:%s" % pid, kunci],
             ["HSET", "tlu" if dari == "pemohon" else "tla", f, t],
             ["HSET", "tlast", f, json.dumps({"teks": isi[:100], "waktu": t}, ensure_ascii=False)]]
@@ -423,6 +439,7 @@ def add_msg(pid, kunci, dari, isi):
         except Exception as e:
             print("META", repr(e))
     db().pipe(cmds)
+    return tk["no"]
 
 
 def muat_semua(limit=200):
@@ -878,13 +895,17 @@ class handler(BaseHTTPRequestHandler):
         if bids:
             ib = len(cmds)
             cmds.append(["HMGET", "bk"] + sorted(bids, key=lambda x: -int(x))[:20])
+        it = len(cmds)
+        if ks:
+            fs = ["%s|%s" % (pid, k) for k in ks]
+            cmds += [["HMGET", "tkt"] + fs, ["HMGET", "sel"] + fs, ["HMGET", "tla"] + fs]
         res = db().pipe(cmds)
         ms = []
         for k, lst in zip(ks, res[:n]):
             for x in lst or []:
                 m = parse(x)
                 if m:
-                    ms.append({"id": m["id"], "kunci": k, "dari": m["dari"], "isi": m["isi"], "waktu": m["waktu"], "hapus": m.get("hapus", 0), "edit": m.get("edit", 0), "re": m.get("re", "")})
+                    ms.append({"id": m["id"], "kunci": k, "dari": m["dari"], "isi": m["isi"], "waktu": m["waktu"], "hapus": m.get("hapus", 0), "edit": m.get("edit", 0), "re": m.get("re", ""), "tk": m.get("tk", "")})
         nl = hall(res[n])
         pm, bk = [], []
         if ip is not None:
@@ -898,7 +919,31 @@ class handler(BaseHTTPRequestHandler):
                 if o and o["status"] in ("Terjadwal", "Sudah tiba", "Dipanggil"):
                     bk.append({"id": o["id"], "kode": o["kode"], "kunci": o["kunci"], "status": o["status"], "tanggal": o["tanggal"], "jam": o["jam"]})
         dib = {k: int(v) for k, v in zip(ks, res[idr] or []) if v} if idr is not None else {}
-        self.json({"pesan": ms, "pmh": pm, "bk": bk, "dibaca": dib, "status": {k: {"nilai": int(nl["%s|%s" % (pid, k)])} for k in ks if "%s|%s" % (pid, k) in nl}}, extra=ex)
+        tiket = []
+        for i, (k, lst) in enumerate(zip(ks, res[:n])):
+            cur, sl, la = parse(res[it][i], {}) or {}, int(res[it + 1][i] or 0), int(res[it + 2][i] or 0)
+            g = {}
+            for x in lst or []:
+                m = parse(x)
+                if not m or not m.get("tk"):
+                    continue
+                o = g.setdefault(m["tk"], {"no": m["tk"], "kunci": k, "buka": m["waktu"], "akhir": m["waktu"], "n": 0, "adm": 0, "balas": 0})
+                o["n"] += 1
+                o["akhir"] = max(o["akhir"], m["waktu"])
+                if m["dari"] == "admin" and not m.get("hapus"):
+                    o["adm"] += 1
+                    o["balas"] = o["balas"] or m["waktu"]
+            for no, o in g.items():
+                if no == cur.get("no"):
+                    tutup = bool(sl and sl >= cur.get("t", 0))
+                    o["status"] = "Selesai" if tutup else "Dibalas" if o["adm"] else "Dibaca admin" if dib.get(k, 0) >= cur.get("t", 0) else "Diterima"
+                    o["tutup"] = sl if tutup else 0
+                else:
+                    o["status"], o["tutup"] = "Selesai", 0
+                o["dibaca"] = dib.get(k, 0) if o["status"] != "Diterima" else 0
+                tiket.append(o)
+        tiket.sort(key=lambda o: -o["akhir"])
+        self.json({"tiket": tiket[:60], "pesan": ms, "pmh": pm, "bk": bk, "dibaca": dib, "status": {k: {"nilai": int(nl["%s|%s" % (pid, k)])} for k in ks if "%s|%s" % (pid, k) in nl}}, extra=ex)
 
     # ---- permohonan (pemohon) ----
     def user_pmh(self, ses, ex):
@@ -1050,8 +1095,8 @@ class handler(BaseHTTPRequestHandler):
             raise HttpError(429, "Terlalu banyak pesan dalam satu menit.")
         if int(db().cmd("LLEN", "msgs:%s|%s" % (pid, k)) or 0) >= 200:
             raise HttpError(400, "Percakapan ini sudah penuh. Silakan hubungi loket langsung.")
-        add_msg(pid, k, "pemohon", isi)
-        self.json({"ok": True}, extra=ex)
+        tk = add_msg(pid, k, "pemohon", isi)
+        self.json({"ok": True, "tk": tk}, extra=ex)
 
     def _cari_pesan(self, pid, k, mid, dari):
         try:
@@ -1146,6 +1191,14 @@ class handler(BaseHTTPRequestHandler):
             analisa = AN.ringkas_percakapan(msgs, now_ms(), fmt_wib)
             saran = AN.saran_balasan(msgs, kata_cache()[2], nama, label(k), label) if msgs and msgs[-1]["dari"] == "pemohon" else []
             return self.json({"pesan": msgs, "catatan": res[2] or "", "tag": parse(res[3], {}) or {}, "analisa": analisa, "saran": saran}, extra=ex)
+        if r == "tiket" and method == "GET":
+            no = clean((q.get("no") or [""])[0], 20).upper()
+            f = db().cmd("HGET", "tktidx", no) if re.match(r"^TKT-\d{4}-\d{3,}$", no) else None
+            if not f or "|" not in f:
+                raise HttpError(404, "Nomor tiket tidak ditemukan.")
+            pid, k = f.split("|", 1)
+            p = parse(db().cmd("HGET", "pemohon", pid), {}) or {}
+            return self.json({"pid": int(pid), "kunci": k, "nama": p.get("nama", ""), "hp": p.get("hp", ""), "email": p.get("email", ""), "tk": no}, extra=ex)
         if r == "analitik" and method == "GET":
             hari = int((q.get("hari") or ["30"])[0] or 30)
             return self.json(AN.statistik(muat_semua(), now_ms(), hari, label), extra=ex)
@@ -1589,8 +1642,8 @@ class handler(BaseHTTPRequestHandler):
             lu, la = int(db().cmd("HGET", "tlu", f) or 0), int(db().cmd("HGET", "tla", f) or 0)
             if lu > la:
                 db().pipe([["RPUSH", "rt", round((now_ms() - lu) / 60000, 1)], ["LTRIM", "rt", -200, -1]])
-            add_msg(pid, k, "admin", isi)
-            return self.json({"ok": True}, extra=ex)
+            tk = add_msg(pid, k, "admin", isi)
+            return self.json({"ok": True, "tk": tk}, extra=ex)
         if r == "selesai":
             pid, k = int(b.get("pid") or 0), str(b.get("kunci", ""))
             if not valid_key(k):
@@ -1626,7 +1679,7 @@ class handler(BaseHTTPRequestHandler):
         if r == "hapus":
             pid, k = int(b.get("pid") or 0), str(b.get("kunci", ""))
             f = "%s|%s" % (pid, k)
-            db().pipe([["DEL", "msgs:" + f], ["SREM", "pk:%s" % pid, k]] + [["HDEL", h, f] for h in ("tlu", "tla", "tlast", "sel", "nilai", "tmeta", "ttag", "cat", "rd")])
+            db().pipe([["DEL", "msgs:" + f], ["SREM", "pk:%s" % pid, k]] + [["HDEL", h, f] for h in ("tlu", "tla", "tlast", "sel", "nilai", "tmeta", "ttag", "cat", "rd", "tkt")])
             return self.json({"ok": True}, extra=ex)
         if r == "pengaturan":
             cmds = []
