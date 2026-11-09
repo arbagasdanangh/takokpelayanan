@@ -308,3 +308,6 @@ Seluruh KBLI 2025 (1.559 kode, sumber Peraturan BPS 7/2025) sudah dibawa di `pub
 
 ## Pandu KBLI (v21-22)
 Tile baru "Pandu KBLI": cari kode dari kata sehari-hari, lihat peringatan "bukan ini?" (diambil dari kalimat "tidak mencakup ... lihat kode ..." di uraian resmi), pilih beberapa KBLI, centang dokumen, lalu cetak/salin "Paket Siap Datang" atau kirim ke Tanya Admin/Asisten. File: `public/kbli-pandu.js`. Contoh usaha di game sudah diperbarui ke kode KBLI 2025.
+
+## Tebak KBLI Harian (v23)
+Permainan ke-10 di Ruang Main (`public/tebak-kbli.js`): 5 soal harian yang sama untuk semua orang dari 1.559 KBLI 2025 (uraian -> judul, judul -> kode), penjelasan tiap jawaban, hasil bisa dibagikan sebagai kotak hijau/merah, poin penuh hanya untuk permainan harian pertama, plus latihan acak. Pemakaian dihitung anonim di statistik admin seperti permainan lain.
