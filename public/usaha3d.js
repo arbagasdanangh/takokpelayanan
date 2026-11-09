@@ -6,7 +6,7 @@
    Tambahan v17: tekstur (bata, genteng, kaca, rumput), bayangan, fasad rinci per usaha, properti khas tiap usaha, kota di latar,
    tahap konstruksi (pagar proyek, perancah, pekerja), pembukaan (karangan bunga, balon, lampu hias), kendali kamera
    (miring, zoom, depan/samping/atas), siang/senja/malam manual, "Jelajahi maket" dengan pin, dan pilihan Detail Tinggi/Hemat.
-   Kode KBLI di sini hanya CONTOH belajar (urutan KBLI 2020). OSS memakai KBLI 2025, jadi kode selalu harus dicek di OSS
+   Seluruh KBLI 2025 (1.559 kode, berkas public/kbli-2025.json) bisa dicari dan dijelajahi per golongan lalu dibangun. Maket awal memakai kode CONTOH belajar; OSS tetap rujukan akhir.
    atau ditanyakan ke admin. Bila admin sudah mengimpor data KBLI, kode contoh dicocokkan dengan data itu. */
 (function () {
 var API = window.TKGM;
@@ -341,7 +341,7 @@ function note(b) {
   try {
     if (window.KBLI && KBLI.has()) {
       var r = KBLI.byKode(b.k);
-      return r ? 'Di data KBLI Takok: <b>' + esc(r[0]) + '</b> ' + esc(r[1]) + '. Cocokkan dengan kegiatan Anda.' : 'Kode ' + b.k + ' tidak ada di data KBLI Takok, mungkin berubah di KBLI 2025. Cari kode yang tepat lewat Ctrl+K atau tanya Asisten.';
+      return r ? 'Di data KBLI Takok: <b>' + esc(r[0]) + '</b> ' + esc(r[1]) + '. Cocokkan dengan kegiatan Anda.' + (r[2] ? '<br><span class="u3-ur">' + esc(r[2].length > 260 ? r[2].slice(0, 258) + "…" : r[2]) + '</span>' : "") : 'Kode ' + b.k + ' tidak ada di data KBLI Takok, mungkin berubah di KBLI 2025. Cari kode yang tepat lewat Ctrl+K atau tanya Asisten.';
     }
   } catch (e) {}
   return 'Kode ini contoh belajar (urutan KBLI 2020). OSS memakai KBLI 2025, jadi pastikan kodenya di OSS atau tanya admin.';
@@ -374,7 +374,7 @@ var DIV = {
   online: ["58", "59", "60", "61", "62", "63", "47912", "73", "74", "82"], general: []
 };
 var PAL = [["#f6c27a", "#b9440f", "#d9341f"], ["#cfe3ff", "#1d4ed8", "#2563eb"], ["#c8f0ee", "#0f766e", "#0d9488"], ["#e4d4f4", "#6d28d9", "#7c3aed"], ["#fbd5b5", "#9a3412", "#c2410c"], ["#d1d5db", "#374151", "#dc2626"], ["#fbcfe8", "#be185d", "#db2777"], ["#dcfce7", "#166534", "#16a34a"]];
-var EMO = {"01": "🌾", "02": "🌲", "03": "🐟", "10": "🍞", "11": "🥤", "13": "🧵", "14": "👕", "16": "🪵", "18": "🖨️", "25": "⚙️", "31": "🪑", "41": "🏗️", "43": "🏗️", "45": "🔧", "46": "📦", "47": "🛍️", "49": "🚚", "52": "📦", "55": "🏨", "56": "🍽️", "58": "📚", "62": "💻", "63": "💻", "68": "🏠", "69": "📑", "70": "💼", "73": "📣", "74": "📷", "79": "🧳", "85": "🎓", "86": "🩺", "93": "🏋️", "95": "🔧", "96": "🧺"};
+var EMO = {"05": "⛏️", "06": "🛢️", "07": "⛏️", "08": "⛏️", "09": "⛏️", "12": "🚬", "15": "👞", "17": "📄", "19": "🛢️", "20": "🧪", "21": "💊", "22": "🛞", "23": "🧱", "24": "🔩", "26": "🔌", "27": "💡", "28": "⚙️", "29": "🚗", "30": "🚢", "32": "💎", "33": "🔧", "35": "⚡", "36": "🚰", "37": "🚰", "38": "♻️", "39": "♻️", "42": "🛣️", "50": "🚢", "51": "✈️", "53": "📮", "59": "🎬", "60": "📻", "61": "📡", "64": "🏦", "65": "🛡️", "66": "💳", "71": "📐", "72": "🔬", "75": "🐾", "77": "🔑", "78": "🧑‍💼", "80": "🛡️", "81": "🧹", "82": "🗂️", "84": "🏛️", "87": "🤝", "88": "🤝", "90": "🎭", "91": "📚", "92": "🎲", "94": "🏢", "97": "🏡", "98": "🏠", "99": "🌐", "01": "🌾", "02": "🌲", "03": "🐟", "10": "🍞", "11": "🥤", "13": "🧵", "14": "👕", "16": "🪵", "18": "🖨️", "25": "⚙️", "31": "🪑", "41": "🏗️", "43": "🏗️", "45": "🔧", "46": "📦", "47": "🛍️", "49": "🚚", "52": "📦", "55": "🏨", "56": "🍽️", "58": "📚", "62": "💻", "63": "💻", "68": "🏠", "69": "📑", "70": "💼", "73": "📣", "74": "📷", "79": "🧳", "85": "🎓", "86": "🩺", "93": "🏋️", "95": "🔧", "96": "🧺"};
 function mkBiz(k, n) {
   var d = String(k).slice(0, 2), cat = "general", c; for (c in DIV) if (DIV[c].indexOf(d) > -1) cat = c;
   var pl = PAL[(+String(k).slice(0, 3) || 0) % PAL.length], nm = String(n || "").replace(/^\s+|\s+$/g, "");
@@ -386,7 +386,7 @@ function mkBiz(k, n) {
 function useBiz(k, n) {
   var i; for (i = 0; i < BIZ.length; i++) if (BIZ[i].k === String(k) && !BIZ[i].custom) { pick2(i); return; }
   for (i = 0; i < BIZ.length; i++) if (BIZ[i].custom && BIZ[i].k === String(k)) { pick2(i); return; }
-  var cs = BIZ.filter(function (b) { return b.custom; }); if (cs.length >= 8) BIZ.splice(BIZ.indexOf(cs[0]), 1);
+  var cs = BIZ.filter(function (b) { return b.custom; }); if (cs.length >= 30) BIZ.splice(BIZ.indexOf(cs[0]), 1);
   BIZ.push(mkBiz(k, n)); pick2(BIZ.length - 1);
 }
 function pick2(i) { PICK = i; menu(); var c = document.querySelector('.u3-ch[data-i="' + i + '"]'); if (c && c.scrollIntoView) { try { c.scrollIntoView({block: "nearest", inline: "center"}); } catch (e) {} } }
@@ -396,21 +396,35 @@ function srch(q) {
   try { if (window.KBLI && KBLI.has()) R = KBLI.search(q, 6); } catch (e) {}
   var h = R.map(function (r) { return '<button type="button" class="u3-sb" data-u3="kb" data-k="' + esc(r[0]) + '" data-n="' + esc(r[1]) + '"><b>' + esc(r[0]) + '</b> ' + esc(r[1]) + '</button>'; }).join("");
   if (!R.length && m) h = '<button type="button" class="u3-sb" data-u3="kb" data-k="' + m[1] + '" data-n="' + esc(m[2]) + '"><b>' + m[1] + '</b> ' + esc(m[2] || "Bangun usaha dengan kode ini") + '</button>';
-  if (!h) h = '<small class="sys">' + (window.KBLI && KBLI.has() ? "Tidak ketemu. Coba kata lain atau ketik kode 5 digit." : "Data KBLI belum diimpor admin. Ketik kode 5 digit dan nama usaha, misalnya: 47711 Toko Sepatu.") + '</small>';
+  if (!h) h = '<small class="sys">' + (window.KBLI && KBLI.has() ? "Tidak ketemu. Coba kata lain atau ketik kode 5 digit." : "Data KBLI sedang dimuat. Ketik kode 5 digit dan nama usaha, misalnya: 47711 Toko Sepatu.") + '</small>';
   o.innerHTML = h;
 }
+/* Jelajahi seluruh KBLI per golongan pokok (2 angka awal). Judul golongan = judul kode pertamanya. */
+function divOpts() {
+  var A = (window.KBLI && KBLI.all()) || [], seen = {}, o = '<option value="">Pilih golongan KBLI (' + A.length + ' kode)…</option>';
+  A.forEach(function (r) { var d = r[0].slice(0, 2); if (!seen[d]) seen[d] = {n: 0, t: r[1]}; seen[d].n++; });
+  Object.keys(seen).sort().forEach(function (d) { var t = seen[d].t; o += '<option value="' + d + '">' + d + ' · ' + esc(t.length > 42 ? t.slice(0, 40) + "…" : t) + ' (' + seen[d].n + ')</option>'; });
+  return o;
+}
+function dvList(d) {
+  var o = $("u3dl"); if (!o) return; if (!d) { o.innerHTML = ""; return; }
+  o.innerHTML = KBLI.all().filter(function (r) { return r[0].indexOf(d) === 0; }).map(function (r) { return '<button type="button" class="u3-sb" data-u3="kb" data-k="' + esc(r[0]) + '" data-n="' + esc(r[1]) + '"><b>' + esc(r[0]) + '</b> ' + esc(r[1]) + '</button>'; }).join("");
+}
+function fillDiv() { var s = $("u3dv"); if (s && window.KBLI && KBLI.has()) { var v = s.value; s.innerHTML = divOpts(); s.value = v; var q = $("u3sq"); if (q) q.placeholder = "Cari dari " + KBLI.count() + " KBLI: bengkel motor, toko sepatu, 47711…"; } }
+document.addEventListener("kbli-ready", fillDiv);
 /* ---------- Menu ---------- */
 var PICK = 0;
 function menu() {
   API.stopAll(); API.title("Usaha 3D");
   API.view(API.bar("Bangun Usaha 3D") + '<p class="sys" style="margin:0 0 8px">Pilih usaha impian, lihat maketnya tumbuh dalam 3D, lalu uji pengetahuan soal KBLI, NIB, dan perizinan. Seret maket untuk memutarnya.</p>' +
     stageHtml(skyCls()) + hotHtml() +
-    '<div class="u3-sq"><input class="si" id="u3sq" type="search" placeholder="Cari KBLI lain: bengkel motor, toko sepatu, 47711…" autocomplete="off" aria-label="Cari KBLI untuk dibangun"><div id="u3sr" class="u3-sr"></div></div>' +
-    '<div class="u3-pick" role="group" aria-label="Pilih usaha (' + BIZ.length + ' contoh, atau cari KBLI lain)">' + BIZ.map(function (b, i) { return '<button type="button" class="u3-ch" data-u3="pick" data-i="' + i + '" aria-pressed="' + (i === PICK) + '"><span>' + b.e + '</span><b>' + esc(b.n) + '</b><small>KBLI ' + b.k + '</small></button>'; }).join("") + '</div>' +
+    '<div class="u3-sq"><input class="si" id="u3sq" type="search" placeholder="Cari dari semua KBLI: bengkel motor, toko sepatu, 47711…" autocomplete="off" aria-label="Cari KBLI untuk dibangun"><select class="si" id="u3dv" aria-label="Jelajahi semua KBLI per golongan" style="margin-top:6px"></select><div id="u3dl" class="u3-sr u3-dl"></div><div id="u3sr" class="u3-sr"></div></div>' +
+    '<div class="u3-pick" role="group" aria-label="Pilih usaha (' + BIZ.length + ' contoh, atau cari dari semua KBLI)">' + BIZ.map(function (b, i) { return '<button type="button" class="u3-ch" data-u3="pick" data-i="' + i + '" aria-pressed="' + (i === PICK) + '"><span>' + b.e + '</span><b>' + esc(b.n) + '</b><small>KBLI ' + b.k + '</small></button>'; }).join("") + '</div>' +
     '<div class="u3-inf" id="u3i"></div>' +
     '<div class="btns" style="justify-content:center"><button type="button" class="send" data-u3="story">&#9654; Tonton animasi</button><button type="button" class="btn" data-u3="play">&#127918; Main 5 tantangan</button></div>' +
     '<p class="sys">Kode KBLI di sini hanya contoh belajar, bukan nasihat perizinan. Pastikan kode dan syarat terbaru lewat OSS atau loket.</p>');
   mount(PICK, 5, false, false); info();
+  fillDiv(); if (window.KBLI && !KBLI.has()) KBLI.ready();
 }
 function info() {
   var b = BIZ[PICK], i = $("u3i"); if (!i) return;
@@ -581,6 +595,8 @@ $("gmb").addEventListener("click", function (e) {
 });
 
 $("gmb").addEventListener("input", function (e) { if (e.target && e.target.id === "u3sq") srch(e.target.value); });
+$("gmb").addEventListener("change", function (e) { if (e.target && e.target.id === "u3dv") dvList(e.target.value); });
+document.addEventListener("kbli-ready", function () { var q = $("u3sq"); if (q && q.value) srch(q.value); });
 
 /* Pratinjau kecil untuk kartu di menu Ruang Main (berputar sendiri lewat CSS). */
 function mini() {

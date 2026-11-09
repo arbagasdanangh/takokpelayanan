@@ -10,9 +10,24 @@ var SYN = {warung: "makan restoran", warteg: "makan restoran", kopi: "kedai minu
 function norm(s) { return String(s || "").toLowerCase(); }
 function prep(rows) { D.r = rows; D.ix = rows.map(function (r) { return norm(r[1] + " " + r[2]); }); }
 function load() { try { var o = JSON.parse(localStorage.getItem(KEY) || "null"); if (o && o.v && Array.isArray(o.r)) { D.v = o.v; D.m = o.m || {}; prep(o.r); } } catch (e) {} }
+/* Data bawaan: seluruh KBLI 2025 (1.559 kode) dari berkas statis. Dipakai bila admin belum mengimpor data sendiri;
+   data impor admin (bila ada) selalu didahulukan. */
+var BUN = null;
+function bundled() {
+  if (D.r.length || BUN) return BUN;
+  BUN = fetch("/kbli-2025.json?v=1").then(function (x) { return x.ok ? x.json() : null; }).then(function (j) {
+    if (j && j.rows && j.rows.length && !D.r.length) {
+      D.v = ""; D.m = j.m || {};
+      prep(j.rows.map(function (r) { return [r[0], r[1], r[2] || "", "", "", ""]; }));
+      document.dispatchEvent(new Event("kbli-ready"));
+    }
+  }).catch(function () { BUN = null; });
+  return BUN;
+}
 load();
+if (!D.r.length) setTimeout(bundled, 0);
 async function sync(v, m) {
-  if (!v) { D.v = ""; D.m = {}; prep([]); try { localStorage.removeItem(KEY); } catch (e) {} return; }
+  if (!v) { try { localStorage.removeItem(KEY); } catch (e) {} D.v = ""; D.m = {}; prep([]); bundled(); return; }
   if (D.v === v) { D.m = m || D.m; return; }
   try {
     var j = await api("/api/kbli?v=" + encodeURIComponent(v));
@@ -59,7 +74,7 @@ function tanyaAdmin(r, extra) {
   KEEP["q:" + k] = (extra || "Saya ingin bertanya tentang KBLI " + r[0] + " (" + r[1] + "). ");
   if (window.openKey) openKey(k); return true;
 }
-window.KBLI = {sync: sync, has: function () { return D.r.length > 0; }, count: function () { return D.r.length; }, meta: meta, search: search, byKode: byKode, risk: risk, favs: favs, toggleFav: toggleFav, clearFavs: function () { setFavs([]); }, detailHtml: detailHtml, copy: copy, tanyaAdmin: tanyaAdmin, judul: judulMeta, words: words};
+window.KBLI = {sync: sync, ready: function () { return D.r.length ? Promise.resolve() : (bundled() || Promise.resolve()); }, all: function () { return D.r; }, has: function () { return D.r.length > 0; }, count: function () { return D.r.length; }, meta: meta, search: search, byKode: byKode, risk: risk, favs: favs, toggleFav: toggleFav, clearFavs: function () { setFavs([]); }, detailHtml: detailHtml, copy: copy, tanyaAdmin: tanyaAdmin, judul: judulMeta, words: words};
 
 /* Tombol di kartu detail (dipakai pencarian cepat) */
 document.addEventListener("click", function (e) {

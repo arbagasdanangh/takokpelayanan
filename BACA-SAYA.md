@@ -302,3 +302,6 @@ Diuji otomatis di Chromium (HP 390 px dan desktop) dengan API tiruan dari data l
 - "Jelajahi maket": 5 pin (papan KBLI, NIB, bangunan, papan nama, pos Takok) dengan penjelasan dan tombol ke Asisten/booking.
 - Soal diacak dari 2 variasi per tahap, plus soal khusus (halal, limbah, toko online) sesuai jenis usaha.
 - Cache `?v=19`. Contoh usaha ditambah jadi 18, ditambah kotak "Cari KBLI lain": bila data KBLI sudah diimpor admin, hasil pencarian bisa langsung dibangun; bila belum, ketik kode 5 digit + nama usaha. Tampilan dipilih otomatis dari golongan pokok KBLI.
+
+## Data KBLI bawaan (v20)
+Seluruh KBLI 2025 (1.559 kode, sumber Peraturan BPS 7/2025) sudah dibawa di `public/kbli-2025.json` dan otomatis dipakai pencarian, Ctrl+K, penyisip KBLI Tanya Admin, serta game Bangun Usaha 3D (cari, atau jelajahi per golongan). Bila admin mengimpor data KBLI sendiri di tab "Data KBLI", data impor itu yang didahulukan; menghapusnya mengembalikan ke data bawaan.

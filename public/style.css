@@ -759,3 +759,5 @@ details.row{transition:box-shadow .2s,transform .2s}details.row:hover{transform:
 .u3-sq{margin:8px 0}.u3-sr{display:flex;flex-direction:column;gap:4px;margin-top:6px}
 .u3-sb{text-align:left;padding:8px 10px;border:1px solid var(--bd,#cbd5e1);border-radius:10px;background:#fff;font:inherit;font-size:13px;cursor:pointer}
 .u3-sb b{font-family:ui-monospace,monospace;color:#1e3a8a}
+
+.u3-dl{max-height:220px;overflow:auto}.u3-ur{display:block;margin-top:4px;opacity:.85}
