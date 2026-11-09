@@ -741,7 +741,7 @@ class handler(BaseHTTPRequestHandler):
         db().pipe([["HINCRBY", "miss", t, 1], ["HSET", "missw", t, now_ms()], ["HINCRBY", "kmd", time.strftime("%Y%m%d", wib()), 1]])
         return self.json({"ok": True})
 
-    GAMES = ("cocok", "susun", "urut", "kuis", "kata", "tangkap", "suro", "roda")
+    GAMES = ("cocok", "susun", "urut", "kuis", "kata", "tangkap", "suro", "roda", "usaha")
 
     def game_main(self, b):
         """Hitung pemakaian Ruang Main secara anonim (tanpa IP/identitas): total per permainan dan per hari."""

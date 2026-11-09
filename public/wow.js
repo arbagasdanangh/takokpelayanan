@@ -8,7 +8,7 @@ function dl(name, txt) { try { var a = document.createElement("a"); a.href = URL
 function tg(m) { if (window.toast) toast(m); }
 
 /* ===== Palet pencarian cepat (Ctrl+K) ===== */
-var ACT = [["Tanya Asisten Takok", "bf"], ["Booking kunjungan", "t8"], ["Tanya admin", "t5"], ["Status permohonan", "t7"], ["Buat pengaduan", "t6"], ["Survei kepuasan", "t9"], ["Ruang Main (permainan)", "mbgo"], ["Ganti tema", "th"]];
+var ACT = [["Tanya Asisten Takok", "bf"], ["Booking kunjungan", "t8"], ["Tanya admin", "t5"], ["Status permohonan", "t7"], ["Buat pengaduan", "t6"], ["Survei kepuasan", "t9"], ["Ruang Main (permainan)", "mbgo"], ["Bangun Usaha 3D (animasi KBLI)", "mbusaha"], ["Ganti tema", "th"]];
 var PI = 0, PR = [];
 function recents() { try { var a = JSON.parse(localStorage.getItem("tk_rs") || "[]"); return Array.isArray(a) ? a.slice(0, 5) : []; } catch (x) { return []; } }
 function rec(q) { q = (q || "").trim(); if (q.length < 3) return; try { var a = recents().filter(function (x) { return x !== q; }); a.unshift(q); localStorage.setItem("tk_rs", JSON.stringify(a.slice(0, 5))); } catch (x) {} }

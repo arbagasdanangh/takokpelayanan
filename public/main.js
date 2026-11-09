@@ -2,7 +2,7 @@
 /* Versi 9: Ruang Main (permainan bentuk), konfeti, maskot. Tanpa library, tanpa data pribadi.
    Poin, lencana, dan skor terbaik hanya tersimpan di perangkat (localStorage). Server hanya menghitung jumlah permainan secara anonim. */
 (function () {
-var G = {pts: 0, plays: 0, gp: {}, best: {}, days: [], badges: {}, sound: 0, kata: {}, qd: "", qp: {}, qdone: {}, roda: ""}, KEY = "tk_game9";
+var G = {pts: 0, plays: 0, gp: {}, best: {}, days: [], badges: {}, sound: 0, kata: {}, qd: "", qp: {}, qdone: {}, roda: "", ub: {}}, KEY = "tk_game9";
 try { var raw = localStorage.getItem(KEY); if (raw) { var o = JSON.parse(raw); if (o && typeof o === "object") for (var k in G) if (o[k] !== undefined) G[k] = o[k]; } } catch (e) {}
 function save() { try { localStorage.setItem(KEY, JSON.stringify(G)); } catch (e) {} }
 var RM = !!(window.matchMedia && matchMedia("(prefers-reduced-motion:reduce)").matches);
@@ -86,7 +86,9 @@ var BD = [
   {id: "hoki", n: "Si Hoki", d: "Putar Roda Takok", s: "bintang", ok: function () { return (G.gp.roda || 0) >= 1; }},
   {id: "misi", n: "Misi Tuntas", d: "Selesaikan 3 tantangan dalam sehari", s: "plus", ok: function () { return Object.keys(G.qdone || {}).length >= 3; }},
   {id: "sepuluh", n: "Sepuluh Kali", d: "Main 10 kali", s: "segienam", ok: function () { return G.plays >= 10; }},
-  {id: "maniak", n: "Maniak Main", d: "Coba semua 8 permainan", s: "belah", ok: function () { return ["cocok", "susun", "urut", "kuis", "kata", "tangkap", "suro", "roda"].every(function (g) { return G.gp[g] > 0; }); }}
+  {id: "maniak", n: "Maniak Main", d: "Coba semua 9 permainan", s: "belah", ok: function () { return ["cocok", "susun", "urut", "kuis", "kata", "tangkap", "suro", "roda", "usaha"].every(function (g) { return G.gp[g] > 0; }); }},
+  {id: "juragan", n: "Juragan Muda", d: "Bangun usaha 3D tanpa salah (3 bintang)", s: "hati", ok: function () { return Object.keys(G.ub || {}).some(function (k) { return G.ub[k] >= 3; }); }},
+  {id: "wirausaha", n: "Calon Wirausaha", d: "Bangun 3 usaha berbeda di Bangun Usaha 3D", s: "plus", ok: function () { return Object.keys(G.ub || {}).length >= 3; }}
 ];
 
 /* ---------- Overlay ---------- */
@@ -119,6 +121,7 @@ function bar(t, mid) { return '<div class="gm-bar"><button type="button" class="
 function home() {
   stopAll(); $g("gmt").textContent = "Ruang Main"; top();
   var lv = lvl(), pr = G.pts % 100, st = streak(), t = titleOf(lv), td = today(), kd = G.kata[td], rd = G.roda === td;
+  var ua = G.ub && Object.keys(G.ub).length;
   var cards = [
     ["kata", ["persegi", "bintang", "persegi"], "Tebak Kata", "Satu kata baru tiap hari, 6 kesempatan. Bagikan hasilnya!", kd ? (kd.w ? "Hari ini: " + kd.t + "/6" : "Hari ini: gagal") : "Kata harian menunggu", !kd],
     ["tangkap", ["segitiga", "bintang", "belah"], "Tangkap Berkas", "Tangkap berkas, hindari yang merah, kejar kombo x4.", G.best.t ? "Rekor: " + G.best.t + " poin" : "Belum dimainkan"],
@@ -131,7 +134,7 @@ function home() {
   ];
   view('<div class="gm-lv"><div class="gm-ring" style="--p:' + pr + '"><span>' + lv + '</span></div><div><small>Level ' + lv + '</small><b>' + t + '</b><small>' + G.pts + ' poin &middot; ' + (100 - pr) + ' poin lagi ke level ' + (lv + 1) + (st >= 2 ? ' &middot; &#128293; ' + st + ' hari beruntun' : '') + '</small></div></div>' +
     questHtml() +
-    '<h2>Pilih permainan</h2><div class="gm-games">' + cards.map(function (c) {
+    '<h2>Pilih permainan</h2><div class="gm-games"><button type="button" class="gc wide hot" data-g="usaha"><span class="u3-gm">' + (window.Usaha3D ? Usaha3D.mini() : "") + '</span><span class="u3-gt"><em class="u3-new">BARU &middot; 3D</em><b>Bangun Usaha 3D</b><small>Pilih KBLI, daftar NIB, urus izin, lalu lihat usahamu berdiri dalam maket 3D. Tonton animasinya atau main 5 tantangan!</small><em>' + (ua ? ua + " usaha sudah dibangun" : "Belum dimainkan") + '</em></span></button>' + cards.map(function (c) {
       return '<button type="button" class="gc' + (c[5] ? " hot" : "") + '" data-g="' + c[0] + '"><span class="gi">' + c[1].map(function (k) { return svg(k); }).join("") + '</span><b>' + c[2] + '</b><small>' + c[3] + '</small><em>' + c[4] + '</em></button>';
     }).join("") + '</div>' +
     '<h2>Statistik Anda</h2><div class="gm-st"><div><b>' + G.plays + '</b><small>permainan</small></div><div><b>' + G.pts + '</b><small>poin</small></div><div><b>' + Object.keys(G.badges).length + '/' + BD.length + '</b><small>lencana</small></div><div><b>' + Math.max(st, 0) + '</b><small>hari beruntun</small></div></div>' +
@@ -329,7 +332,8 @@ var QP = [
   {id: "tangkap", t: "Capai skor 150 di Tangkap Berkas", n: 150, v: function (p) { return p.tmax || 0; }},
   {id: "suro", t: "Jawab 4 benar di Kuis Suroboyo", n: 4, v: function (p) { return p.suro || 0; }},
   {id: "roda", t: "Putar Roda Takok", n: 1, v: function (p) { return p.roda || 0; }},
-  {id: "urut", t: "Ingat 5 urutan di Ingat Urutan", n: 5, v: function (p) { return p.urut || 0; }}
+  {id: "urut", t: "Ingat 5 urutan di Ingat Urutan", n: 5, v: function (p) { return p.urut || 0; }},
+  {id: "usaha", t: "Bangun satu usaha di Bangun Usaha 3D", n: 1, v: function (p) { return (p.kinds || {}).usaha ? 1 : 0; }}
 ];
 function hariIni() {
   var d = today(); if (G.qd !== d) { G.qd = d; G.qp = {}; G.qdone = {}; save(); }
@@ -568,7 +572,7 @@ document.addEventListener("keyup", function (e) { if (TG && (e.key === "ArrowLef
 $g("gmb").addEventListener("click", function (e) {
   var b = e.target.closest("[data-g],[data-c],[data-m],[data-kk]"); if (!b) return;
   if (b.dataset.kk) { kataKey(b.dataset.kk); b.blur(); return; }
-  if (b.dataset.g) { var g = b.dataset.g; if (g === "cocok") cocokMenu(); else if (g === "susun") susunStart(); else if (g === "urut") urutStart(); else if (g === "kuis") kuisStart(); else if (g === "kata") kataStart(true); else if (g === "tangkap") tangkapStart(); else if (g === "suro") suroStart(); else if (g === "roda") rodaStart(); }
+  if (b.dataset.g) { var g = b.dataset.g; if (g === "cocok") cocokMenu(); else if (g === "susun") susunStart(); else if (g === "urut") urutStart(); else if (g === "kuis") kuisStart(); else if (g === "kata") kataStart(true); else if (g === "tangkap") tangkapStart(); else if (g === "suro") suroStart(); else if (g === "roda") rodaStart(); else if (g === "usaha") { if (window.Usaha3D) Usaha3D.menu(); } }
   else if (b.dataset.c) cocokStart(+b.dataset.c);
   else if (b.dataset.m === "home") home();
   else if (b.dataset.m === "again") { if (AGAIN) AGAIN(); else home(); }
@@ -580,8 +584,13 @@ $g("gmb").addEventListener("click", function (e) {
   else if (b.dataset.m === "tgstart") { if (TGGO) TGGO(); }
 });
 
+/* ---------- Pintu untuk modul lain (usaha3d.js) ---------- */
+window.TKGM = {view: view, fin: fin, later: later, stopAll: stopAll, bar: bar, beep: beep, konfeti: function (n) { window.konfeti(n); }, G: function () { return G; }, close: function () { closeGM(); },
+  title: function (t) { $g("gmt").textContent = t; }, hash: hash, today: today, ping: ping};
+
 /* ---------- Banner + maskot ---------- */
 if ($g("mbgo")) $g("mbgo").onclick = openGM;
+if ($g("mbusaha")) $g("mbusaha").onclick = function () { openGM(); if (window.Usaha3D) Usaha3D.menu(); };
 top();
 var MS = $g("mas"), MB = $g("masb");
 if (MS) MS.onclick = function () { if (window.openAsisten) window.openAsisten(); };

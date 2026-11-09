@@ -246,3 +246,15 @@ Catatan: sinonim pencarian hanya memperluas kata kunci, bukan data resmi. Tes ot
 
 Cache browser: semua berkas kini `?v=14`. Bila tampilan lama masih muncul setelah deploy, muat ulang keras.
 Diuji otomatis di Chromium (ukuran HP 390 px dan desktop 1100 px, dengan data tiruan); belum diuji di perangkat sentuh sungguhan maupun dengan data produksi.
+
+## Versi 14: Bangun Usaha 3D (permainan ke-9 di Ruang Main)
+File baru `public/usaha3d.js` (+ gaya di akhir `style.css`). Maket 3D dibuat **murni dari CSS 3D**: tanpa library, tanpa gambar, tanpa server baru, jadi aman terhadap CSP yang ada. Langit mengikuti jam WIB (siang, senja, malam dengan jendela menyala).
+- **Tonton animasi**: Dani ingin membuka usaha, memilih KBLI, mendaftar NIB di OSS, mengecek perizinan sesuai risiko, memastikan lokasi (KKPR dan PBG), lalu usahanya berdiri tahap demi tahap (papan KBLI, fondasi, dinding, atap, grand opening dengan pelanggan berjalan, mobil lewat, balon). Maket bisa diputar dengan geser jari/mouse, tombol putar, atau panah kiri/kanan.
+- **Main 5 tantangan**: tiap jawaban benar membangun maketnya (poin 10 bila langsung benar, 4 bila setelah salah, bonus 20; bintang menurut jumlah salah). Soal: KBLI mana yang cocok, di mana mendaftar NIB, langkah setelah NIB, tempat usaha, dan cara minta bantuan tanpa calo/OTP.
+- 10 contoh usaha: Warung Makan 56102, Kafe 56303, Toko Online 47911, Laundry 96011, Katering 56210, Konveksi 14111, Roti & Kue 10710, Bengkel Mobil 45201, Percetakan 18110, Toko Pakaian 47711. Ubah di `BIZ` (`usaha3d.js`).
+- **Penting soal KBLI**: kode di atas hanya **contoh belajar** (urutan KBLI 2020) dan wajib diperiksa ulang. Layar selalu menampilkan catatan ini. Bila admin sudah mengimpor data KBLI 2025 (tab Data KBLI), kode contoh dicocokkan otomatis dengan data itu dan judul resminya ditampilkan; bila tidak ada, pemain diarahkan mencari kode yang tepat. Isi tips tiap usaha bersifat umum; periksa ke loket.
+- Kartu besar "Bangun Usaha 3D" (dengan maket kecil yang berputar) di menu Ruang Main, tombol baru **Animasi usaha 3D** di banner beranda, dan entri di Pencarian Cepat (Ctrl+K).
+- 2 lencana baru (Juragan Muda, Calon Wirausaha; total 17), tantangan harian baru, hasil bisa dibagikan, tombol "Tanya Asisten: KBLI xxxxx" dan "Booking kunjungan" di akhir animasi. `Maniak Main` kini butuh 9 permainan.
+- Server: `usaha` ditambahkan ke daftar `GAMES` (`api/app.py`) dan label admin (`fitur.js`) untuk hitung pemakaian anonim.
+- Aksesibilitas: mode "kurangi gerakan" mematikan animasi (maket tetap bisa diputar manual); langkah ditulis sebagai teks, bukan hanya gambar.
+Diuji otomatis di Chromium (HP 400 px terang, desktop 1100 px gelap): menu, animasi, 5 tantangan, hasil, penyimpanan lencana, tanpa galat skrip. Belum diuji di HP sungguhan; maket memuat sekitar 400 elemen CSS sehingga HP lama bisa terasa berat. Cache browser: berkas kini `?v=15` (muat ulang keras bila tampilan lama).
