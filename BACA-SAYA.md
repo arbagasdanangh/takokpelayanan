@@ -315,3 +315,12 @@ Permainan ke-10 di Ruang Main (`public/tebak-kbli.js`): 5 soal harian yang sama 
 ## Asisten Piket + percakapan lebih rapi (v26)
 - **Asisten Piket** (pengganti pegawai sementara): admin buka tab "Asisten Piket" lalu pilih mode: Mati / Pegawai tidak di tempat (langsung menjawab) / Cadangan (menjawab bila pegawai belum membalas dalam N menit). Jawaban dibuat dari aturan "Kata cari chatbot" + templat topik (tanpa AI luar), diberi label "jawaban otomatis", maksimal 3 beruntun, percakapan tetap tercatat "belum dijawab" untuk ditinjau pegawai. Pengaduan/pesan mendesak hanya dijawab dengan pernyataan diteruskan ke pegawai. Warga bisa menekan "Minta dijawab pegawai" (tag Eskalasi). Mode Cadangan dipicu saat warga membuka percakapan (Vercel tidak punya proses latar).
 - **Percakapan rapi**: kartu status + nomor tiket, pemisah hari (Hari ini/Kemarin), pesan beruntun dikelompokkan, gelembung khusus Asisten Piket, daftar "Percakapan saya" dikelompokkan (Perlu Anda lihat / Menunggu balasan) dengan saringan dan pencarian tiket, dan tombol "Cari kode KBLI" ke Pandu KBLI.
+
+## Tanya Plus (v28)
+- **Jawaban Instan**: saat warga mengetik pertanyaan di loket, muncul jawaban dari aturan Kata cari (plus saran kode KBLI bila menyangkut usaha). "Sudah terjawab" membatalkan pengiriman dan dihitung sebagai pertanyaan yang selesai tanpa pegawai; "Tetap kirim ke pegawai" menyembunyikan saran.
+- **Ramai ditanyakan minggu ini**: kata kunci aturan yang paling sering dipakai 7 hari terakhir (anonim, endpoint publik `/api/populer`, cache 5 menit), tampil di beranda dan di chatbot. Jika belum ada data, tampil "Sering ditanyakan".
+- **Mulai dari sini** di chatbot: jalur cepat untuk buka usaha, PBG, perpanjang izin, mengadu, dan Pandu KBLI.
+File: `public/tanya-plus.js`.
+
+## Waktu pengerjaan (v30)
+Tebak KBLI: 20 detik per soal; Bangun Usaha 3D: 30 detik per tahap. Batang waktu + hitung mundur (`public/waktu.js`), waktu habis dihitung salah dan jawaban benar ditampilkan, bonus kecepatan (+2 poin Tebak KBLI, +3 poin 3D), total waktu tampil di hasil dan di teks bagikan. Tombol "Mode santai" mematikan batas waktu (diingat di perangkat, ramah untuk pemula/lansia).
