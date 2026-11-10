@@ -30,6 +30,7 @@ function canIn(o) { return o.status === "Terjadwal" && o.tanggal === today() && 
 function locOf(o) { var id = o.lokasi || String(o.kunci).split("_")[0]; return LOCS.filter(function (l) { return l.id === id; })[0] || {id: id, nm: id}; }
 function nmLoket(o) { var e = entryOf(o.kunci); return e ? e[1] : label(o.kunci); }
 function rute(o) { var l = locOf(o); return l.mp || ("https://www.google.com/maps/dir/?api=1&destination=" + encodeURIComponent(l.al || ((l.nm || "") + " Surabaya"))); }
+function SYA(o) { return !!(window.SY && SY.ada(o.kunci)); }
 function kbOf(o) { var tx = (label(o.kunci) + " " + (o.keperluan || "")).toLowerCase(); return KB.filter(function (k) { return k.re.test(tx); })[0] || null; }
 function cdText(o) {
   if (o.status === "Dipanggil") return "Sekarang";
@@ -128,9 +129,11 @@ function kartuTiket(o) {
   if (o.status === "Terjadwal") h += goHtml(o);
   if (o.status === "Dipanggil") h += '<div class="tk-call">Giliran Anda! Silakan menuju loket sekarang.</div>';
   h += '<div class="ba pk-act">' + (o.status === "Terjadwal" ? '<button type="button" class="pk-go" data-v="tiba:' + id + '"' + (canIn(o) ? "" : " disabled") + '>Saya sudah tiba</button>' : "") +
-    '<a href="' + esc(rute(o)) + '" target="_blank" rel="noopener noreferrer">Rute</a>' + (tel ? '<a href="' + esc(tel) + '">Telepon</a>' : "") + (kb ? bx("Daftar dokumen", "ck:" + kb.id) : "") + '</div>';
+    '<a href="' + esc(rute(o)) + '" target="_blank" rel="noopener noreferrer">Rute</a>' + (tel ? '<a href="' + esc(tel) + '">Telepon</a>' : "") + (kb && !SYA(o) ? bx("Daftar dokumen", "ck:" + kb.id) : "") + '</div>';
   if (o.status === "Terjadwal" && !canIn(o)) h += '<small class="bnote" data-pk-hint="' + id + '">Check-in dibuka pukul ' + hm(jm(o) - 60) + ' WIB (60 menit sebelum jam booking).</small>';
-  if (kb) h += I.ckp(kb);
+  if (SYA(o)) h += '<details class="bkr-sy" open><summary>Persyaratan ' + esc(nmLoket(o)) + '</summary>' + SY.html(o.kunci) + '</details>';
+  else if (kb) h += I.ckp(kb) + '<small class="bnote">Daftar umum; persyaratan loket ini belum diisi admin.</small>';
+  else if (window.SY) h += SY.html(o.kunci);
   return h + '</div>';
 }
 async function harini(dl) {
@@ -222,10 +225,10 @@ async function urusanChat(dl) {
    ============================================================ */
 function dataPengantar() {
   var ck = I.ck(), kep = ($("pk-kep") || {}).value || "", d = {nama: (window.ME && ME.nama) || "", hp: (window.ME && ME.hp) || "", kep: clean(kep).slice(0, 200)};
-  d.tiket = aktifHari().concat(akanDatang()).slice(0, 4);
+  d.tiket = aktifHari().concat(akanDatang()).slice(0, 4).map(function (t) { return Object.assign({}, t, {sy: window.SY ? SY.daftar(t.kunci) : [], syv: window.SY ? SY.verif(t.kunci) : false}); });
   d.pm = (ST.pm || []).filter(function (o) { return o.status && o.status !== "Selesai"; }).slice(0, 3);
   d.dok = [];
-  KB.forEach(function (kb) { var c = ck[kb.id] || {}, n = 0; kb.d.forEach(function (_, i) { if (c[i]) n++; }); if (n > 0 && !(PLAN && PLAN.ids.indexOf(kb.id) > -1)) d.dok.push({t: kb.t, n: n, items: kb.d.map(function (x, i) { return {x: x, ok: !!c[i]}; })}); });
+  KB.forEach(function (kb) { var c = ck[kb.id] || {}, n = 0; kb.d.forEach(function (_, i) { if (c[i]) n++; }); if (n > 0 && !(PLAN && PLAN.ids.indexOf(kb.id) > -1) && !d.tiket.some(function (t) { return t.sy.length; })) d.dok.push({t: kb.t, n: n, items: kb.d.map(function (x, i) { return {x: x, ok: !!c[i]}; })}); });
   d.plan = PLAN ? PLAN.docs.map(function (x) { return {t: x.t, ok: KB.some(function (kb) { var c = ck[kb.id] || {}; return PLAN.ids.indexOf(kb.id) > -1 && kb.d.some(function (y, i) { return c[i] && dk(y) === x.k; }); })}; }) : null;
   d.kbli = []; try { if (window.KBLI) KBLI.favs().slice(0, 10).forEach(function (k) { var r = KBLI.byKode(k); if (r) d.kbli.push(r[0] + " - " + r[1]); }); } catch (x) {}
   return d;
@@ -233,7 +236,7 @@ function dataPengantar() {
 function teksPengantar(d) {
   var o = ["LEMBAR PENGANTAR KUNJUNGAN", "Takok Pelayanan Suroboyo - " + tglId(Date.now()), "", "Nama: " + (d.nama || "-") + (d.hp ? "   HP: " + d.hp : "")];
   if (d.kep) o.push("Keperluan: " + d.kep);
-  if (d.tiket.length) { o.push("", "TIKET ANTREAN"); d.tiket.forEach(function (t) { o.push("- " + t.kode + " | " + label(t.kunci) + " | " + tglPendek(t.tanggal) + " " + t.jam + " WIB"); }); }
+  if (d.tiket.length) { o.push("", "TIKET ANTREAN"); d.tiket.forEach(function (t) { o.push("- " + t.kode + " | " + label(t.kunci) + " | " + tglPendek(t.tanggal) + " " + t.jam + " WIB"); if (t.sy.length) { o.push("  Persyaratan loket" + (t.syv ? "" : " (panduan umum, belum diverifikasi)") + ":"); t.sy.forEach(function (g) { if (g.t) o.push("  " + g.t + ":"); g.items.forEach(function (x) { o.push("  " + (x.ok ? "[v] " : "[ ] ") + x.x); }); }); } else o.push("  Persyaratan: belum diisi loket, tanyakan dulu."); }); }
   if (d.pm.length) { o.push("", "PERMOHONAN"); d.pm.forEach(function (p) { o.push("- " + (p.jenis || "-") + (p.nomor ? " (No. " + p.nomor + ")" : "") + " | " + p.status); }); }
   if (d.plan && d.plan.length) { o.push("", "DOKUMEN UNTUK RENCANA INI"); d.plan.forEach(function (x) { o.push((x.ok ? "[v] " : "[ ] ") + x.t); }); }
   d.dok.forEach(function (k) { o.push("", "DOKUMEN: " + k.t + " (" + k.n + "/" + k.items.length + " siap)"); k.items.forEach(function (x) { o.push((x.ok ? "[v] " : "[ ] ") + x.x); }); });
@@ -245,7 +248,7 @@ function pengantarChat(dl) {
   if (S !== "user") return I.needIn("Masuk dulu supaya lembar pengantar bisa memuat tiket dan permohonan Anda.");
   var d = dataPengantar(), kosong = !d.tiket.length && !d.pm.length && !d.dok.length && !d.kbli.length && !(d.plan && d.plan.length);
   return bot("Lembar pengantar merangkum tiket, permohonan, dokumen, dan KBLI Anda dalam satu halaman. Tunjukkan di loket agar petugas langsung paham keperluan Anda.",
-    NS + '<div class="bc2 pkp"><b>Isi lembar</b><ul class="bul">' + (d.tiket.length ? '<li>' + d.tiket.length + ' tiket antrean</li>' : '') + (d.pm.length ? '<li>' + d.pm.length + ' permohonan aktif</li>' : '') + d.dok.map(function (k) { return '<li>Dokumen ' + esc(k.t) + ' (' + k.n + '/' + k.items.length + ' siap)</li>'; }).join("") +
+    NS + '<div class="bc2 pkp"><b>Isi lembar</b><ul class="bul">' + (d.tiket.length ? '<li>' + d.tiket.length + ' tiket antrean, dengan persyaratan sesuai loketnya' + (d.tiket.some(function (t) { return !t.sy.length; }) ? ' (ada loket yang persyaratannya belum diisi)' : '') + '</li>' : '') + (d.pm.length ? '<li>' + d.pm.length + ' permohonan aktif</li>' : '') + d.dok.map(function (k) { return '<li>Dokumen ' + esc(k.t) + ' (' + k.n + '/' + k.items.length + ' siap)</li>'; }).join("") +
     (d.plan && d.plan.length ? '<li>Dokumen untuk rencana gabungan (' + d.plan.length + ')</li>' : '') + (d.kbli.length ? '<li>' + d.kbli.length + ' KBLI pilihan</li>' : '') + (kosong ? '<li>Belum ada data. Booking, centang dokumen, atau simpan KBLI dulu agar lembar ini berisi.</li>' : '') + '</ul>' +
     '<label class="pk-lb" for="pk-kep">Keperluan singkat (opsional)</label><input class="pk-in" id="pk-kep" maxlength="200" placeholder="Contoh: perpanjang SIP dokter" autocomplete="off"><small class="bnote">Jangan menulis NIK, kata sandi, atau OTP.</small></div>' +
     row(bx("Cetak / simpan PDF", "cetak", "pk-main") + bx("Salin teks", "salin") + bx("Kirim ke WhatsApp", "wa")), dl);
@@ -257,7 +260,7 @@ function cetak() {
   var sec = function (t, h) { return h ? '<h2>' + esc(t) + '</h2>' + h : ""; };
   el.innerHTML = '<div class="pkp-top"><h1>Lembar Pengantar Kunjungan</h1><p>Takok Pelayanan Suroboyo &middot; ' + esc(tglId(Date.now())) + '</p></div>' +
     '<table class="pkp-id"><tr><th>Nama</th><td>' + esc(d.nama || "-") + '</td></tr>' + (d.hp ? '<tr><th>HP</th><td>' + esc(d.hp) + '</td></tr>' : '') + (d.kep ? '<tr><th>Keperluan</th><td>' + esc(d.kep) + '</td></tr>' : '') + '</table>' +
-    sec("Tiket antrean", d.tiket.map(function (t) { return '<div class="pkp-t"><div><b>' + esc(t.kode) + '</b><br>' + esc(label(t.kunci)) + '<br>' + esc(tglPendek(t.tanggal)) + ', pukul ' + esc(t.jam) + ' WIB</div><div class="pkp-bc">' + (typeof barcode === "function" ? barcode(t.kode) : "") + '</div></div>'; }).join("")) +
+    sec("Tiket antrean", d.tiket.map(function (t) { return '<div class="pkp-t"><div><b>' + esc(t.kode) + '</b><br>' + esc(label(t.kunci)) + '<br>' + esc(tglPendek(t.tanggal)) + ', pukul ' + esc(t.jam) + ' WIB</div><div class="pkp-bc">' + (typeof barcode === "function" ? barcode(t.kode) : "") + '</div></div>' + (t.sy.length ? '<div class="pkp-sy"><b>Bawa untuk loket ini</b>' + (t.syv ? '' : ' <small>(panduan umum, belum diverifikasi loket)</small>') + t.sy.map(function (g) { return (g.t ? '<p class="pkp-gt">' + esc(g.t) + '</p>' : '') + '<ul class="pkp-c">' + g.items.map(function (x) { return '<li><span>' + (x.ok ? "&#9745;" : "&#9744;") + '</span> ' + esc(x.x) + '</li>'; }).join("") + '</ul>'; }).join("") + '</div>' : '<p class="pkp-sy"><small>Persyaratan loket ini belum diisi; tanyakan ke petugas.</small></p>'); }).join("")) +
     sec("Permohonan", d.pm.length ? '<ul>' + d.pm.map(function (p) { return '<li>' + esc(p.jenis || "-") + (p.nomor ? ' (No. ' + esc(p.nomor) + ')' : '') + ' &mdash; <b>' + esc(p.status) + '</b></li>'; }).join("") + '</ul>' : "") +
     sec("Dokumen untuk rencana kunjungan", d.plan && d.plan.length ? '<ul class="pkp-c">' + d.plan.map(function (x) { return '<li><span>' + (x.ok ? "&#9745;" : "&#9744;") + '</span> ' + esc(x.t) + '</li>'; }).join("") + '</ul>' : "") +
     d.dok.map(function (k) { return '<h2>Dokumen: ' + esc(k.t) + ' (' + k.n + '/' + k.items.length + ' siap)</h2><ul class="pkp-c">' + k.items.map(function (x) { return '<li><span>' + (x.ok ? "&#9745;" : "&#9744;") + '</span> ' + esc(x.x) + '</li>'; }).join("") + '</ul>'; }).join("") +
@@ -335,7 +338,41 @@ var R_URUS = /^\/?urusan\b|urusan saya|langkah (berikutnya|selanjutnya)|apa (yan
 var R_PENG = /^\/?pengantar\b|lembar pengantar|kartu pengantar|surat pengantar kunjungan|cetak (ringkasan|paket) (kunjungan|berkas)/;
 var R_BANTU = /^\/?bantu(an)?$|^bantu (saya )?(pilih|cari)|^(saya )?(lagi )?bingung( mau| harus)?( urus| apa| ke ?mana)?\??$|(tidak|gak|nggak|ga) tahu (harus|mau) (ke ?mana|urus apa|mulai)|pilih bidang/;
 var R_BUKA = /(sekarang|saat ini|hari ini).{0,18}(buka|tutup)|(buka|tutup) (sekarang|saat ini)|apakah (sudah |masih )?(buka|tutup)|masih (buka|tutup)|loket (sudah |masih )?buka\b/;
+var R_SY = /syarat|persyaratan|bawa apa|dibawa|dokumen apa|berkas apa|perlu apa|harus (saya )?(bawa|siapkan)/;
+var STOPW = /^(syarat|syaratnya|persyaratan|apa|saja|aja|untuk|buat|dan|yang|di|ke|dari|mengurus|ngurus|urus|pengurusan|bikin|membuat|loket|bawa|dibawa|harus|perlu|dokumen|berkas|cara|mau|saya|itu|nya|ya|dong|sih|izin|perizinan|surat|apakah|ada|kalau|kalo|jika|bagaimana|gimana|siapkan|disiapkan)$/;
+var ALIAS = {skck: "polrestabes", polisi: "polrestabes", perhubungan: "dishub", jkn: "bpjs", kis: "bpjs", bpjstk: "ketenagakerjaan", jht: "ketenagakerjaan", andalalin: "dishub"};
+function cariSyarat(s) {
+  var toks = s.split(/[^a-z0-9]+/).filter(function (w) { return w.length > 1 && !STOPW.test(w); }).map(function (w) { return ALIAS[w] || w; });
+  if (!toks.length || !window.SY) return null;
+  var C = [], max = 0;
+  LOCS.forEach(function (l) { (LD[l.id] || []).forEach(function (d) {
+    var k = l.id + "_" + d[0], nm = String(d[1]).toLowerCase(), hd = SY.grup(k).map(function (g) { return g.t.toLowerCase(); }).join(" | "), hit = 0, f = [];
+    toks.forEach(function (w) { if (nm.indexOf(w) > -1) hit++; else if (hd.indexOf(w) > -1) { hit++; f.push(w); } });
+    if (hit) { C.push({k: k, d: d, l: l, hit: hit, f: f}); if (hit > max) max = hit; }
+  }); });
+  C = C.filter(function (c) { return c.hit === max; });
+  return C.length ? {C: C, toks: toks} : null;
+}
+function syaratChat(c, dl) {
+  var k = c.k, e = c.d, ada = SY.ada(k);
+  return bot(ada ? "Persyaratan " + e[1] + (c.f && c.f.length ? " (fokus: " + c.f.join(", ") + ")" : "") + ". Centang yang sudah siap; centangan tersimpan di perangkat ini." : "Persyaratan " + e[1] + " belum diisi oleh admin loket.",
+    NS + '<div class="bc2"><b>' + esc(e[1]) + '</b> <span class="btag">' + esc(c.l.nm) + '</span>' + SY.html(k, {fokus: c.f}) + '<div class="ba">' + (e[6] !== false ? bx("Booking", "bk:" + k) : "") + bx("Tanya admin loket", "buka:" + k) + (ada ? bx("Lembar pengantar", "pengantar") : "") + '</div></div>' +
+    '<p class="bnote">Persyaratan resmi mengikuti ketentuan loket dan bisa berubah. Pastikan lagi sebelum berangkat.</p>', dl);
+}
+function syaratCmd(s) {
+  if (!R_SY.test(s) || s.length > 90) return null;
+  var r = cariSyarat(s); if (!r) return null;
+  var ada = r.C.filter(function (c) { return SY.ada(c.k); }), kbm = KB.some(function (z) { return z.re.test(s); });
+  if (ada.length === 1) return syaratChat(ada[0]);
+  if (ada.length > 1 || (!ada.length && r.C.length > 1 && !kbm)) {
+    var L = (ada.length ? ada : r.C).slice(0, 6);
+    return bot("Ada beberapa loket yang cocok. Persyaratan loket mana yang Anda maksud?", NS + I.chips(L.map(function (c) { return [c.d[1] + " (" + c.l.nm + ")", "syarat " + c.d[1] + " " + c.l.nm]; })));
+  }
+  if (!ada.length && r.C.length === 1 && !kbm) return syaratChat(r.C[0]);
+  return null;
+}
 function cmd(t, s) {
+  var rs = syaratCmd(s); if (rs) return rs;
   if (R_HARI.test(s)) return harini();
   if (R_URUS.test(s)) return urusanChat();
   if (R_PENG.test(s)) return pengantarChat();
@@ -373,6 +410,7 @@ document.addEventListener("click", function (e) {
   else if (c === "trv") { TRV = +a || 30; try { localStorage.setItem("pk_trv", String(TRV)); } catch (x) {} NOTI = {}; liveUpdate(); }
   else if (c === "buka") { I.closeB(); openKey(a); }
   else if (c === "bk") I.goBook(a);
+  else if (c === "sy") { var en = entryOf(a); if (en && window.SY) viaChat("Persyaratan " + en[1], function (dl) { return syaratChat({k: a, d: en, l: LOCS.filter(function (z) { return z.id === a.split("_")[0]; })[0] || {nm: ""}, f: []}, dl); }); }
   else if (c === "pn") { if (needLogin()) { I.closeB(); return; } I.closeB(); setPN(a); }
   else if (c === "ck") { var kb = KB.filter(function (z) { return z.id === a; })[0]; if (kb) viaChat(kb.t, function (dl) { return I.ckShow(kb); }); }
   else if (c === "q") { if (!b.closest("#bp") && window.openAsisten) openAsisten(); I.ask(a); }

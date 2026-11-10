@@ -13,6 +13,7 @@ from html.parser import HTMLParser
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _data import SEED, SKM_MPP  # noqa: E402
+from _syarat import SYARAT_AWAL  # noqa: E402
 import _analisa as AN  # noqa: E402
 import _bot as BOT  # noqa: E402
 
@@ -273,7 +274,21 @@ LOKMETA = {}  # id -> {uraian, alamat, jam, telp, maps, sembunyi}
 BASE = {"%s_%s" % (e["lokasi"], e["no"]): dict(e) for e in SEED["loket"]}
 LOKET = {k: dict(v) for k, v in BASE.items()}
 _LX = {"t": 0.0, "raw": None, "rawl": None}
-LX_FIELD = ("nama", "uraian", "sistem", "zona", "diskusi", "sembunyi", "jam", "tautan")
+LX_FIELD = ("nama", "uraian", "sistem", "zona", "diskusi", "sembunyi", "jam", "tautan", "syarat")
+
+
+def norm_syarat(v):
+    """Persyaratan loket: daftar baris (maks 40 x 160 huruf). Baris berawalan '# ' = judul layanan. Terima teks berbaris atau list."""
+    if isinstance(v, str):
+        v = v.splitlines()
+    if not isinstance(v, (list, tuple)):
+        return []
+    out = []
+    for x in v:
+        t = clean(x, 160) if isinstance(x, str) else ""
+        if t and len(out) < 40:
+            out.append(t)
+    return out
 LK_TEXT = (("uraian", 2000), ("alamat", 200), ("jam", 120), ("telp", 40))
 LOK_ID_RE = re.compile(r"^[a-z0-9]{2,16}$")
 URAIAN_MAX = 2000
@@ -335,6 +350,9 @@ def refresh_loket(maks=10):
     LOKMETA.update(meta)
     # --- loket ---
     new = {k: dict(v) for k, v in BASE.items()}
+    for k, sy in SYARAT_AWAL.items():  # isi awal bawaan; ditimpa bila admin sudah menyimpan persyaratan sendiri
+        if k in new:
+            new[k]["syarat"] = list(sy)
     for k, v in raw.items():
         o = parse(v, None)
         lok, _, no = k.partition("_")
@@ -347,6 +365,8 @@ def refresh_loket(maks=10):
                       "zona": str(o.get("zona", ""))[:20], "diskusi": bool(o.get("diskusi", True)), "sembunyi": bool(o.get("sembunyi")), "baru": True}
         new[k]["jam"] = str(new[k].get("jam", "") or "")[:120]
         new[k]["tautan"] = aman_url(new[k].get("tautan"))
+        new[k]["syarat"] = norm_syarat(new[k].get("syarat"))
+        new[k]["syv"] = 1 if "syarat" in o else 0  # 1 = ditulis/dikonfirmasi admin; 0 = isi awal bawaan atau kosong
     LOKET.clear()
     LOKET.update(new)
 
@@ -1024,7 +1044,7 @@ class handler(BaseHTTPRequestHandler):
         kbv, kbm = db().pipe([["HGET", "kbli", "v"], ["HGET", "kbli", "m"]])
         kata = kata_baca()[0] if (not kv or self.q1("kata")) else []  # data lama / editor admin: sertakan; pengunjung biasa: ambil via /kata?v=
         self.json({"kata": kata, "kv": kv or "", "kata_max": KATA_MAX, "berita": bt, "balas_menit": balas, "mpp_roster": SKM_MPP, "kbv": kbv or "", "kbm": parse(kbm, {}) or {}, "lokasi": [lok_meta_publik(k) for k in LOKASI if not lok_sembunyi(k)],
-                   "loket": [[e["lokasi"], e["no"], e["nama"], e["uraian"], e["sistem"], e.get("zona", ""), 1 if e.get("diskusi", True) else 0, 1 if bisa_booking("%s_%s" % (e["lokasi"], e["no"])) else 0, e.get("jam", ""), e.get("tautan", "")] for e in loket_urut()],
+                   "loket": [[e["lokasi"], e["no"], e["nama"], e["uraian"], e["sistem"], e.get("zona", ""), 1 if e.get("diskusi", True) else 0, 1 if bisa_booking("%s_%s" % (e["lokasi"], e["no"])) else 0, e.get("jam", ""), e.get("tautan", ""), e.get("syarat", []), 1 if e.get("syv") else 0] for e in loket_urut()],
                    "cfg": {k: c.get(k, "") for k in ("wa", "jam", "info", "kuota")}, "piket": piket_cfg()["mode"], "kanal": {"tg": re.sub(r"[^A-Za-z0-9_]", "", os.environ.get("TG_USER", ""))[:40], "wa": re.sub(r"\D", "", os.environ.get("WA_BOT_NUM", ""))[:15]}, "saya": who},
                   extra=self.refresh(ses) if ses and who else ())
 
@@ -1781,7 +1801,7 @@ class handler(BaseHTTPRequestHandler):
                 kunci = "%s_%d" % (lok, max([e["no"] for e in LOKET.values() if e["lokasi"] == lok] + [0]) + 1)
             d = {"nama": nama, "uraian": uraian, "sistem": clean(b.get("sistem", ""), 120), "zona": clean(b.get("zona", ""), 20),
                  "diskusi": bool(b.get("diskusi", True)), "sembunyi": bool(b.get("sembunyi", False)),
-                 "jam": clean(b.get("jam", ""), 120), "tautan": aman_url(b.get("tautan"))}
+                 "jam": clean(b.get("jam", ""), 120), "tautan": aman_url(b.get("tautan")), "syarat": norm_syarat(b.get("syarat", []))}
             db().cmd("HSET", "loketx", kunci, json.dumps(d, ensure_ascii=False))
             _LX["t"] = 0.0
             refresh_loket(0)
@@ -1817,6 +1837,8 @@ class handler(BaseHTTPRequestHandler):
                 seen.add(k)
                 d = {"nama": e["nama"], "uraian": e["uraian"], "sistem": e["sistem"], "zona": e.get("zona", ""), "diskusi": e.get("diskusi", True),
                      "sembunyi": bool(e.get("sembunyi")), "jam": e.get("jam", ""), "tautan": e.get("tautan", "")}
+                if e.get("syv"):  # jangan hilangkan persyaratan yang sudah dikonfirmasi admin
+                    d["syarat"] = e.get("syarat", [])
                 if "uraian" in it:
                     d["uraian"] = clean(it["uraian"], URAIAN_MAX)
                 if "sistem" in it and clean(it["sistem"], 120):

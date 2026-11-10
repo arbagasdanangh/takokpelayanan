@@ -388,3 +388,20 @@ Satu halaman berisi nama dan HP akun, keperluan singkat (opsional, NIK 16 digit 
 **File yang berubah**: `public/pendamping.js` (baru), `public/style.css` (akhir berkas), `public/index.html` (skrip baru, `?v=35`), `public/wow.js` (4 perintah menu garis miring). Server (`api/`) tidak diubah.
 
 **Pengujian**: diuji otomatis di Chromium (HP 390 px terang dan gelap, desktop 1100 px) dengan API tiruan dari data loket asli: pita (Terjadwal, check-in, jauh dari jam, Dipanggil), kartu pendamping, Urusan Saya, cetak lembar (media cetak), Rencana Gabungan, semua tombol klarifikasi/bidang menemukan loket, saran ketikan dengan keyboard. Belum diuji dengan Redis/produksi, di HP sungguhan, maupun dengan printer. Antrean "di depan" memakai data server apa adanya (tiket aktif di loket yang sama dengan jam lebih awal); petugas tetap menentukan urutan panggilan.
+
+## Versi 36: Persyaratan per loket dan halaman Booking yang rapi
+**Persyaratan per loket (tidak lagi satu daftar umum)**
+- Tiap loket punya kolom baru **Persyaratan** (`syarat`). Admin mengisinya di **Admin > Loket > Ubah > "Persyaratan yang harus dibawa"**: satu syarat per baris; baris berawalan `# ` adalah judul layanan (mis. `# Izin penyelenggaraan parkir`), sehingga satu loket bisa punya beberapa layanan dengan syarat berbeda.
+- **Isi awal bawaan** (`api/_syarat.py`) hanya untuk Loket Dishub (parkir, Andalalin), BPJS Kesehatan, BPJS Ketenagakerjaan, dan Polrestabes (SKCK). Ini **panduan umum yang belum diverifikasi loket**; tampil dengan label "belum diverifikasi" sampai admin menyimpannya sendiri (lalu berlabel "Terverifikasi admin loket"). Loket lain tampil "Persyaratan belum diisi" dengan tombol Tanya admin.
+- Tampil di: daftar loket di beranda, kartu loket di chat (tombol **Persyaratan**), **Booking** (di bawah pilihan loket, di rencana kunjungan "Yang perlu dibawa", dan di tiap tiket), **Pendamping Hari Kunjungan**, dan **Lembar Pengantar** (per tiket sesuai loketnya, bukan daftar umum). Pemohon bisa mencentang; centangan tersimpan di perangkatnya.
+- Chat: "dishub parkir syaratnya apa aja" menampilkan syarat parkir lebih dulu (layanan lain dilipat); "syarat bpjs" menanyakan BPJS Kesehatan atau Ketenagakerjaan; "syarat skck" dikenali sebagai Polrestabes. Pertanyaan seperti "syarat PBG" tetap dijawab panduan umum yang lama.
+- Server: `api/app.py` menyimpan dan memvalidasi `syarat` (maks 40 baris x 160 huruf); `/api/info` menambah dua kolom di tiap baris loket (daftar syarat, penanda terverifikasi). Isi massal uraian tidak menghapus syarat yang sudah dikonfirmasi admin. Isi massal syarat lewat CSV belum ada.
+
+**Booking Kunjungan untuk pemohon dengan banyak kunjungan** (`public/booking-rapi.js`)
+- Ringkasan angka (Hari ini, Mendatang, Riwayat) dan dua tab **Aktif** dan **Riwayat**.
+- Tiap kunjungan berupa baris ringkas (tanggal, jam, loket, status); ketuk untuk membuka tiket lengkap (barcode, check-in, batal, kalender, cetak) dan persyaratan loketnya. Kunjungan terdekat otomatis terbuka; keadaan buka/tutup tidak hilang saat data diperbarui tiap 15 detik.
+- Dikelompokkan per tanggal (Hari ini, Besok, ...), pencarian (kode, loket, tanggal, keperluan), dan "Tampilkan 10 lagi".
+- Formulir **Buat booking baru** dilipat bila pemohon sudah punya booking, supaya daftar kunjungan langsung terlihat.
+
+**File berubah**: `public/syarat.js`, `public/booking-rapi.js`, `api/_syarat.py` (baru); `api/app.py`, `public/app.js`, `public/bot.js`, `public/loket-admin.js`, `public/pendamping.js`, `public/style.css`, `public/index.html` (`?v=36`).
+**Diuji** di Chromium (HP 390 px) dengan 35 booking tiruan: tab, buka/tutup, cari, muat lebih banyak, centang, panel syarat di formulir, chat Dishub/BPJS/SKCK, lembar cetak. Logika server diuji dengan Redis tiruan; belum diuji di produksi.

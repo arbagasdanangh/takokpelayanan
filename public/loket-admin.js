@@ -23,7 +23,7 @@ async function refreshPublik() {
   try {
     var j = await api("/api/info");
     LOCS = j.lokasi.map(function (l) { return {id: l.id, nm: l.nama, ur: l.uraian || "", al: l.alamat || "", jam: l.jam || "", tl: l.telp || "", mp: l.maps || ""}; }); LD = {};
-    j.loket.forEach(function (r) { (LD[r[0]] = LD[r[0]] || []).push([r[1], r[2], r[3], r[4], r[5] || "", r[6] !== 0, r[7] !== 0, r[8] || "", r[9] || ""]); });
+    j.loket.forEach(function (r) { (LD[r[0]] = LD[r[0]] || []).push([r[1], r[2], r[3], r[4], r[5] || "", r[6] !== 0, r[7] !== 0, r[8] || "", r[9] || "", r[10] || [], r[11] ? 1 : 0]); });
     for (var k in LD) LD[k].sort(function (a, b) { return a[0] - b[0]; });
     if (!LD[LOC] && LOCS.length) LOC = LOCS[0].id;
     if (window.lc) lc();
@@ -98,6 +98,8 @@ function formLoket(e) {
   return '<div class="card lkf"><h3>' + (n ? "Tambah loket baru di " + esc((lokOf(LL) || {}).nama || "") : "Ubah loket: " + esc(e.nama)) + '</h3>' +
     '<label for="lf-n">Nama loket / instansi</label><input class="si" id="lf-n" maxlength="80" value="' + esc(e ? e.nama : "") + '">' +
     '<label for="lf-u">Uraian layanan <small class="sys" id="lf-c"></small></label>' + editorU("lf-u", e && !kosong(e.uraian) ? e.uraian : "", 2000, 8) +
+    '<label for="lf-sy">Persyaratan yang harus dibawa <small class="sys">(satu per baris; awali dengan # untuk judul layanan, mis. # Izin parkir)</small></label><textarea class="si" id="lf-sy" rows="7" maxlength="6400" placeholder="# Nama layanan&#10;KTP&#10;Kartu Keluarga&#10;Surat permohonan bermaterai">' + esc(e && e.syarat ? e.syarat.join("\n") : "") + '</textarea>' +
+    (e && e.syarat && e.syarat.length && !e.syv ? '<p class="sys">Isi awal bawaan aplikasi, <b>belum diverifikasi</b> loket. Periksa, ubah bila perlu, lalu Simpan: setelah itu tampil sebagai terverifikasi admin.</p>' : '<p class="sys">Tampil di Booking, Pendamping, dan Lembar Pengantar pemohon sesuai loket yang dituju. Maksimal 40 baris.</p>') +
     '<label for="lf-s">Sistem / cara layanan</label><input class="si" id="lf-s" maxlength="120" placeholder="mis. SSW / OSS atau Datang langsung" value="' + esc(e ? e.sistem : "") + '">' +
     '<div class="lk-2"><div><label for="lf-j">Jam layanan loket <small class="sys">(opsional)</small></label><input class="si" id="lf-j" maxlength="120" placeholder="mis. 08.00-14.00" value="' + esc(e ? e.jam || "" : "") + '"></div>' +
     '<div><label for="lf-z">Zona <small class="sys">(MPP, mis. Zona 2)</small></label><input class="si" id="lf-z" maxlength="20" value="' + esc(e ? e.zona || "" : "") + '"></div></div>' +
@@ -210,7 +212,7 @@ function periksaImpor() {
 
 /* ---------- Simpan ---------- */
 function bodyLoket(e) {
-  return {kunci: e ? e.kunci : "", lokasi: e ? e.lokasi : LL, nama: $("lf-n").value, uraian: $("lf-u").value, sistem: $("lf-s").value, zona: $("lf-z").value, jam: $("lf-j").value, tautan: $("lf-l").value, diskusi: $("lf-d").checked, sembunyi: e ? !!e.sembunyi : false};
+  return {kunci: e ? e.kunci : "", lokasi: e ? e.lokasi : LL, nama: $("lf-n").value, uraian: $("lf-u").value, syarat: $("lf-sy").value, sistem: $("lf-s").value, zona: $("lf-z").value, jam: $("lf-j").value, tautan: $("lf-l").value, diskusi: $("lf-d").checked, sembunyi: e ? !!e.sembunyi : false};
 }
 function keLoket(e, ov) { var o = {kunci: e.kunci, lokasi: e.lokasi, nama: e.nama, uraian: e.uraian, sistem: e.sistem, zona: e.zona || "", jam: e.jam || "", tautan: e.tautan || "", diskusi: e.diskusi !== false, sembunyi: !!e.sembunyi}; for (var k in ov) o[k] = ov[k]; return o; }
 

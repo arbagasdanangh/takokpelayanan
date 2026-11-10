@@ -41,7 +41,7 @@ function needIn(t) { return bot(t, '<div class="bch">' + btn("Masuk / daftar", "
 function ringkasU(t) { t = plainJ(t).replace(/\s+/g, " ").trim(); return t.length > 140 ? t.slice(0, 140) + "…" : t; }
 function lk(l, d) {
   var k = l.id + "_" + d[0];
-  return '<div class="bc2"><b>' + esc(d[1]) + '</b> <span class="btag">' + esc(l.nm) + '</span><p>' + esc(ringkasU(d[2])) + '</p><div class="ba">' + btn("Buka loket", "open:" + k) + (d[6] !== false ? btn("Booking", "bk:" + k) : "") +
+  return '<div class="bc2"><b>' + esc(d[1]) + '</b> <span class="btag">' + esc(l.nm) + '</span><p>' + esc(ringkasU(d[2])) + '</p><div class="ba">' + btn("Buka loket", "open:" + k) + (d[6] !== false ? btn("Booking", "bk:" + k) : "") + (d[9] && d[9].length ? '<button type="button" data-v="sy:' + esc(k) + '">Persyaratan</button>' : "") +
     '<a target="_blank" rel="noopener noreferrer" href="' + esc(mapsUrl(l)) + '">Peta</a></div></div>';
 }
 /* ---- Versi 12: KBLI, daftar KBLI saya, ringkasan chat ke admin ---- */

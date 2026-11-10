@@ -1,0 +1,53 @@
+# Isi awal "Persyaratan" per loket. Ini PANDUAN UMUM bawaan aplikasi dan BELUM diverifikasi oleh loket:
+# tampil dengan label "belum diverifikasi" sampai admin menyimpannya sendiri lewat Admin > Loket > Ubah > Persyaratan.
+# Format: kunci loket "lokasi_nomor" -> daftar baris. Baris berawalan "# " adalah judul layanan; baris lain adalah dokumen/syarat.
+SYARAT_AWAL = {
+    "pusat_7": [  # Loket Dishub
+        "# Izin penyelenggaraan parkir",
+        "Surat permohonan bermaterai",
+        "KTP pemohon atau pengelola",
+        "NPWP",
+        "NIB dan dokumen izin usaha (bila badan usaha)",
+        "Akta pendirian dan pengesahan badan hukum (bila badan usaha)",
+        "Bukti hak atau penguasaan lahan parkir",
+        "Denah lokasi dan tata letak parkir (pintu masuk-keluar, jumlah satuan ruang parkir)",
+        "Hasil Andalalin atau rekomendasi teknis lalu lintas, bila diminta petugas",
+        "# Andalalin (analisis dampak lalu lintas)",
+        "Surat permohonan",
+        "KTP dan NPWP pemrakarsa",
+        "NIB atau izin usaha kegiatan",
+        "Denah / site plan dan data rencana kegiatan (luas lahan, luas bangunan, jumlah unit)",
+        "Bukti hak atau penguasaan lahan",
+    ],
+    "mpp_8": [  # BPJS Kesehatan
+        "# Pendaftaran peserta baru",
+        "KTP (anak: KIA atau akta kelahiran)",
+        "Kartu Keluarga",
+        "Nomor HP aktif",
+        "# Perubahan data atau pindah faskes",
+        "KTP",
+        "Kartu Keluarga",
+        "Kartu peserta JKN-KIS (cetak atau digital)",
+    ],
+    "mpp_9": [  # BPJS Ketenagakerjaan
+        "# Pendaftaran pekerja atau pemberi kerja",
+        "KTP pekerja",
+        "NPWP dan NIB (untuk badan usaha)",
+        "Data karyawan dan besaran upah",
+        "# Klaim Jaminan Hari Tua (JHT)",
+        "Kartu peserta BPJS Ketenagakerjaan",
+        "KTP dan Kartu Keluarga",
+        "Buku rekening atas nama peserta",
+        "Surat keterangan berhenti bekerja (paklaring)",
+        "Pas foto terbaru",
+    ],
+    "mpp_1": [  # Polrestabes (SKCK)
+        "# SKCK baru atau perpanjangan",
+        "KTP asli",
+        "Kartu Keluarga",
+        "Akta kelahiran atau ijazah terakhir",
+        "Pas foto berlatar merah (ukuran sesuai petunjuk loket)",
+        "SKCK lama (untuk perpanjangan)",
+        "Sidik jari diambil langsung di loket",
+    ],
+}

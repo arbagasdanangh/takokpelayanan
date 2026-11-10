@@ -879,3 +879,41 @@ body.dm-on .dm-go{display:none}
 
 /* Perbaikan v35: aturan cetak lama (body *{visibility:hidden}) ikut menyembunyikan Paket Siap Datang KBLI; tampilkan lagi saat mencetak */
 @media print{body.kp-printing #kp-print,body.kp-printing #kp-print *{visibility:visible!important}}
+
+/* ===== Versi 36: persyaratan per loket + Booking rapi ===== */
+.sy{margin:8px 0;padding:10px 12px;border-radius:14px;background:var(--surface);border:1px solid var(--line)}
+.sy-h{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.sy-v{font-weight:700;color:#15803d}.sy-v.sy-no{color:#b45309}.sy-n{color:var(--mute);font-weight:700}
+.sy-g{display:block;margin:8px 0 4px;color:var(--ink);font-size:.9rem}.sy-grp:first-of-type .sy-g{margin-top:2px}
+.sy-i{display:flex;gap:8px;align-items:flex-start;padding:5px 0;cursor:pointer;font-size:.88rem;line-height:1.35;color:var(--ink)}
+.sy-i input{flex:none;width:18px;height:18px;margin-top:1px;accent-color:var(--acc)}
+.sy-i input:checked+span{color:var(--mute);text-decoration:line-through}
+.sy-lain{margin-top:8px;border-top:1px dashed var(--line);padding-top:6px}.sy-lain summary{cursor:pointer;font-weight:700;font-size:.82rem;color:var(--acc)}
+.sy-kosong{border-style:dashed}.sy-kosong small{display:block;color:var(--mute);margin:2px 0 6px}
+.bkr-sy,.bkx-sy{margin:8px 0;border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:0 10px}
+.bkr-sy>summary,.bkx-sy>summary{cursor:pointer;padding:9px 2px;font-weight:700;font-size:.88rem;color:var(--ink)}
+.bkr-sy .sy,.bkx-sy .sy{border:0;padding:0 0 8px;margin:0;background:none}
+.bkx-bawa{margin:10px 0}.bkx-bawa>b{display:block;margin-bottom:4px}
+.ur-sy{margin:8px 0}
+/* Booking saya */
+.bkx-sum{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:6px 0 10px}
+.bkx-sum>div{text-align:center;padding:8px 6px;border-radius:14px;background:var(--surface);border:1px solid var(--line)}.bkx-sum b{display:block;font-size:1.35rem;color:var(--ink)}.bkx-sum small{color:var(--mute)}
+.bkx-sum .hot{background:var(--accsoft);border-color:var(--acc)}.bkx-sum .hot b{color:var(--acc)}
+.bkx-tabs{display:flex;gap:6px;margin:0 0 10px;padding:4px;border-radius:99px;background:var(--accsoft)}
+.bkx-tabs button{flex:1;font:inherit;font-weight:700;font-size:.88rem;padding:8px 10px;border:0;border-radius:99px;background:none;color:var(--ink);cursor:pointer}
+.bkx-tabs button[aria-selected="true"]{background:var(--acc);color:var(--onacc)}
+.bkx-q{margin:0 0 8px}
+.bkx-dh{display:flex;justify-content:space-between;align-items:baseline;margin:16px 0 6px}.bkx-dh small{font-weight:400;color:var(--mute)}.bkx-dh.ini{color:var(--acc)}
+.bkr{margin:0 0 8px;border:1px solid var(--line);border-radius:16px;background:var(--surface);overflow:hidden}
+.bkr.on{border-color:var(--acc);box-shadow:var(--shadow)}
+.bkr-h{width:100%;display:flex;align-items:center;gap:10px;padding:10px 12px;border:0;background:none;font:inherit;text-align:left;cursor:pointer;color:var(--ink)}
+.bkr-d{flex:none;width:44px;text-align:center;padding:4px 0;border-radius:12px;background:var(--accsoft);line-height:1.1}.bkr-d b{display:block;font-size:1.15rem;color:var(--acc)}.bkr-d small{font-size:.66rem;text-transform:uppercase;color:var(--mute)}
+.bkr-m{flex:1;min-width:0}.bkr-m b{display:block;font-size:.92rem;overflow-wrap:anywhere}.bkr-m small{display:block;color:var(--mute);font-size:.76rem;overflow-wrap:anywhere}
+.bkr-c{flex:none;color:var(--mute);transition:transform .15s}.bkr.on .bkr-c{transform:rotate(180deg)}
+.bkr-b{padding:0 12px 12px}.bkr-b .tkt{margin:0 0 6px;max-width:440px}
+.bkr.st-batal .bkr-h,.bkr.st-tidak-hadir .bkr-h,.bkr.st-hadir .bkr-h{opacity:.85}
+.bkx-more{display:block;width:100%;margin:8px 0}.bkx-tot{display:block;text-align:center;margin:4px 0 12px}
+.bkx-new{margin:0 0 14px;border-radius:16px;border:1px solid var(--acc);background:var(--surface)}
+.bkx-new>summary{cursor:pointer;list-style:none;padding:12px 14px;font-weight:800;color:var(--acc)}.bkx-new>summary::-webkit-details-marker{display:none}
+.bkx-new[open]>summary{border-bottom:1px solid var(--line)}.bkx-form{padding:10px}.bkx-form .card{box-shadow:none}
+@media print{.pkp-sy{margin:2px 0 8px 6px;break-inside:avoid}.pkp-gt{font-weight:700;margin:6px 0 2px!important}}
