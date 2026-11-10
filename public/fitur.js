@@ -294,8 +294,10 @@ async function pnClick(e) {
 }
 
 /* ---------- Admin: tab tambahan ---------- */
+function admSup() { return !(ME && ME.level === "loket"); }
+var TAB_LOKET = ["ring", "inbox", "pmh", "bk", "an", "skm"];
 function admTabs() {
-  $("atabs").innerHTML = [["ring", "Ringkasan"], ["inbox", "Kotak masuk"], ["pmh", "Permohonan"], ["bk", "Booking"], ["an", "Analitik Chat"], ["bt", "Berita"], ["skm", "Rekap SKM"], ["kt", "Kata cari chatbot"], ["lk", "Editor loket"], ["pk", "Asisten Piket"], ["kn", "Kanal WA & Telegram"], ["kb", "Data KBLI"]].map(function (t) {
+  $("atabs").innerHTML = [["ring", "Ringkasan"], ["inbox", "Kotak masuk"], ["pmh", "Permohonan"], ["bk", "Booking"], ["an", "Analitik Chat"], ["bt", "Berita"], ["skm", "Rekap SKM"], ["kt", "Kata cari chatbot"], ["lk", "Editor loket"], ["pk", "Asisten Piket"], ["kn", "Kanal WA & Telegram"], ["kb", "Data KBLI"], ["ak", "Akun admin"]].filter(function (t) { return admSup() || TAB_LOKET.indexOf(t[0]) > -1; }).map(function (t) {
     return '<button type="button" class="chip" data-at="' + t[0] + '" aria-pressed="' + (t[0] === AT) + '">' + t[1] + '</button>';
   }).join("");
   $("atabs").onclick = function (e) { var b = e.target.closest("[data-at]"); if (b) admTab(b.dataset.at); };
@@ -313,14 +315,24 @@ async function aX(t) {
   var el = $("a-x");
   el.innerHTML = '<div class="empty">Memuat&hellip;</div>';
   try {
-    if (t === "ring") await aRing(el); else if (t === "pmh") await aPmh(el); else if (t === "bk") await aBk(el); else if (t === "bt") await aBt(el); else if (t === "skm") await aSkm(el); else if (t === "kt") { await aKt(el); if (window.AN_KT) { var w = window.AN_KT; window.AN_KT = null; ktAdd(w); } } else if (t === "lk") await window.aLk(el); else if (t === "kb") await window.aKb(el); else if (t === "pk") await window.aPk(el); else if (t === "kn") await window.aKn(el); else if (t === "an") await aAn(el);
+    if (t === "ring") await aRing(el); else if (t === "pmh") await aPmh(el); else if (t === "bk") await aBk(el); else if (t === "bt") await aBt(el); else if (t === "skm") await aSkm(el); else if (t === "kt") { await aKt(el); if (window.AN_KT) { var w = window.AN_KT; window.AN_KT = null; ktAdd(w); } } else if (t === "lk") await window.aLk(el); else if (t === "kb") await window.aKb(el); else if (t === "pk") await window.aPk(el); else if (t === "kn") await window.aKn(el); else if (t === "an") await aAn(el); else if (t === "ak") await window.aAk(el);
   } catch (x) { el.innerHTML = '<div class="empty">' + esc(x.message) + '</div>'; }
+}
+function pkOpts() {
+  var L = [];
+  LOCS.forEach(function (l) {
+    (LD[l.id] || []).forEach(function (e) {
+      var k = l.id + "_" + e[0];
+      if (admSup() || (ME.loket || []).indexOf(k) > -1) L.push('<option value="' + esc(k) + '">' + esc(l.nm + " - " + e[1]) + "</option>");
+    });
+  });
+  return (admSup() ? '<option value="">(Tanpa loket tertentu)</option>' : "") + L.join("");
 }
 async function aPmh(el) {
   var j = await api("/api/admin/permohonan"), opt = function (s) { return j.status.map(function (x) { return '<option' + (x === s ? ' selected' : '') + '>' + x + '</option>'; }).join(""); };
-  el.innerHTML = '<h2 class="sec">Catat permohonan pemohon</h2><div class="card"><input class="si" id="ph" placeholder="Nomor HP pemohon (terdaftar di aplikasi)" inputmode="tel" maxlength="16"><input class="si" id="pj" placeholder="Jenis permohonan (mis. Pengajuan NIB)" maxlength="100"><input class="si" id="pn2" placeholder="Nomor permohonan / registrasi (opsional)" maxlength="40"><select class="si" id="ps">' + opt("Diterima") + '</select><input class="si" id="pc" placeholder="Catatan untuk pemohon (opsional)" maxlength="200"><button type="button" class="send" id="pbaru">Catat</button></div>' +
+  el.innerHTML = '<h2 class="sec">Catat permohonan pemohon</h2><div class="card"><input class="si" id="ph" placeholder="Nomor HP pemohon (terdaftar di aplikasi)" inputmode="tel" maxlength="16"><select class="si" id="pk" aria-label="Loket yang menangani">' + pkOpts() + '</select><input class="si" id="pj" placeholder="Jenis permohonan (mis. Pengajuan NIB)" maxlength="100"><input class="si" id="pn2" placeholder="Nomor permohonan / registrasi (opsional)" maxlength="40"><select class="si" id="ps">' + opt("Diterima") + '</select><input class="si" id="pc" placeholder="Catatan untuk pemohon (opsional)" maxlength="200"><button type="button" class="send" id="pbaru">Catat</button></div>' +
     '<h2 class="sec">Permohonan terbaru</h2>' + (j.daftar.length ? j.daftar.map(function (o) {
-      return '<article class="card" style="margin:0 0 8px"><b>' + esc(o.jenis) + '</b><div class="sys">' + esc(o.nama) + ' &middot; ' + esc(o.hp) + ' &middot; No. ' + esc(o.nomor || "-") + '</div><div>' + bdg(o.status) + '</div>' +
+      return '<article class="card" style="margin:0 0 8px"><b>' + esc(o.jenis) + '</b><div class="sys">' + esc(o.nama) + ' &middot; ' + esc(o.hp) + ' &middot; No. ' + esc(o.nomor || "-") + (o.loket ? ' &middot; ' + esc(o.loket) : '') + '</div><div>' + bdg(o.status) + '</div>' +
         '<select class="si" data-ps="' + o.id + '">' + opt(o.status) + '</select><input class="si" data-pc="' + o.id + '" placeholder="Catatan perubahan" maxlength="200"><div class="btns"><button type="button" class="send" data-pu="' + o.id + '">Perbarui</button><button type="button" class="btn" data-pd="' + o.id + '">Hapus</button></div></article>';
     }).join("") : '<div class="empty">Belum ada permohonan.</div>');
 }
@@ -330,7 +342,7 @@ async function aRing(el) {
   el.innerHTML = '<h2 class="sec">Ringkasan</h2><div class="kpis">' +
     kpi(j.pend, "Perlu dijawab", "dari " + j.percakapan + " percakapan", "inbox") +
     kpi(j.booking_hari_ini.total, "Booking hari ini", "Hadir " + (bs["Hadir"] || 0) + " &middot; Dipanggil " + (bs["Dipanggil"] || 0), "bk") +
-    kpi(j.pemohon, "Pemohon terdaftar", "akun aktif", "inbox") +
+    kpi(j.pemohon == null ? "-" : j.pemohon, "Pemohon terdaftar", "akun aktif", "inbox") +
     kpi(j.skm ? j.skm.ikm.toFixed(1) : "-", "IKM", j.skm ? esc(j.skm.mutu) + " &middot; " + j.skm.n + " responden" : "belum ada survei", "skm") + '</div>' +
     '<h2 class="sec">Booking 7 hari ke depan</h2><div class="card">' + j.booking_7hari.map(function (x) {
       var d = new Date(x.tanggal + "T00:00:00");
@@ -354,7 +366,7 @@ async function aBk(el, tgl) {
   L.forEach(function (o) { (g[o.kunci] = g[o.kunci] || []).push(o); });
   var urut = {"Sudah tiba": 0, "Terjadwal": 1, "Dipanggil": 2, "Hadir": 3, "Tidak hadir": 4};
   el.innerHTML = '<h2 class="sec">Booking kunjungan</h2><div class="card"><input class="si" type="date" id="bd" value="' + tgl + '" aria-label="Tanggal"><select class="si" id="bf" aria-label="Filter lokasi"><option value="all">Semua lokasi</option>' + LOCS.map(function (l) { return '<option value="' + esc(l.id) + '"' + (BF === l.id ? ' selected' : '') + '>' + esc(l.nm) + '</option>'; }).join("") + '</select>' +
-    '<input class="si" id="bscan" placeholder="Scan barcode atau ketik kode tiket, lalu Enter untuk memanggil" autocomplete="off" aria-label="Scan kode tiket"><div class="btns"><input class="si" id="bq" type="number" min="1" max="200" value="' + j.kuota + '" style="max-width:120px" aria-label="Kuota per jam per loket"><button type="button" class="btn" id="bqs">Simpan kuota per jam per loket</button><a class="btn" href="/?layar=1' + (BF !== "all" ? "&lokasi=" + encodeURIComponent(BF) : "") + '" target="_blank" rel="noopener">Buka layar antrean</a></div></div>' +
+    '<input class="si" id="bscan" placeholder="Scan barcode atau ketik kode tiket, lalu Enter untuk memanggil" autocomplete="off" aria-label="Scan kode tiket"><div class="btns">' + (admSup() ? '<input class="si" id="bq" type="number" min="1" max="200" value="' + j.kuota + '" style="max-width:120px" aria-label="Kuota per jam per loket"><button type="button" class="btn" id="bqs">Simpan kuota per jam per loket</button>' : '') + '<a class="btn" href="/?layar=1' + (BF !== "all" ? "&lokasi=" + encodeURIComponent(BF) : "") + '" target="_blank" rel="noopener">Buka layar antrean</a></div></div>' +
     '<p class="stat">' + L.length + ' booking pada ' + esc(tgl) + '</p>' +
     (Object.keys(g).length ? Object.keys(g).sort().map(function (k) {
       var G = g[k].sort(function (a, b) { return (urut[a.status] - urut[b.status]) || (a.jam < b.jam ? -1 : 1) || (a.kode < b.kode ? -1 : 1); }), tunggu = G.filter(function (o) { return o.status === "Terjadwal" || o.status === "Sudah tiba"; }).length;
@@ -400,7 +412,7 @@ $("v-adm").addEventListener("click", async function (e) {
   if (d.goat) { admTab(d.goat); return; }
   err("");
   try {
-    if (id === "pbaru") { await api("/api/admin/permohonan/baru", {hp: $("ph").value, jenis: $("pj").value, nomor: $("pn2").value, status: $("ps").value, catatan: $("pc").value}); toast("Permohonan dicatat."); aX("pmh"); return; }
+    if (id === "pbaru") { await api("/api/admin/permohonan/baru", {hp: $("ph").value, kunci: $("pk").value, jenis: $("pj").value, nomor: $("pn2").value, status: $("ps").value, catatan: $("pc").value}); toast("Permohonan dicatat."); aX("pmh"); return; }
     if (d.pu) { await api("/api/admin/permohonan/ubah", {id: d.pu, status: document.querySelector('[data-ps="' + d.pu + '"]').value, catatan: document.querySelector('[data-pc="' + d.pu + '"]').value}); toast("Status diperbarui. Pemohon akan diberi tahu."); aX("pmh"); return; }
     if (d.pd) { if (d.sure !== "1") { d.sure = "1"; t.textContent = "Yakin hapus?"; return; } await api("/api/admin/permohonan/hapus", {id: d.pd}); aX("pmh"); return; }
     if (d.nx) { var r = await api("/api/admin/booking/berikut", {tanggal: $("bd").value, kunci: d.nx}); toast("Memanggil " + r.kode + " (" + r.nama + ")."); aBk($("a-x"), $("bd").value); return; }

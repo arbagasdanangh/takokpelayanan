@@ -92,6 +92,22 @@ def hall(v):
     return {v[i]: v[i + 1] for i in range(0, len(v), 2)}
 
 
+# ---------------- Akun admin ----------------
+ADM_RE = re.compile(r"^[a-z0-9._-]{3,24}$")
+ADM_SUPER_NAMA = "superuser"  # nama cadangan untuk akun utama (kata sandi ADMIN_PASSWORD / panel)
+ADM_MAX = 200
+# Rute admin yang hanya boleh dipakai superuser: pengaturan global, isi chatbot, editor loket, kanal, data seluruh instansi, dan akun.
+ADM_SUPER = frozenset([
+    "akun", "akun/simpan", "akun/hapus",
+    "pengaturan", "kanal", "kanal/uji", "piket",
+    "loket", "loket/simpan", "loket/massal", "loket/reset", "lokasi/simpan", "lokasi/urutan", "lokasi/reset",
+    "berita", "berita/hapus",
+    "kata", "kata.xlsx", "kata-templat.xlsx", "kata/impor", "kstat", "kstat/reset", "miss", "miss/hapus",
+    "kbli/impor", "kbli/hapus",
+    "data.xlsx",
+])
+
+
 # ---------------- Util ----------------
 def now_ms():
     return int(time.time() * 1000)
@@ -496,13 +512,13 @@ def piket_balas(pid, k, pc=None):
     return m
 
 
-def muat_semua(limit=200):
+def muat_semua(limit=200, ok=None):
     """Muat percakapan terbaru beserta seluruh pesannya untuk analisis (dibatasi agar muat dalam 10 detik)."""
     r = db().pipe([["HGETALL", "tlast"], ["HGETALL", "pemohon"], ["HGETALL", "nilai"], ["HGETALL", "sel"], ["HGETALL", "tla"]])
     tlast, pem, nilai, sel, tla = [hall(x) for x in r]
     pem = {k: parse(v, {}) for k, v in pem.items()}
     fs = sorted(tlast, key=lambda f: -(parse(tlast[f], {}).get("waktu", 0)))
-    fs = [f for f in fs if f.split("|", 1)[0] in pem][:limit]
+    fs = [f for f in fs if f.split("|", 1)[0] in pem and (ok is None or ok(f.split("|", 1)[1]))][:limit]
     lists = db().pipe([["LRANGE", "msgs:" + f, 0, -1] for f in fs]) if fs else []
     rows = []
     for f, lst in zip(fs, lists):
@@ -697,12 +713,26 @@ class handler(BaseHTTPRequestHandler):
     def session(self):
         m = re.search(r"(?:^|;\s*)sid=([^;]+)", self.headers.get("Cookie", ""))
         p = unsign(m.group(1)) if m else None
-        if p and p["r"] == "adm" and p.get("v") != (db().cmd("HGET", "cfg", "admin_hash") or "")[:12]:
-            return None
+        if p and p["r"] == "adm":
+            return self.adm_valid(p)
         return p
 
+    def adm_valid(self, p):
+        """Sesi admin selalu dicocokkan ulang ke penyimpanan: akun dihapus/dinonaktifkan, kata sandi diganti,
+        atau loketnya diubah superuser berlaku pada permintaan berikutnya (cookie tidak dipercaya untuk wewenang)."""
+        u = p.get("u") or ""
+        if not u:  # akun utama = superuser
+            if p.get("v") != (db().cmd("HGET", "cfg", "admin_hash") or "")[:12]:
+                return None
+            return dict(p, u="", sup=True, lk=[], nm="Superuser")
+        a = parse(db().cmd("HGET", "adm", u), None)
+        if not isinstance(a, dict) or not a.get("aktif", True) or p.get("v") != (a.get("hash") or "")[:12]:
+            return None
+        sup = a.get("peran") == "super"
+        return dict(p, sup=sup, lk=[] if sup else [k for k in a.get("loket", []) if isinstance(k, str)], nm=a.get("nama") or u)
+
     def refresh(self, p):
-        q = dict(p)
+        q = {k: p[k] for k in ("r", "id", "v", "u") if k in p}
         q["exp"] = int(time.time()) + (1800 if p["r"] == "adm" else 3600)
         return self.cookie(sign(q), 3600)
 
@@ -819,6 +849,7 @@ class handler(BaseHTTPRequestHandler):
             if path == "/skm" and method == "POST":
                 return self.user_skm(ses, b, ex)
         if ses["r"] == "adm" and path.startswith("/admin/"):
+            self.adm = ses
             return self.admin(method, path[7:], q, b, ex)
         raise HttpError(403, "Tidak diizinkan.")
 
@@ -979,7 +1010,7 @@ class handler(BaseHTTPRequestHandler):
     def info(self, ses):
         who = None
         if ses and ses["r"] == "adm":
-            who = {"peran": "admin"}
+            who = {"peran": "admin", "level": "super" if ses["sup"] else "loket", "nama": ses["nm"], "u": ses.get("u", ""), "loket": ses["lk"]}
         elif ses:
             p = parse(db().cmd("HGET", "pemohon", ses.get("id")))
             if p:
@@ -1032,9 +1063,24 @@ class handler(BaseHTTPRequestHandler):
         self.json({"ok": True, "saya": {"peran": "pemohon", "nama": p["nama"], "hp": p["hp"], "email": p.get("email", "")}}, extra=self.cookie(tok, 3600))
 
     def admin_masuk(self, b):
+        """Superuser: kosongkan nama pengguna (atau tulis superuser) dan isi kata sandi utama.
+        Akun lain (admin loket atau superuser tambahan): nama pengguna + kata sandi yang dibuat superuser."""
         ip, pw = self.ip(), str(b.get("password", ""))
-        if limited("rl:adm:" + ip, 5, 600):
+        u = clean(b.get("user", ""), 30).lower()
+        if u == ADM_SUPER_NAMA:
+            u = ""
+        if limited("rl:adm:" + ip, 15, 600) or (u and limited("rl:admu:" + u, 6, 900)):
             raise HttpError(429, "Terlalu banyak percobaan. Coba lagi dalam 10 menit.")
+        if u:
+            a = parse(db().cmd("HGET", "adm", u), None) if ADM_RE.match(u) else None
+            if not (isinstance(a, dict) and a.get("aktif", True) and check_pw(pw, a.get("hash", ""))):
+                time.sleep(0.8)
+                raise HttpError(401, "Nama pengguna atau kata sandi salah, atau akun dinonaktifkan.")
+            db().pipe([["HSET", "admlog", u, now_ms()], ["DEL", "rl:adm:" + ip, "rl:admu:" + u]])
+            tok = sign({"r": "adm", "u": u, "v": a["hash"][:12], "exp": int(time.time()) + 1800})
+            sup = a.get("peran") == "super"
+            saya = {"peran": "admin", "level": "super" if sup else "loket", "nama": a.get("nama") or u, "u": u, "loket": [] if sup else list(a.get("loket", []))}
+            return self.json({"ok": True, "saya": saya}, extra=self.cookie(tok, 1800))
         h = db().cmd("HGET", "cfg", "admin_hash") or ""
         env = os.environ.get("ADMIN_PASSWORD") or ""
         ok = check_pw(pw, h) if h else (bool(env) and hmac.compare_digest(pw.encode(), env.encode()))
@@ -1046,7 +1092,7 @@ class handler(BaseHTTPRequestHandler):
             db().cmd("HSET", "cfg", "admin_hash", h)
         db().cmd("DEL", "rl:adm:" + ip)
         tok = sign({"r": "adm", "v": h[:12], "exp": int(time.time()) + 1800})
-        self.json({"ok": True, "saya": {"peran": "admin"}}, extra=self.cookie(tok, 1800))
+        self.json({"ok": True, "saya": {"peran": "admin", "level": "super", "nama": "Superuser", "u": "", "loket": []}}, extra=self.cookie(tok, 1800))
 
     # ---- pemohon ----
     def user_pesan(self, ses, ex):
@@ -1379,13 +1425,79 @@ class handler(BaseHTTPRequestHandler):
         self.json({"ok": True}, extra=ex)
 
     # ---- admin ----
+    def boleh(self, k):
+        """Apakah akun admin yang sedang masuk berwenang atas loket (kunci) ini. Superuser: semua."""
+        a = self.adm
+        if a["sup"]:
+            return True
+        k = str(k)
+        if k in a["lk"]:
+            return True
+        return k.endswith("_0") and any(x.startswith(k[:-1]) for x in a["lk"])  # booking tingkat lokasi
+
+    def izin(self, k):
+        if not self.boleh(k):
+            raise HttpError(403, "Loket ini di luar wewenang akun Anda.")
+
+    def thr(self):
+        return [t for t in threads() if self.boleh(t["kunci"])]
+
+    def pmh_ok(self, o):
+        return self.adm["sup"] or bool(o.get("kunci") and self.boleh(o["kunci"]))
+
+    def skm_ok(self, o):
+        return self.adm["sup"] or bool(o.get("unit") and self.boleh(o["unit"]))
+
     def admin(self, method, r, q, b, ex):
+        if not self.adm["sup"] and (r in ADM_SUPER or (r == "templat" and method == "POST")):
+            raise HttpError(403, "Fitur ini hanya untuk superuser.")
+        if r == "akun" and method == "GET":
+            masuk = hall(db().cmd("HGETALL", "admlog"))
+            out = []
+            for u, v in hall(db().cmd("HGETALL", "adm")).items():
+                a = parse(v, None)
+                if isinstance(a, dict):
+                    out.append({"u": u, "nama": a.get("nama", ""), "peran": a.get("peran", "loket"), "loket": a.get("loket", []), "aktif": bool(a.get("aktif", True)),
+                                "dibuat": a.get("dibuat", 0), "masuk": int(masuk.get(u, 0) or 0)})
+            out.sort(key=lambda x: (x["peran"] != "super", x["u"]))
+            return self.json({"daftar": out, "saya": self.adm.get("u", "")}, extra=ex)
+        if r == "akun/simpan" and method == "POST":
+            u = clean(b.get("u", ""), 30).lower()
+            if not ADM_RE.match(u) or u == ADM_SUPER_NAMA:
+                raise HttpError(400, "Nama pengguna 3 sampai 24 karakter: huruf kecil, angka, titik, garis bawah, atau strip. Nama superuser dicadangkan.")
+            old = parse(db().cmd("HGET", "adm", u), None)
+            old = old if isinstance(old, dict) else None
+            peran = "super" if b.get("peran") == "super" else "loket"
+            aktif = b.get("aktif", True) not in (False, 0, "0", "false")
+            if u == self.adm.get("u") and (peran != "super" or not aktif):
+                raise HttpError(400, "Akun yang sedang Anda pakai tidak bisa diturunkan atau dinonaktifkan.")
+            lk = []
+            if peran == "loket":
+                lk = [k for k in dict.fromkeys(b.get("loket") or []) if isinstance(k, str) and valid_key(k)][:80]
+                if not lk:
+                    raise HttpError(400, "Pilih minimal satu loket untuk akun admin loket.")
+            pw = str(b.get("password", ""))
+            if (not old or pw) and len(pw) < 8:
+                raise HttpError(400, "Kata sandi minimal 8 karakter.")
+            if not old and int(db().cmd("HLEN", "adm") or 0) >= ADM_MAX:
+                raise HttpError(400, "Jumlah akun sudah mencapai batas.")
+            o = {"nama": clean(b.get("nama", ""), 60) or u, "peran": peran, "loket": lk, "aktif": aktif,
+                 "hash": hash_pw(pw) if pw else old["hash"], "dibuat": (old or {}).get("dibuat") or now_ms()}
+            db().cmd("HSET", "adm", u, json.dumps(o, ensure_ascii=False))
+            return self.json({"ok": True, "baru": old is None}, extra=ex)
+        if r == "akun/hapus" and method == "POST":
+            u = clean(b.get("u", ""), 30).lower()
+            if u == self.adm.get("u"):
+                raise HttpError(400, "Akun yang sedang Anda pakai tidak bisa dihapus.")
+            db().pipe([["HDEL", "adm", u], ["HDEL", "admlog", u]])
+            return self.json({"ok": True}, extra=ex)
         if r == "percakapan":
-            return self.json({"daftar": threads()}, extra=ex)
+            return self.json({"daftar": self.thr()}, extra=ex)
         if r == "pesan":
             pid, k = int((q.get("pid") or ["0"])[0] or 0), (q.get("kunci") or [""])[0]
             if not valid_key(k):
                 raise HttpError(400, "Data tidak valid.")
+            self.izin(k)
             f = "%s|%s" % (pid, k)
             res = db().pipe([["LRANGE", "msgs:" + f, 0, -1], ["HSET", "rd", f, now_ms()], ["HGET", "cat", f], ["HGET", "ttag", f],
                              ["HGET", "pemohon", pid]])
@@ -1400,17 +1512,19 @@ class handler(BaseHTTPRequestHandler):
             if not f or "|" not in f:
                 raise HttpError(404, "Nomor tiket tidak ditemukan.")
             pid, k = f.split("|", 1)
+            if not self.boleh(k):
+                raise HttpError(404, "Nomor tiket tidak ditemukan.")
             p = parse(db().cmd("HGET", "pemohon", pid), {}) or {}
             return self.json({"pid": int(pid), "kunci": k, "nama": p.get("nama", ""), "hp": p.get("hp", ""), "email": p.get("email", ""), "tk": no}, extra=ex)
         if r == "analitik" and method == "GET":
             hari = int((q.get("hari") or ["30"])[0] or 30)
-            return self.json(AN.statistik(muat_semua(), now_ms(), hari, label), extra=ex)
+            return self.json(AN.statistik(muat_semua(ok=self.boleh), now_ms(), hari, label), extra=ex)
         if r == "cari" and method == "GET":
             kata = clean((q.get("q") or [""])[0], 60).lower()
             if len(kata) < 2:
                 raise HttpError(400, "Ketik minimal 2 huruf untuk mencari.")
             hasil = []
-            for row in muat_semua():
+            for row in muat_semua(ok=self.boleh):
                 for m in sorted(row["msgs"], key=lambda x: -x.get("waktu", 0)):
                     i = m["isi"].lower().find(kata)
                     if i >= 0:
@@ -1473,12 +1587,13 @@ class handler(BaseHTTPRequestHandler):
         if r == "data.xlsx":
             return self.xlsx(ex)
         if r == "permohonan" and method == "GET":
-            ids = sorted([int(x) for x in db().cmd("SMEMBERS", "pmhall") or []], reverse=True)[:100]
-            rows = [parse(x) for x in (db().cmd("HMGET", "pmh", *ids) if ids else []) if x]
+            ids = sorted([int(x) for x in db().cmd("SMEMBERS", "pmhall") or []], reverse=True)[:100 if self.adm["sup"] else 500]
+            rows = [o for o in (parse(x) for x in (db().cmd("HMGET", "pmh", *ids) if ids else []) if x) if o and self.pmh_ok(o)][:100]
             pm = hall(db().cmd("HGETALL", "pemohon"))
             for o in rows:
                 p = parse(pm.get(str(o["pid"])), {})
                 o["nama"], o["hp"] = p.get("nama", "?"), p.get("hp", "")
+                o["loket"] = label(o["kunci"]) if o.get("kunci") else ""
             return self.json({"daftar": rows, "status": STATUS_PMH}, extra=ex)
         if r == "booking" and method == "GET":
             tgl = (q.get("tanggal") or [""])[0]
@@ -1488,6 +1603,7 @@ class handler(BaseHTTPRequestHandler):
                 raise HttpError(400, "Tanggal tidak valid.")
             ids = db().cmd("SMEMBERS", "bkd:%s" % tgl) or []
             rows = [bk_norm(parse(x)) for x in (db().cmd("HMGET", "bk", *ids) if ids else []) if x]
+            rows = [o for o in rows if self.boleh(o["kunci"])]
             pm = hall(db().cmd("HGETALL", "pemohon"))
             for o in rows:
                 p = parse(pm.get(str(o["pid"])), {})
@@ -1498,9 +1614,21 @@ class handler(BaseHTTPRequestHandler):
         if r == "ringkasan" and method == "GET":
             hari = time.strftime("%Y-%m-%d", wib())
             hh = [time.strftime("%Y-%m-%d", time.gmtime(time.time() + 7 * 3600 + i * 86400)) for i in range(7)]
-            sc = db().pipe([["SCARD", "bkd:%s" % d] for d in hh] + [["HLEN", "pemohon"]])
-            ids = db().cmd("SMEMBERS", "bkd:%s" % hari) or []
-            bk = [parse(x) for x in (db().cmd("HMGET", "bk", *ids) if ids else []) if x]
+            if self.adm["sup"]:
+                sc = db().pipe([["SCARD", "bkd:%s" % d] for d in hh] + [["HLEN", "pemohon"]])
+                ids = db().cmd("SMEMBERS", "bkd:%s" % hari) or []
+                bk = [parse(x) for x in (db().cmd("HMGET", "bk", *ids) if ids else []) if x]
+            else:  # akun loket: hanya booking di loket wewenangnya
+                sm = db().pipe([["SMEMBERS", "bkd:%s" % d] for d in hh])
+                semua = sorted({i for s in sm for i in (s or [])})
+                hm = {}
+                if semua:
+                    for i, x in zip(semua, db().cmd("HMGET", "bk", *semua)):
+                        o = bk_norm(parse(x)) if x else None
+                        if o and self.boleh(o["kunci"]):
+                            hm[i] = o
+                sc = [sum(1 for i in (s or []) if i in hm) for s in sm] + [0]
+                bk = [hm[i] for i in (sm[0] or []) if i in hm]
             bs = {}
             for o in bk:
                 bs[o["status"]] = bs.get(o["status"], 0) + 1
@@ -1508,27 +1636,27 @@ class handler(BaseHTTPRequestHandler):
             ps = {}
             for x in (db().cmd("HMGET", "pmh", *pids) if pids else []):
                 o = parse(x) if x else None
-                if o:
+                if o and self.pmh_ok(o):
                     ps[o["status"]] = ps.get(o["status"], 0) + 1
-            ts = threads()
+            ts = self.thr()
             gn, gd = [hall(x) for x in db().pipe([["HGETALL", "gm:n"], ["HGETALL", "gm:d"]])]
             gdays = []
             for i in range(6, -1, -1):
                 t = time.gmtime(time.time() + 7 * 3600 - i * 86400)
                 gdays.append({"d": time.strftime("%d/%m", t), "n": int(gd.get(time.strftime("%Y%m%d", t), 0))})
-            game = {"per": {k: int(gn.get(k, 0)) for k in self.GAMES}, "hari": gdays}
-            rows = [o for o in (parse(x) for x in db().cmd("LRANGE", "skm", 0, -1) or []) if o]
+            game = {"per": {k: int(gn.get(k, 0)) for k in self.GAMES}, "hari": gdays} if self.adm["sup"] else None
+            rows = [o for o in (parse(x) for x in db().cmd("LRANGE", "skm", 0, -1) or []) if o and self.skm_ok(o)]
             skm = None
             if rows:
                 av = [sum(o["j"][i] for o in rows) / len(rows) for i in range(9)]
                 ikm = round(sum(av) / 9 * 25, 2)
                 skm = {"n": len(rows), "ikm": ikm, "mutu": kategori_ikm(ikm)}
-            return self.json({"pend": sum(1 for t in ts if t["pend"]), "percakapan": len(ts), "pemohon": int(sc[-1] or 0), "hari": hari,
+            return self.json({"pend": sum(1 for t in ts if t["pend"]), "percakapan": len(ts), "pemohon": int(sc[-1] or 0) if self.adm["sup"] else None, "hari": hari,
                               "booking_hari_ini": {"total": len(bk), "status": bs}, "booking_7hari": [{"tanggal": d, "n": int(c or 0)} for d, c in zip(hh, sc[:7])],
                               "pmh": ps, "skm": skm, "game": game}, extra=ex)
         if r == "skm" and method == "GET":
             rows = [parse(x) for x in db().cmd("LRANGE", "skm", 0, -1) or []]
-            rows = [o for o in rows if o]
+            rows = [o for o in rows if o and self.skm_ok(o)]
 
             def ringkas(rs):
                 if not rs:
@@ -1571,9 +1699,16 @@ class handler(BaseHTTPRequestHandler):
                 raise HttpError(400, "Nomor HP pemohon belum terdaftar di aplikasi.")
             if len(jenis) < 3:
                 raise HttpError(400, "Isi jenis permohonan.")
+            kk = str(b.get("kunci", ""))
+            if kk:
+                if not valid_key(kk):
+                    raise HttpError(400, "Loket tidak valid.")
+                self.izin(kk)
+            elif not self.adm["sup"]:
+                raise HttpError(400, "Pilih loket untuk permohonan ini.")
             st = b.get("status") if b.get("status") in STATUS_PMH else "Diterima"
             pmid, t = int(db().cmd("INCR", "seq:pmh")), now_ms()
-            o = {"id": pmid, "pid": int(pid), "jenis": jenis, "nomor": nomor, "status": st, "ubah": t, "dibuat": t,
+            o = {"id": pmid, "pid": int(pid), "kunci": kk, "jenis": jenis, "nomor": nomor, "status": st, "ubah": t, "dibuat": t,
                  "riwayat": [{"status": st, "catatan": clean(b.get("catatan", ""), 200), "waktu": t}]}
             db().pipe([["HSET", "pmh", pmid, json.dumps(o, ensure_ascii=False)], ["SADD", "pmh:%s" % pid, pmid], ["SADD", "pmhall", pmid]])
             return self.json({"ok": True}, extra=ex)
@@ -1581,6 +1716,8 @@ class handler(BaseHTTPRequestHandler):
             o = parse(db().cmd("HGET", "pmh", str(b.get("id", ""))))
             if not o or b.get("status") not in STATUS_PMH:
                 raise HttpError(400, "Data tidak valid.")
+            if not self.pmh_ok(o):
+                raise HttpError(403, "Permohonan ini di luar wewenang akun Anda.")
             t = now_ms()
             o["status"], o["ubah"] = b["status"], t
             o["riwayat"].append({"status": b["status"], "catatan": clean(b.get("catatan", ""), 200), "waktu": t})
@@ -1589,6 +1726,8 @@ class handler(BaseHTTPRequestHandler):
         if r == "permohonan/hapus":
             o = parse(db().cmd("HGET", "pmh", str(b.get("id", ""))))
             if o:
+                if not self.pmh_ok(o):
+                    raise HttpError(403, "Permohonan ini di luar wewenang akun Anda.")
                 db().pipe([["HDEL", "pmh", o["id"]], ["SREM", "pmh:%s" % o["pid"], o["id"]], ["SREM", "pmhall", o["id"]]])
             return self.json({"ok": True}, extra=ex)
         if r == "booking/berikut":
@@ -1599,6 +1738,7 @@ class handler(BaseHTTPRequestHandler):
                 raise HttpError(400, "Tanggal tidak valid.")
             ids = db().cmd("SMEMBERS", "bkd:%s" % tgl) or []
             rows = [bk_norm(parse(x)) for x in (db().cmd("HMGET", "bk", *ids) if ids else []) if x]
+            self.izin(k)
             cand = sorted([o for o in rows if o["kunci"] == k and o["status"] in ("Sudah tiba", "Terjadwal")], key=lambda o: (o["status"] != "Sudah tiba", o["jam"], o["kode"]))
             if not cand:
                 raise HttpError(404, "Tidak ada antrean yang menunggu di loket ini.")
@@ -1612,6 +1752,7 @@ class handler(BaseHTTPRequestHandler):
             o = bk_norm(parse(db().cmd("HGET", "bk", str(b.get("id", "")))))
             if not o or b.get("status") not in ("Terjadwal", "Sudah tiba", "Dipanggil", "Hadir", "Tidak hadir"):
                 raise HttpError(400, "Data tidak valid.")
+            self.izin(o["kunci"])
             o["status"] = b["status"]
             cmds = [["HSET", "bk", o["id"], json.dumps(o, ensure_ascii=False)]]
             if b["status"] == "Dipanggil":
@@ -1623,6 +1764,7 @@ class handler(BaseHTTPRequestHandler):
                 pid = int(b.get("pid"))
             except (TypeError, ValueError):
                 raise HttpError(400, "Data tidak valid.")
+            self.izin(str(b.get("kunci", "")))
             return (self._ubah if r == "pesan/ubah" else self._hapus)(pid, str(b.get("kunci", "")), b, "admin", ex)
         if r == "loket/simpan" and method == "POST":
             lok, kunci = str(b.get("lokasi", "")), str(b.get("kunci", ""))
@@ -1835,12 +1977,14 @@ class handler(BaseHTTPRequestHandler):
             pid, k = int(b.get("pid") or 0), str(b.get("kunci", ""))
             if not valid_key(k):
                 raise HttpError(400, "Data tidak valid.")
+            self.izin(k)
             db().cmd("HSET", "cat", "%s|%s" % (pid, k), clean(b.get("teks", ""), 500))
             return self.json({"ok": True}, extra=ex)
         if r == "balas":
             pid, k, isi = int(b.get("pid") or 0), str(b.get("kunci", "")), clean(b.get("isi", ""), 800)
             if not valid_key(k) or not isi or not db().cmd("HGET", "pemohon", pid):
                 raise HttpError(400, "Balasan tidak valid.")
+            self.izin(k)
             f = "%s|%s" % (pid, k)
             lu, la = int(db().cmd("HGET", "tlu", f) or 0), int(db().cmd("HGET", "tla", f) or 0)
             if lu > la:
@@ -1851,12 +1995,14 @@ class handler(BaseHTTPRequestHandler):
             pid, k = int(b.get("pid") or 0), str(b.get("kunci", ""))
             if not valid_key(k):
                 raise HttpError(400, "Data tidak valid.")
+            self.izin(k)
             db().cmd("HSET", "sel", "%s|%s" % (pid, k), now_ms())
             return self.json({"ok": True}, extra=ex)
         if r == "label":
             pid, k = int(b.get("pid") or 0), str(b.get("kunci", ""))
             if not valid_key(k) or not db().cmd("HGET", "pemohon", pid):
                 raise HttpError(400, "Data tidak valid.")
+            self.izin(k)
             tags = [t for t in dict.fromkeys(b.get("tags") or []) if isinstance(t, str) and t in AN.TAGS]
             tl = str(b.get("tl", ""))[:10]
             try:
@@ -1875,12 +2021,13 @@ class handler(BaseHTTPRequestHandler):
             cmds = []
             for x in its:
                 k = str(x.get("kunci", ""))
-                if valid_key(k):
+                if valid_key(k) and self.boleh(k):
                     cmds.append(["HSET", "sel", "%s|%s" % (int(x.get("pid") or 0), k), now_ms()])
             db().pipe(cmds)
             return self.json({"ok": True, "n": len(cmds)}, extra=ex)
         if r == "hapus":
             pid, k = int(b.get("pid") or 0), str(b.get("kunci", ""))
+            self.izin(k)
             f = "%s|%s" % (pid, k)
             db().pipe([["DEL", "msgs:" + f], ["SREM", "pk:%s" % pid, k]] + [["HDEL", h, f] for h in ("tlu", "tla", "tlast", "sel", "nilai", "tmeta", "ttag", "cat", "rd", "tkt")])
             return self.json({"ok": True}, extra=ex)
@@ -1933,10 +2080,20 @@ class handler(BaseHTTPRequestHandler):
             hari = time.strftime("%Y%m%d", wib())
             return self.json({"cfg": piket_cfg(), "hari_ini": int(pn.get(hari, 0)), "total": sum(int(v) for v in pn.values())}, extra=ex)
         if r == "password":
+            baru = str(b.get("baru", ""))
+            u = self.adm.get("u", "")
+            if u:  # akun admin (loket atau superuser tambahan) mengganti kata sandinya sendiri
+                a = parse(db().cmd("HGET", "adm", u), None)
+                if not isinstance(a, dict) or not check_pw(str(b.get("lama", "")), a.get("hash", "")):
+                    raise HttpError(401, "Kata sandi lama salah.")
+                if len(baru) < 8:
+                    raise HttpError(400, "Kata sandi minimal 8 karakter.")
+                a["hash"] = hash_pw(baru)
+                db().cmd("HSET", "adm", u, json.dumps(a, ensure_ascii=False))
+                return self.json({"ok": True}, extra=self.cookie("", 0))
             h = db().cmd("HGET", "cfg", "admin_hash") or ""
             if not check_pw(str(b.get("lama", "")), h):
                 raise HttpError(401, "Kata sandi lama salah.")
-            baru = str(b.get("baru", ""))
             if len(baru) < 8:
                 raise HttpError(400, "Kata sandi minimal 8 karakter.")
             db().cmd("HSET", "cfg", "admin_hash", hash_pw(baru))
@@ -1950,7 +2107,7 @@ class handler(BaseHTTPRequestHandler):
         buf = io.StringIO()
         w = csv.writer(buf)
         w.writerow(["Nama", "Nomor HP", "Email", "Lokasi dan loket", "Pesan terakhir", "Waktu", "Status", "Nilai", "Topik", "Sentimen", "Urgensi", "Prioritas", "Label", "Petugas"])
-        for t in threads():
+        for t in self.thr():
             w.writerow([c(t["nama"]), c(t["hp"]), c(t["email"]), c(label(t["kunci"])), c(t["teks"]),
                         time.strftime("%d-%m-%Y %H:%M", time.gmtime(t["waktu"] / 1000 + 7 * 3600)),
                         "Perlu dijawab" if t["pend"] else "Sudah dijawab", t["nilai"] or "",
@@ -1962,7 +2119,7 @@ class handler(BaseHTTPRequestHandler):
         """Laporan analisis chat (Excel): ringkasan KPI, percakapan, topik, loket, dan pertanyaan berulang."""
         from openpyxl import Workbook
         from openpyxl.styles import Alignment, Font, PatternFill
-        rows, t = muat_semua(), now_ms()
+        rows, t = muat_semua(ok=self.boleh), now_ms()
         st = AN.statistik(rows, t, 90, label)
         wb = Workbook()
         wb.remove(wb.active)

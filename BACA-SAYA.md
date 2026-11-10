@@ -339,3 +339,19 @@ Keamanan: tanda tangan `X-Hub-Signature-256` (WA) dan header rahasia (Telegram) 
 
 ## Tur Demo (v33)
 Tombol "▶ Tur Demo" (kiri bawah), alamat `/?demo=1`, atau tombol Alt+D menjalankan tur otomatis ±90 detik: pencarian, Pandu KBLI, Paket Siap Datang, Pandu Zona, chatbot, Ruang Main, Tebak KBLI, lalu ringkasan fitur admin. Ada jeda/mundur/maju/berhenti (Esc). Cocok untuk presentasi lomba: bagikan tautan `/?demo=1`. File: `public/demo.js`. Tidak mengirim data apa pun ke server.
+
+## Akun admin per loket dan superuser (v34)
+Ada dua jenis peran admin:
+- **Superuser**: akses penuh. Masuk dengan **nama pengguna dikosongkan** (atau `superuser`) dan kata sandi utama (`ADMIN_PASSWORD`, lalu diganti lewat Pengaturan). Superuser juga bisa membuat superuser tambahan.
+- **Admin loket**: akun dengan satu atau beberapa loket (`kunci` seperti `mpp_08`). Hanya melihat dan mengelola untuk loket itu: percakapan (balas, catatan, label, selesai, hapus), pencarian isi pesan, tiket, booking dan panggil antrean, permohonan, analitik chat, rekap SKM, dan laporan CSV/Excel chat (semuanya hanya data loketnya). Ringkasan hanya menghitung loketnya; jumlah pemohon terdaftar dan statistik Ruang Main disembunyikan.
+
+Tab **Akun admin** (hanya superuser): tambah, ubah, nonaktifkan, dan hapus akun; pilih loket per lokasi (ada tombol "Pilih semua" per lokasi); setel ulang kata sandi dengan mengisi kolom kata sandi saat mengubah. Perubahan berlaku pada permintaan berikutnya: akun yang dinonaktifkan, dihapus, atau diganti kata sandinya langsung keluar, dan perubahan loket langsung berlaku tanpa masuk ulang.
+
+Hanya superuser yang dapat: Pengaturan (WA, jam, pengumuman, kuota booking, templat balasan), Berita, Kata cari chatbot, Editor loket, Asisten Piket, Kanal WA & Telegram, Data KBLI, unduh database (Excel), dan mengelola akun. Admin loket yang memanggil rute ini mendapat 403 dari server (bukan hanya disembunyikan di tampilan).
+
+Catatan:
+- Pembatasan ada di server (`api/app.py`: `ADM_SUPER`, `boleh`, `izin`); wewenang dibaca ulang dari Redis pada setiap permintaan, bukan dari cookie.
+- Permohonan kini punya kolom `kunci` (loket). Admin loket wajib memilih loketnya saat mencatat permohonan. **Permohonan lama (tanpa loket) hanya terlihat oleh superuser.**
+- Survei SKM dihubungkan ke loket lewat `unit`. Penilaian per instansi MPP (id `mpp_s1` dst.) bukan kunci loket, jadi hanya terlihat oleh superuser; penilaian seluruh lokasi (tanpa unit) juga hanya superuser.
+- Batas percobaan masuk: 6 kali per nama pengguna per 15 menit dan 15 kali per IP per 10 menit (dinaikkan dari 5 karena petugas satu kantor sering berbagi IP). Kata sandi akun minimal 8 karakter, disimpan sebagai hash PBKDF2. Maksimal 200 akun.
+- Data akun ada di Redis hash `adm` (dan `admlog` untuk waktu masuk terakhir). Tidak ada variabel lingkungan baru.

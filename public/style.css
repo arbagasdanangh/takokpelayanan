@@ -816,3 +816,9 @@ body.dm-on .dm-go{display:none}
 .dm-hl{outline:3px solid #2dd4bf!important;outline-offset:3px;border-radius:10px;animation:dmp 1.2s ease-in-out infinite}
 @keyframes dmp{50%{outline-color:#fbbf24}}
 @media (prefers-reduced-motion:reduce){.dm-hl{animation:none}}
+/* Akun admin (v34) */
+.akl{border:1px solid var(--line);border-radius:12px;padding:6px 10px;margin:0 0 6px;background:var(--surface)}
+.akl summary{cursor:pointer;font-weight:600;color:var(--ink)}
+.akc{display:flex;align-items:center;gap:8px;margin:4px 0;font-size:.9rem;color:var(--ink)}
+.akc input{width:auto;margin:0}
+#a-who{margin:0 0 6px}
