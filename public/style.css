@@ -803,3 +803,6 @@ details.row{transition:box-shadow .2s,transform .2s}details.row:hover{transform:
 
 .kz-b{display:inline-block;font-size:.72rem;font-weight:700;border-radius:999px;padding:2px 10px;background:#e2e8f0;color:#334155}
 .kz-g{display:grid;gap:6px}.kz-row{display:flex;flex-wrap:wrap;gap:6px}.kz-f{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+
+.kn-ch{background:#e5ddd5;border-radius:12px;padding:10px;margin:8px 0;max-height:320px;overflow:auto;display:flex;flex-direction:column;gap:6px}
+.kn-b{max-width:88%;background:#fff;border-radius:10px;padding:6px 10px;font-size:.88rem;color:#111;align-self:flex-start;box-shadow:0 1px 1px rgba(0,0,0,.15)}.kn-b.me{background:#d9fdd3;align-self:flex-end}

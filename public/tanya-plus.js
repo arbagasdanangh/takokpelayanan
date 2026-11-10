@@ -26,9 +26,15 @@ function load() {
     var n = 0, t = setInterval(function () { n++; if ((window.KATA && window.KATA.length) || n > 40) { clearInterval(t); home(); } }, 500);
   });
 }
+function kanalLinks() {
+  var K = (window.CFG && CFG.kanal) || {}, o = "";
+  if (K.wa) o += '<a target="_blank" rel="noopener noreferrer" href="https://wa.me/' + esc(K.wa) + '?text=Halo">💬 Chat di WhatsApp</a>';
+  if (K.tg) o += '<a target="_blank" rel="noopener noreferrer" href="https://t.me/' + esc(K.tg) + '">✈️ Chat di Telegram</a>';
+  return o;
+}
 function welcome() {
   if (!window.BOTI) return; var it = popItems();
-  BOTI.bot("Atau mulai dari sini:", '<div class="bch">' + PERSONA.map(function (p) { return '<button type="button" data-b="q:' + esc(p[1]) + '">' + esc(p[0]) + '</button>'; }).join("") + '<button type="button" data-tp="kbli">🔎 Cari kode KBLI usaha saya</button></div>' + (it.length ? '<div class="tp-h">' + (POP.length ? "🔥 Ramai ditanyakan minggu ini" : "💬 Sering ditanyakan") + '</div><div class="bch">' + chipsHtml(it, "bot") + '</div>' : ""), 300);
+  BOTI.bot("Atau mulai dari sini:", '<div class="bch">' + PERSONA.map(function (p) { return '<button type="button" data-b="q:' + esc(p[1]) + '">' + esc(p[0]) + '</button>'; }).join("") + '<button type="button" data-tp="kbli">🔎 Cari kode KBLI usaha saya</button>' + kanalLinks() + '</div>' + (it.length ? '<div class="tp-h">' + (POP.length ? "🔥 Ramai ditanyakan minggu ini" : "💬 Sering ditanyakan") + '</div><div class="bch">' + chipsHtml(it, "bot") + '</div>' : ""), 300);
 }
 /* ---------- Jawaban Instan ---------- */
 function box(ta) { var b = ta.parentNode.querySelector(".tp-ins"); if (!b) { b = document.createElement("div"); b.className = "tp-ins"; b.setAttribute("role", "status"); b.setAttribute("aria-live", "polite"); ta.parentNode.insertBefore(b, ta); } return b; }

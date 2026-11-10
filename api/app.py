@@ -14,6 +14,7 @@ from html.parser import HTMLParser
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _data import SEED, SKM_MPP  # noqa: E402
 import _analisa as AN  # noqa: E402
+import _bot as BOT  # noqa: E402
 
 SECRET = (os.environ.get("SESSION_SECRET") or "").encode()
 SECURE = os.environ.get("COOKIE_SECURE", "1") != "0"
@@ -717,6 +718,7 @@ class handler(BaseHTTPRequestHandler):
             q = parse_qs(u.query)
             path = (q.get("p") or ["/"])[0]
             body = {}
+            self.raw = b""
             if method == "POST":
                 org = self.headers.get("Origin")
                 if org and urlparse(org).netloc != self.headers.get("Host"):
@@ -724,6 +726,16 @@ class handler(BaseHTTPRequestHandler):
                 if "application/json" not in (self.headers.get("Content-Type") or ""):
                     raise HttpError(415, "Format permintaan tidak valid.")
                 n = int(self.headers.get("Content-Length") or 0)
+                if path in ("/wa", "/tg"):  # webhook: butuh badan mentah untuk memeriksa tanda tangan
+                    if n > 60000:
+                        raise HttpError(413, "Permintaan terlalu besar.")
+                    self.raw = self.rfile.read(n)
+                    try:
+                        body = json.loads(self.raw or b"{}")
+                        assert isinstance(body, dict)
+                    except Exception:
+                        raise HttpError(400, "Data tidak valid.")
+                    return self.route(method, path, q, body)
                 if n > {"/admin/kata": 700000, "/admin/kata/impor": 4200000, "/admin/loket/massal": 1500000, "/admin/kbli/impor": 1500000}.get(path, 10000):
                     raise HttpError(413, "Permintaan terlalu besar.")
                 try:
@@ -758,6 +770,10 @@ class handler(BaseHTTPRequestHandler):
             return self.bot_miss(b)
         if path == "/game/main" and method == "POST":
             return self.game_main(b)
+        if path == "/wa":
+            return self.kanal_wa(method, q, b)
+        if path == "/tg" and method == "POST":
+            return self.kanal_tg(b)
         if path == "/populer" and method == "GET":
             return self.populer_publik()
         if path == "/bot/hit" and method == "POST":
@@ -851,6 +867,85 @@ class handler(BaseHTTPRequestHandler):
     def q1(self, k):
         return (parse_qs(urlparse(self.path).query).get(k) or [""])[0]
 
+    # ---------- Kanal WhatsApp (Cloud API) dan Telegram ----------
+    def kanal_ctx(self):
+        d, v, ix, awal = kata_cache()
+        kv = db().cmd("HGET", "kbli", "v")
+        if kv:
+            if _KB["v"] != kv:
+                rows, v2, m = kbli_baca()
+                _KB.update(v=v2, rows=rows, m=m)
+        lokasi = [lok_meta_publik(i) for i in LOK_ORDER if not lok_sembunyi(i)]
+        return {"idx": ix, "loket": loket_urut(), "label": label, "lokasi": lokasi, "cfg": cfg_all(), "kbli": _KB["rows"] if kv else [], "situs": "https://" + (self.headers.get("Host") or "")}
+
+    def kanal_proses(self, ch, uid, mid, teks):
+        """Jawab satu pesan masuk. Kembalikan teks balasan atau None bila dilewati (duplikat/terlalu sering/kanal dimatikan)."""
+        if (cfg_all().get("kanal_" + ch, "1")) == "0":
+            return None
+        if mid and not db().cmd("SET", "kn:m:%s:%s" % (ch, mid), "1", "NX", "EX", 3600):
+            return None
+        if limited("rl:kn:%s:%s" % (ch, hashlib.sha256(str(uid).encode()).hexdigest()[:16]), 30, 3600):
+            return None
+        bal, ok = BOT.jawab(teks, self.kanal_ctx())
+        q = clean(teks or "", 160).lower()
+        q = re.sub(r"\+?\d[\d\s().-]{5,}\d", " ", re.sub(r"[\w.+-]+@[\w-]+\.[\w.]+", " ", q))
+        q = re.sub(r"\s+", " ", q).strip()[:100]
+        hari = time.strftime("%Y%m%d", wib())
+        cmds = [["LPUSH", "kn:log", json.dumps({"t": now_ms(), "ch": ch, "id": "…" + re.sub(r"\D", "", str(uid))[-3:], "q": q, "ok": 1 if ok else 0}, ensure_ascii=False)], ["LTRIM", "kn:log", 0, 49],
+                ["HINCRBY", "kn:n", "%s:%s" % (ch, hari), 1], ["HINCRBY", "kn:n", "%s:total" % ch, 1]]
+        if not ok and len(q) >= 3 and re.search(r"[a-z]{3}", q):
+            cmds += [["HINCRBY", "miss", q, 1], ["HSET", "missw", q, now_ms()]]
+        db().pipe(cmds)
+        return bal
+
+    def kanal_wa(self, method, q, b):
+        env = os.environ
+        if method == "GET":  # verifikasi webhook oleh Meta
+            vt = env.get("WA_VERIFY", "")
+            if vt and (q.get("hub.mode") or [""])[0] == "subscribe" and hmac.compare_digest((q.get("hub.verify_token") or [""])[0], vt):
+                return self.out(200, (q.get("hub.challenge") or [""])[0][:200], "text/plain; charset=utf-8")
+            raise HttpError(403, "Verifikasi ditolak.")
+        if method != "POST":
+            raise HttpError(405, "Metode tidak didukung.")
+        secret, tok, pid = env.get("WA_SECRET", ""), env.get("WA_TOKEN", ""), env.get("WA_PHONE_ID", "")
+        if not (secret and tok and pid):
+            raise HttpError(503, "Kanal WhatsApp belum dikonfigurasi.")
+        exp = "sha256=" + hmac.new(secret.encode(), self.raw, hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(exp, self.headers.get("X-Hub-Signature-256", "")):
+            raise HttpError(403, "Tanda tangan tidak valid.")
+        for en in b.get("entry") or []:
+            for ch in en.get("changes") or []:
+                for m in ((ch.get("value") or {}).get("messages") or [])[:5]:
+                    frm = str(m.get("from") or "")
+                    teks = (m.get("text") or {}).get("body") if m.get("type") == "text" else (((m.get("interactive") or {}).get("button_reply") or {}).get("title") if m.get("type") == "interactive" else None)
+                    if not frm:
+                        continue
+                    bal = self.kanal_proses("wa", frm, m.get("id"), teks) if teks else self.kanal_proses("wa", frm, m.get("id"), "")
+                    if bal:
+                        try:
+                            BOT.kirim_wa(tok, pid, frm, bal)
+                        except Exception as e:
+                            print("WA kirim gagal", repr(e))
+        return self.json({"ok": True})
+
+    def kanal_tg(self, b):
+        env = os.environ
+        tok, sec = env.get("TG_TOKEN", ""), env.get("TG_SECRET", "")
+        if not (tok and sec):
+            raise HttpError(503, "Kanal Telegram belum dikonfigurasi.")
+        if not hmac.compare_digest(self.headers.get("X-Telegram-Bot-Api-Secret-Token", ""), sec):
+            raise HttpError(403, "Rahasia webhook tidak cocok.")
+        m = b.get("message") or {}
+        cid = (m.get("chat") or {}).get("id")
+        if cid is not None and (m.get("chat") or {}).get("type") == "private":
+            bal = self.kanal_proses("tg", cid, "%s" % b.get("update_id"), m.get("text") or "")
+            if bal:
+                try:
+                    BOT.kirim_tg(tok, cid, bal)
+                except Exception as e:
+                    print("TG kirim gagal", repr(e))
+        return self.json({"ok": True})
+
     def populer_publik(self):
         """Pertanyaan yang paling ramai dalam 7 hari terakhir (dari pemakaian aturan Kata cari). Anonim: hanya kata kunci dan jumlahnya."""
         hari = [time.strftime("%Y%m%d", time.gmtime(time.time() + 7 * 3600 - i * 86400)) for i in range(7)]
@@ -899,7 +994,7 @@ class handler(BaseHTTPRequestHandler):
         kata = kata_baca()[0] if (not kv or self.q1("kata")) else []  # data lama / editor admin: sertakan; pengunjung biasa: ambil via /kata?v=
         self.json({"kata": kata, "kv": kv or "", "kata_max": KATA_MAX, "berita": bt, "balas_menit": balas, "mpp_roster": SKM_MPP, "kbv": kbv or "", "kbm": parse(kbm, {}) or {}, "lokasi": [lok_meta_publik(k) for k in LOKASI if not lok_sembunyi(k)],
                    "loket": [[e["lokasi"], e["no"], e["nama"], e["uraian"], e["sistem"], e.get("zona", ""), 1 if e.get("diskusi", True) else 0, 1 if bisa_booking("%s_%s" % (e["lokasi"], e["no"])) else 0, e.get("jam", ""), e.get("tautan", "")] for e in loket_urut()],
-                   "cfg": {k: c.get(k, "") for k in ("wa", "jam", "info", "kuota")}, "piket": piket_cfg()["mode"], "saya": who},
+                   "cfg": {k: c.get(k, "") for k in ("wa", "jam", "info", "kuota")}, "piket": piket_cfg()["mode"], "kanal": {"tg": re.sub(r"[^A-Za-z0-9_]", "", os.environ.get("TG_USER", ""))[:40], "wa": re.sub(r"\D", "", os.environ.get("WA_BOT_NUM", ""))[:15]}, "saya": who},
                   extra=self.refresh(ses) if ses and who else ())
 
     def daftar(self, b):
@@ -1811,10 +1906,28 @@ class handler(BaseHTTPRequestHandler):
                 cmds.append(["HSET", "cfg", "piket_mode", b["piket_mode"]])
             if "piket_tunggu" in b:
                 cmds.append(["HSET", "cfg", "piket_tunggu", min(240, max(2, int(b.get("piket_tunggu") or 15)))])
+            for kc in ("kanal_wa", "kanal_tg"):
+                if kc in b:
+                    cmds.append(["HSET", "cfg", kc, "0" if str(b[kc]) in ("0", "False", "false") else "1"])
             if "piket_info" in b:
                 cmds.append(["HSET", "cfg", "piket_info", clean(b.get("piket_info", ""), 200)])
             db().pipe(cmds)
             return self.json({"ok": True, "piket": piket_cfg()}, extra=ex)
+        if r == "kanal":
+            env, hari = os.environ, time.strftime("%Y%m%d", wib())
+            n = hall(db().cmd("HGETALL", "kn:n"))
+            base = "https://" + (self.headers.get("Host") or "")
+            cf = cfg_all()
+            return self.json({"env": {"wa": bool(env.get("WA_TOKEN") and env.get("WA_PHONE_ID") and env.get("WA_SECRET") and env.get("WA_VERIFY")), "tg": bool(env.get("TG_TOKEN") and env.get("TG_SECRET"))},
+                              "aktif": {"wa": cf.get("kanal_wa", "1") != "0", "tg": cf.get("kanal_tg", "1") != "0"}, "url": {"wa": base + "/api/wa", "wa2": base + "/api/app?p=/wa", "tg": base + "/api/tg", "tg2": base + "/api/app?p=/tg"},
+                              "n": {c: {"hari": int(n.get("%s:%s" % (c, hari), 0)), "total": int(n.get("%s:total" % c, 0))} for c in ("wa", "tg", "uji")},
+                              "log": [x for x in (parse(i) for i in (db().cmd("LRANGE", "kn:log", 0, 14) or [])) if x]}, extra=ex)
+        if r == "kanal/uji":
+            if limited("rl:knuji:%s" % self.ip(), 60, 3600):
+                raise HttpError(429, "Terlalu sering mencoba.")
+            bal, ok = BOT.jawab(clean(b.get("teks", ""), 300), self.kanal_ctx())
+            db().cmd("HINCRBY", "kn:n", "uji:total", 1)
+            return self.json({"balas": bal, "ok": ok}, extra=ex)
         if r == "piket":
             pn = hall(db().cmd("HGETALL", "pkn"))
             hari = time.strftime("%Y%m%d", wib())

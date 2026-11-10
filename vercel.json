@@ -1,6 +1,10 @@
 {
   "outputDirectory": "public",
-  "functions": { "api/app.py": { "maxDuration": 10 } },
+  "functions": { "api/app.py": { "maxDuration": 10, "includeFiles": "public/kbli-2025.json" } },
+  "rewrites": [
+    { "source": "/api/wa", "destination": "/api/app?p=/wa" },
+    { "source": "/api/tg", "destination": "/api/app?p=/tg" }
+  ],
   "headers": [
     {
       "source": "/(.*)",

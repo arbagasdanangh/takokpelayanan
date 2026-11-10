@@ -295,7 +295,7 @@ async function pnClick(e) {
 
 /* ---------- Admin: tab tambahan ---------- */
 function admTabs() {
-  $("atabs").innerHTML = [["ring", "Ringkasan"], ["inbox", "Kotak masuk"], ["pmh", "Permohonan"], ["bk", "Booking"], ["an", "Analitik Chat"], ["bt", "Berita"], ["skm", "Rekap SKM"], ["kt", "Kata cari chatbot"], ["lk", "Editor loket"], ["pk", "Asisten Piket"], ["kb", "Data KBLI"]].map(function (t) {
+  $("atabs").innerHTML = [["ring", "Ringkasan"], ["inbox", "Kotak masuk"], ["pmh", "Permohonan"], ["bk", "Booking"], ["an", "Analitik Chat"], ["bt", "Berita"], ["skm", "Rekap SKM"], ["kt", "Kata cari chatbot"], ["lk", "Editor loket"], ["pk", "Asisten Piket"], ["kn", "Kanal WA & Telegram"], ["kb", "Data KBLI"]].map(function (t) {
     return '<button type="button" class="chip" data-at="' + t[0] + '" aria-pressed="' + (t[0] === AT) + '">' + t[1] + '</button>';
   }).join("");
   $("atabs").onclick = function (e) { var b = e.target.closest("[data-at]"); if (b) admTab(b.dataset.at); };
@@ -313,7 +313,7 @@ async function aX(t) {
   var el = $("a-x");
   el.innerHTML = '<div class="empty">Memuat&hellip;</div>';
   try {
-    if (t === "ring") await aRing(el); else if (t === "pmh") await aPmh(el); else if (t === "bk") await aBk(el); else if (t === "bt") await aBt(el); else if (t === "skm") await aSkm(el); else if (t === "kt") { await aKt(el); if (window.AN_KT) { var w = window.AN_KT; window.AN_KT = null; ktAdd(w); } } else if (t === "lk") await window.aLk(el); else if (t === "kb") await window.aKb(el); else if (t === "pk") await window.aPk(el); else if (t === "an") await aAn(el);
+    if (t === "ring") await aRing(el); else if (t === "pmh") await aPmh(el); else if (t === "bk") await aBk(el); else if (t === "bt") await aBt(el); else if (t === "skm") await aSkm(el); else if (t === "kt") { await aKt(el); if (window.AN_KT) { var w = window.AN_KT; window.AN_KT = null; ktAdd(w); } } else if (t === "lk") await window.aLk(el); else if (t === "kb") await window.aKb(el); else if (t === "pk") await window.aPk(el); else if (t === "kn") await window.aKn(el); else if (t === "an") await aAn(el);
   } catch (x) { el.innerHTML = '<div class="empty">' + esc(x.message) + '</div>'; }
 }
 async function aPmh(el) {
