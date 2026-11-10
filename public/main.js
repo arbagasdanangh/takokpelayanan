@@ -131,7 +131,8 @@ function home() {
     ["susun", ["segitiga", "persegi", "segienam"], "Susun Bentuk", "Seret setiap bentuk ke bayangannya yang pas.", G.best.s ? "Terbaik: " + "\u2605\u2605\u2605".slice(0, G.best.s) : "Belum dimainkan"],
     ["urut", ["belah", "plus", "bulan"], "Ingat Urutan", "Ulangi urutan bentuk yang menyala. Makin panjang makin seru.", G.best.u ? "Rekor: " + G.best.u + " urutan" : "Belum dimainkan"],
     ["kuis", ["segilima", "bintang", "lingkaran"], "Kuis Kilat Loket", "Tebak loket yang tepat untuk setiap layanan.", G.best.k !== undefined ? "Terbaik: " + G.best.k + " dari 5" : "Belum dimainkan"],
-    ["tebak", ["bintang", "plus", "segilima"], "Tebak KBLI Harian", "5 soal harian dari 1.559 KBLI 2025. Bagikan skormu!", G.best.tb !== undefined ? "Terbaik: " + G.best.tb + " dari 5" : "Belum dimainkan", 1]
+    ["tebak", ["bintang", "plus", "segilima"], "Tebak KBLI Harian", "5 soal harian dari 1.559 KBLI 2025. Bagikan skormu!", G.best.tb !== undefined ? "Terbaik: " + G.best.tb + " dari 5" : "Belum dimainkan", 1],
+    ["zona", ["segilima", "bintang", "plus"], "Tebak Zona MPP", "Di zona berapa instansi MPP Surabaya? 5 soal harian.", G.best.tz !== undefined ? "Terbaik: " + G.best.tz + " dari 5" : "Belum dimainkan", 1]
   ];
   view('<div class="gm-lv"><div class="gm-ring" style="--p:' + pr + '"><span>' + lv + '</span></div><div><small>Level ' + lv + '</small><b>' + t + '</b><small>' + G.pts + ' poin &middot; ' + (100 - pr) + ' poin lagi ke level ' + (lv + 1) + (st >= 2 ? ' &middot; &#128293; ' + st + ' hari beruntun' : '') + '</small></div></div>' +
     questHtml() +
@@ -573,7 +574,7 @@ document.addEventListener("keyup", function (e) { if (TG && (e.key === "ArrowLef
 $g("gmb").addEventListener("click", function (e) {
   var b = e.target.closest("[data-g],[data-c],[data-m],[data-kk]"); if (!b) return;
   if (b.dataset.kk) { kataKey(b.dataset.kk); b.blur(); return; }
-  if (b.dataset.g) { var g = b.dataset.g; if (g === "cocok") cocokMenu(); else if (g === "susun") susunStart(); else if (g === "urut") urutStart(); else if (g === "kuis") kuisStart(); else if (g === "kata") kataStart(true); else if (g === "tangkap") tangkapStart(); else if (g === "suro") suroStart(); else if (g === "roda") rodaStart(); else if (g === "usaha") { if (window.Usaha3D) Usaha3D.menu(); } else if (g === "tebak") { if (window.TebakKBLI) TebakKBLI.menu(); } }
+  if (b.dataset.g) { var g = b.dataset.g; if (g === "cocok") cocokMenu(); else if (g === "susun") susunStart(); else if (g === "urut") urutStart(); else if (g === "kuis") kuisStart(); else if (g === "kata") kataStart(true); else if (g === "tangkap") tangkapStart(); else if (g === "suro") suroStart(); else if (g === "roda") rodaStart(); else if (g === "usaha") { if (window.Usaha3D) Usaha3D.menu(); } else if (g === "tebak") { if (window.TebakKBLI) TebakKBLI.menu(); } else if (g === "zona") { if (window.TebakZona) TebakZona.menu(); } }
   else if (b.dataset.c) cocokStart(+b.dataset.c);
   else if (b.dataset.m === "home") home();
   else if (b.dataset.m === "again") { if (AGAIN) AGAIN(); else home(); }
