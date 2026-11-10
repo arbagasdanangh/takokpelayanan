@@ -324,3 +324,7 @@ File: `public/tanya-plus.js`.
 
 ## Waktu pengerjaan (v30)
 Tebak KBLI: 20 detik per soal; Bangun Usaha 3D: 30 detik per tahap. Batang waktu + hitung mundur (`public/waktu.js`), waktu habis dihitung salah dan jawaban benar ditampilkan, bonus kecepatan (+2 poin Tebak KBLI, +3 poin 3D), total waktu tampil di hasil dan di teks bagikan. Tombol "Mode santai" mematikan batas waktu (diingat di perangkat, ramah untuk pemula/lansia).
+
+## Pandu Zona + Tebak Zona (v31)
+- **Pandu Zona & Instansi** (tile baru, `public/pandu-zona.js`): pencarian seperti KBLI untuk semua loket/instansi di 6 lokasi dan Zona MPP. Ketik kebutuhan ("pajak", "bpjs", "cerai", "sertifikat tanah", "skck") atau "zona 4"; ada kata padanan, dukungan aturan Kata cari, saringan per zona/lokasi, dan tombol Buka loket / Tanya Asisten.
+- **Tebak Zona MPP** (permainan ke-11, `public/tebak-zona.js`): 5 soal harian, 15 detik per soal (Mode santai tersedia), soal "instansi X di zona berapa?" dan "instansi mana di Zona N?". Memakai data loket yang sudah ada, jadi otomatis ikut bila admin mengubah zona di Editor loket.
