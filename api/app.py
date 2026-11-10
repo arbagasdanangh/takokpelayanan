@@ -1843,6 +1843,8 @@ class handler(BaseHTTPRequestHandler):
                      "sembunyi": bool(e.get("sembunyi")), "jam": e.get("jam", ""), "tautan": e.get("tautan", "")}
                 if e.get("syv"):  # jangan hilangkan persyaratan yang sudah dikonfirmasi admin
                     d["syarat"] = e.get("syarat", [])
+                if "syarat" in it:  # impor persyaratan: menggantikan seluruh syarat loket ini
+                    d["syarat"] = norm_syarat(it["syarat"])
                 if "uraian" in it:
                     d["uraian"] = clean(it["uraian"], URAIAN_MAX)
                 if "sistem" in it and clean(it["sistem"], 120):

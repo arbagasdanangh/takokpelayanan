@@ -5,7 +5,7 @@
    2. Loket & uraian: ubah nama, uraian berformat (pratinjau langsung), sistem, jam, tautan resmi, zona; filter "uraian belum diisi";
       simpan lalu lanjut ke loket berikutnya; isi massal dari tempelan spreadsheet atau berkas CSV. */
 (function () {
-var LK = null, VW = "lok", LL = "", LQ = "", FL = "semua", ED = null, EL = null, IM = null, BUSY = false;
+var LK = null, VW = "lok", LL = "", LQ = "", FL = "semua", ED = null, EL = null, IM = null, IMS = false, BUSY = false;
 var KERANGKA = "Layanan yang tersedia:\n- \n- \n\nSyarat: \nBiaya: \nJam layanan: \nCatatan: ";
 
 function kosong(u) { u = String(u || "").trim(); return !u || /belum diisi/i.test(u); }
@@ -184,6 +184,11 @@ function daftarLoket() {
 function viewImpor() {
   if (!IM) return "";
   if (IM === "buka") {
+    if (IMS) return '<div class="card lkf"><h3>Impor persyaratan: ' + esc((lokOf(LL) || {}).nama) + '</h3>' +
+      '<p class="sys">Satu baris = satu syarat. Kolom: <b>Loket</b> (nama sama persis, atau nomor), <b>Jenis Izin</b>, <b>Syarat</b>. Kolom Loket/Jenis Izin boleh dikosongkan pada baris di bawahnya (ikut baris di atas). Cara: (1) klik <b>Unduh templat CSV</b>, (2) isi di Excel/Google Sheets, (3) salin lalu tempel di bawah, atau simpan CSV (UTF-8) dan pilih berkasnya. <b>Syarat lama loket yang ada di berkas akan diganti seluruhnya.</b> Berkas .xlsx: salin selnya lalu tempel.</p>' +
+      '<div class="btns"><button type="button" class="btn" data-lk="templatsy">Unduh templat CSV</button><label class="btn" style="cursor:pointer">Pilih berkas CSV<input type="file" id="im-f" accept=".csv,.tsv,.txt,text/csv,text/plain" hidden></label></div>' +
+      '<textarea class="si" id="im-t" rows="8" placeholder="Loket&#9;Jenis Izin&#9;Syarat&#10;Layanan DPRKPP&#9;PBG Rumah Tinggal Sederhana&#9;KTP&#10;&#9;&#9;Bukti hak tanah"></textarea>' +
+      '<div class="btns"><button type="button" class="send" data-lk="impcek">Periksa</button><button type="button" class="btn" data-lk="impbatal">Batal</button></div></div>';
     return '<div class="card lkf"><h3>Isi massal uraian loket: ' + esc((lokOf(LL) || {}).nama) + '</h3>' +
       '<p class="sys">Cara termudah: (1) klik <b>Unduh templat CSV</b>, (2) isi kolom Uraian di Excel/Google Sheets, (3) salin sel lalu tempel di kotak di bawah, atau simpan sebagai CSV (UTF-8) dan pilih berkasnya. Kolom: <b>Nama</b> (atau No), <b>Uraian</b>, lalu opsional Sistem, Jam, Tautan. Baris judul boleh ada. Nama harus sama dengan nama loket.</p>' +
       '<div class="btns"><button type="button" class="btn" data-lk="templat">Unduh templat CSV</button><label class="btn" style="cursor:pointer">Pilih berkas CSV<input type="file" id="im-f" accept=".csv,.tsv,.txt,text/csv,text/plain" hidden></label></div>' +
@@ -194,7 +199,7 @@ function viewImpor() {
   return '<div class="card lkf"><h3>Pratinjau isi massal</h3><p class="sys">' + ubah.length + ' loket akan diubah, ' + (ok.length - ubah.length) + ' tidak berubah, ' + (IM.items.length - ok.length) + ' baris dilewati. Belum tersimpan sampai Anda menekan Terapkan.</p>' +
     '<div class="lk-imp">' + IM.items.map(function (x) {
       return '<div class="lk-ir ' + (!x.ok ? "bad" : x.beda ? "chg" : "same") + '"><b>' + esc(x.nama || "(kosong)") + '</b> <small>' + (!x.ok ? "dilewati: " + esc(x.alasan) : x.beda ? "diubah" : "sama") + '</small>' +
-        (x.ok && x.beda ? '<p class="sys">' + (x.lama ? "<s>" + esc(potong(x.lama, 80)) + "</s> " : "") + esc(potong(x.uraian, 160)) + '</p>' : '') + '</div>';
+        (x.ok && x.beda && x.sy ? '<p class="sys">' + x.sy.jenis + ' jenis izin, ' + x.sy.butir + ' syarat' + (x.lama ? ' (menggantikan ' + x.lama + ' baris lama)' : '') + ': ' + esc(potong(x.sy.nama.join(", "), 160)) + '</p>' : '') + (x.ok && x.beda && !x.sy ? '<p class="sys">' + (x.lama ? "<s>" + esc(potong(x.lama, 80)) + "</s> " : "") + esc(potong(x.uraian, 160)) + '</p>' : '') + '</div>';
     }).join("") + '</div><div class="btns"><button type="button" class="send" data-lk="impterap"' + (ubah.length ? "" : " disabled") + '>Terapkan ' + ubah.length + ' perubahan</button><button type="button" class="btn" data-lk="impbatal">Batal</button></div></div>';
 }
 function viewLoket() {
@@ -202,7 +207,7 @@ function viewLoket() {
   return '<div class="hint" id="lk-lc" role="group" aria-label="Tempat pelayanan">' + LK.lokasi.map(function (l) { return '<button type="button" class="chip" data-lk="loc" data-l="' + esc(l.id) + '" aria-pressed="' + (l.id === LL) + '">' + esc(l.nama) + (l.sembunyi ? " (sembunyi)" : "") + '</button>'; }).join("") + '</div>' +
     '<div class="card lk-sum"><div><b>' + esc((lokOf(LL) || {}).nama) + '</b><p class="sys" style="margin:2px 0 0">' + s.ok + ' dari ' + s.t + ' uraian terisi' + (kos ? ", " + kos + " belum" : " (lengkap)") + '</p></div>' + bar(s.p) + '</div>' +
     '<div class="hint" id="lk-fl" role="group" aria-label="Saring">' + [["semua", "Semua"], ["kosong", "Uraian belum diisi"], ["diubah", "Diubah admin"], ["sembunyi", "Disembunyikan"]].map(function (f) { return '<button type="button" class="chip" data-lk="fl" data-f="' + f[0] + '" aria-pressed="' + (FL === f[0]) + '">' + f[1] + '</button>'; }).join("") + '</div>' +
-    '<div class="hint"><input class="si" id="lk-q" type="search" placeholder="Cari loket atau isi uraian..." value="' + esc(LQ) + '" style="flex:1;min-width:160px"><button type="button" class="send" data-lk="new">+ Tambah loket</button><button type="button" class="btn" data-lk="impor">Isi massal (Excel/CSV)</button></div>' +
+    '<div class="hint"><input class="si" id="lk-q" type="search" placeholder="Cari loket atau isi uraian..." value="' + esc(LQ) + '" style="flex:1;min-width:160px"><button type="button" class="send" data-lk="new">+ Tambah loket</button><button type="button" class="btn" data-lk="impor">Isi massal uraian (Excel/CSV)</button><button type="button" class="btn" data-lk="impsy">Impor persyaratan (Excel/CSV)</button></div>' +
     (IM ? viewImpor() : "") + (ED === "new" ? formLoket(null) : "") +
     (L.length ? L.map(function (e) {
       return '<article class="card lkc' + (e.sembunyi ? " off" : "") + '" style="margin:0 0 8px"><b>' + e.no + '. ' + esc(e.nama) + '</b> ' + (e.sembunyi ? pb("Disembunyikan", "#64748b") : "") + (e.diubah ? pb("Diubah admin", "#d97706") : "") + (!e.asli ? pb("Baru", "#16a34a") : "") + (kosong(e.uraian) ? pb("Uraian kosong", "#dc2626") : "") +
@@ -248,6 +253,50 @@ function unduhTemplat() {
   var rows = [["No", "Nama", "Uraian", "Sistem", "Jam", "Tautan"]].concat(loketDi(LL).map(function (e) { return [e.no, e.nama, kosong(e.uraian) ? "" : e.uraian, e.sistem || "", e.jam || "", e.tautan || ""]; }));
   var blob = new Blob(["\uFEFF" + rows.map(function (r) { return r.map(csvCell).join(","); }).join("\r\n")], {type: "text/csv;charset=utf-8"});
   var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "uraian-" + LL + ".csv"; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+}
+function unduhTemplatSy() {
+  var e0 = loketDi(LL)[0];
+  var rows = [["Loket", "Jenis Izin", "Syarat"]];
+  loketDi(LL).forEach(function (e) {
+    var first = true, j = "", jt = "";
+    (e.syarat || []).forEach(function (x) {
+      if (/^#\s*/.test(x)) { j = x.replace(/^#\s*/, ""); jt = ""; return; }
+      rows.push([first ? e.nama : "", j !== jt ? j : "", x]); first = false; jt = j;
+    });
+  });
+  if (rows.length === 1 && e0) rows.push([e0.nama, "Izin Baru", "KTP"], ["", "", "Surat permohonan bermaterai"], ["", "Perpanjangan", "KTP"], ["", "", "Izin lama"]);
+  var blob = new Blob(["﻿" + rows.map(function (r) { return r.map(csvCell).join(","); }).join("\r\n")], {type: "text/csv;charset=utf-8"});
+  var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "persyaratan-" + LL + ".csv"; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+}
+function periksaSyarat() {
+  var rows = parseCSV($("im-t").value); if (!rows.length) { toast("Belum ada data untuk diperiksa."); return; }
+  var h = rows[0].map(norm), kol = {loket: 0, jenis: 1, syarat: 2};
+  if (h.some(function (x) { return /^(no|nama|loket|instansi|jenis|syarat|persyaratan)/.test(x); })) {
+    kol = {}; h.forEach(function (x, i) { var k = /^no\.?$|^nomor/.test(x) ? "no" : /loket|instansi|nama/.test(x) ? "loket" : /jenis|izin|layanan/.test(x) ? "jenis" : /syarat|dokumen|berkas/.test(x) ? "syarat" : ""; if (k && kol[k] === undefined) kol[k] = i; });
+    rows = rows.slice(1);
+  }
+  if (kol.syarat === undefined || (kol.loket === undefined && kol.no === undefined)) { toast("Kolom Loket (atau No) dan Syarat tidak ditemukan. Gunakan templat."); return; }
+  var L = loketDi(LL), by = {}, order = [], cur = null, jenis = "", jenisTulis = "";
+  rows.slice(0, 1500).forEach(function (r) {
+    var nm = kol.loket !== undefined ? String(r[kol.loket] || "").trim() : "", no = kol.no !== undefined ? String(r[kol.no] || "").trim() : "";
+    if (nm || no) { cur = nm || ("No " + no); jenis = ""; jenisTulis = ""; if (!by[cur]) { by[cur] = {nama: cur, no: no, lines: [], jenis: [], butir: 0}; order.push(cur); } }
+    if (!cur) return;
+    var g = by[cur], j = kol.jenis !== undefined ? String(r[kol.jenis] || "").trim() : "", sy = String(r[kol.syarat] || "").replace(/^[#\s]+/, "").trim();
+    if (j) jenis = j.replace(/^[#\s]+/, "");
+    if (jenis && jenis !== jenisTulis) { g.lines.push("# " + jenis); g.jenis.push(jenis); jenisTulis = jenis; }
+    if (sy) { g.lines.push(sy); g.butir++; }
+  });
+  IM = {items: order.map(function (n) {
+    var g = by[n], e = L.filter(function (x) { return norm(x.nama) === norm(g.nama) || (/^\d+$/.test(g.no) && x.no === +g.no); }), it = {nama: g.nama, ok: false};
+    if (e.length !== 1) it.alasan = e.length ? "nama ganda" : "loket tidak ditemukan di " + ((lokOf(LL) || {}).nama || "");
+    else if (!g.butir) it.alasan = "tidak ada syarat";
+    else if (g.lines.length > 150) it.alasan = "lebih dari 150 baris";
+    else {
+      it.ok = true; it.kunci = e[0].kunci; it.lama = (e[0].syarat || []).length; it.beda = e[0].syarat.join("\n") !== g.lines.join("\n") || !e[0].syv;
+      it.sy = {jenis: g.jenis.length, butir: g.butir, nama: g.jenis.length ? g.jenis : ["(tanpa judul)"]}; it.body = {kunci: e[0].kunci, syarat: g.lines};
+    }
+    return it;
+  })};
 }
 function periksaImpor() {
   var rows = parseCSV($("im-t").value); if (!rows.length) { toast("Belum ada data untuk diperiksa."); return; }
@@ -325,13 +374,15 @@ window.aLk = async function (el) {
       else if (a === "hide") { BUSY = true; await api("/api/admin/loket/simpan", keLoket(e, {sembunyi: !e.sembunyi})); await load(el); refreshPublik(); toast(e.sembunyi ? "Loket ditampilkan." : "Loket disembunyikan."); }
       else if (a === "reset") { if (!confirm("Kembalikan loket ini ke isi bawaan?")) return; BUSY = true; await api("/api/admin/loket/reset", {kunci: k}); await load(el); refreshPublik(); toast("Dikembalikan ke bawaan."); }
       /* isi massal */
-      else if (a === "impor") { IM = "buka"; ED = null; draw(el); }
+      else if (a === "impor") { IM = "buka"; IMS = false; ED = null; draw(el); }
+      else if (a === "impsy") { IM = "buka"; IMS = true; ED = null; draw(el); }
+      else if (a === "templatsy") unduhTemplatSy();
       else if (a === "impbatal") { IM = null; draw(el); }
       else if (a === "templat") unduhTemplat();
-      else if (a === "impcek") { periksaImpor(); draw(el); }
+      else if (a === "impcek") { if (IMS) periksaSyarat(); else periksaImpor(); draw(el); }
       else if (a === "impterap") {
         BUSY = true; var items = IM.items.filter(function (x) { return x.ok && x.beda; }).map(function (x) { return x.body; }); var res = await api("/api/admin/loket/massal", {items: items});
-        IM = null; await load(el); refreshPublik(); toast(res.diubah + " uraian loket tersimpan" + (res.dilewati && res.dilewati.length ? ", " + res.dilewati.length + " dilewati." : "."));
+        IM = null; await load(el); refreshPublik(); toast(res.diubah + (IMS ? " loket: persyaratan tersimpan" : " uraian loket tersimpan") + (res.dilewati && res.dilewati.length ? ", " + res.dilewati.length + " dilewati." : "."));
       }
     } catch (x) { err(x.message); toast(x.message); }
     BUSY = false;
