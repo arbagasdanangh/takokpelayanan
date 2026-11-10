@@ -278,7 +278,7 @@ LX_FIELD = ("nama", "uraian", "sistem", "zona", "diskusi", "sembunyi", "jam", "t
 
 
 def norm_syarat(v):
-    """Persyaratan loket: daftar baris (maks 40 x 160 huruf). Baris berawalan '# ' = judul layanan. Terima teks berbaris atau list."""
+    """Persyaratan loket: daftar baris (maks 150 baris x 160 huruf). Baris berawalan '# ' = judul layanan. Terima teks berbaris atau list."""
     if isinstance(v, str):
         v = v.splitlines()
     if not isinstance(v, (list, tuple)):
@@ -286,7 +286,7 @@ def norm_syarat(v):
     out = []
     for x in v:
         t = clean(x, 160) if isinstance(x, str) else ""
-        if t and len(out) < 40:
+        if t and len(out) < 150:
             out.append(t)
     return out
 LK_TEXT = (("uraian", 2000), ("alamat", 200), ("jam", 120), ("telp", 40))
@@ -1801,7 +1801,11 @@ class handler(BaseHTTPRequestHandler):
                 kunci = "%s_%d" % (lok, max([e["no"] for e in LOKET.values() if e["lokasi"] == lok] + [0]) + 1)
             d = {"nama": nama, "uraian": uraian, "sistem": clean(b.get("sistem", ""), 120), "zona": clean(b.get("zona", ""), 20),
                  "diskusi": bool(b.get("diskusi", True)), "sembunyi": bool(b.get("sembunyi", False)),
-                 "jam": clean(b.get("jam", ""), 120), "tautan": aman_url(b.get("tautan")), "syarat": norm_syarat(b.get("syarat", []))}
+                 "jam": clean(b.get("jam", ""), 120), "tautan": aman_url(b.get("tautan"))}
+            if "syarat" in b:
+                d["syarat"] = norm_syarat(b.get("syarat", []))
+            elif kunci and LOKET[kunci].get("syv"):  # tombol Sembunyikan/Tampilkan tidak mengirim syarat: jangan dihapus
+                d["syarat"] = LOKET[kunci].get("syarat", [])
             db().cmd("HSET", "loketx", kunci, json.dumps(d, ensure_ascii=False))
             _LX["t"] = 0.0
             refresh_loket(0)

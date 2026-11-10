@@ -3,7 +3,7 @@
 # Format: kunci loket "lokasi_nomor" -> daftar baris. Baris berawalan "# " adalah judul layanan; baris lain adalah dokumen/syarat.
 SYARAT_AWAL = {
     "pusat_7": [  # Loket Dishub
-        "# Izin penyelenggaraan parkir",
+        "# Izin Baru Penyelenggaraan Tempat Parkir",
         "Surat permohonan bermaterai",
         "KTP pemohon atau pengelola",
         "NPWP",
@@ -11,7 +11,16 @@ SYARAT_AWAL = {
         "Akta pendirian dan pengesahan badan hukum (bila badan usaha)",
         "Bukti hak atau penguasaan lahan parkir",
         "Denah lokasi dan tata letak parkir (pintu masuk-keluar, jumlah satuan ruang parkir)",
-        "Hasil Andalalin atau rekomendasi teknis lalu lintas, bila diminta petugas",
+        "# Perpanjangan Penyelenggaraan Tempat Parkir",
+        "Surat permohonan perpanjangan bermaterai",
+        "KTP pemohon atau pengelola",
+        "Izin penyelenggaraan parkir yang lama",
+        "Bukti pembayaran pajak/retribusi terakhir",
+        "# Izin Penyelenggaraan Tempat Parkir Bersyarat",
+        "Surat permohonan bermaterai",
+        "KTP pemohon atau pengelola",
+        "Surat pernyataan kesanggupan memenuhi syarat yang belum lengkap",
+        "Dokumen yang sudah tersedia (NIB, bukti lahan, denah)",
         "# Andalalin (analisis dampak lalu lintas)",
         "Surat permohonan",
         "KTP dan NPWP pemrakarsa",

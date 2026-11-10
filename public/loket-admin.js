@@ -92,14 +92,66 @@ function viewLok() {
     }).join("");
 }
 
+/* ---------- Persyaratan per jenis izin (versi 37) ---------- */
+var SY_CEPAT = ["Izin Baru", "Perpanjangan", "Perubahan Data", "Penggantian (hilang/rusak)", "Bersyarat"];
+function syParse(L) {
+  var G = [], cur = null;
+  (L || []).forEach(function (x) {
+    if (/^#\s*/.test(x)) { cur = {t: x.replace(/^#\s*/, "").trim(), items: []}; G.push(cur); }
+    else if (String(x).trim()) { if (!cur) { cur = {t: "", items: []}; G.push(cur); } cur.items.push(String(x).trim()); }
+  });
+  return G;
+}
+function syGrup(g, i) {
+  return '<div class="syg"><div class="syg-h"><span class="syg-n">Jenis izin</span>' +
+    '<input class="si syg-t" maxlength="100" placeholder="mis. Izin Baru Penyelenggaraan Tempat Parkir" value="' + esc(g.t) + '" aria-label="Nama jenis izin">' +
+    '<span class="syg-b"><button type="button" class="btn" data-lk="syup" title="Naikkan" aria-label="Naikkan jenis izin">&uarr;</button>' +
+    '<button type="button" class="btn" data-lk="sydn" title="Turunkan" aria-label="Turunkan jenis izin">&darr;</button>' +
+    '<button type="button" class="btn" data-lk="sydup" title="Gandakan sebagai dasar jenis izin lain">Gandakan</button>' +
+    '<button type="button" class="btn" data-lk="sydel">Hapus</button></span></div>' +
+    '<textarea class="si syg-i" rows="' + Math.max(4, Math.min(12, g.items.length + 1)) + '" maxlength="4000" placeholder="Satu syarat per baris&#10;KTP&#10;Surat permohonan bermaterai" aria-label="Persyaratan jenis izin">' + esc(g.items.join("\n")) + '</textarea></div>';
+}
+function syEditor(L) {
+  var G = syParse(L);
+  return '<div id="lf-syw" class="syw"><div id="lf-syl">' + G.map(syGrup).join("") + '</div>' +
+    '<div class="syw-a"><button type="button" class="send" data-lk="syadd">+ Tambah jenis izin</button>' +
+    '<span class="sys">Tambah cepat:</span>' + SY_CEPAT.map(function (n) { return '<button type="button" class="chip" data-lk="syadd" data-n="' + esc(n) + '">' + esc(n) + '</button>'; }).join("") + '</div></div>';
+}
+function syBaca() {
+  var out = [];
+  [].forEach.call(document.querySelectorAll("#lf-syl .syg"), function (g) {
+    var t = g.querySelector(".syg-t").value.replace(/^[#\s]+/, "").trim(), items = g.querySelector(".syg-i").value.split(/\r?\n/).map(function (x) { return x.replace(/^[#\s]+/, "").trim(); }).filter(Boolean);
+    if (!t && !items.length) return;
+    out.push("# " + (t || "Persyaratan umum")); items.forEach(function (x) { out.push(x); });
+  });
+  return out;
+}
+function syAksi(a, b) {
+  var L = $("lf-syl"); if (!L) return false;
+  var g = b.closest(".syg");
+  if (a === "syadd") {
+    var h = document.createElement("div"); h.innerHTML = syGrup({t: b.dataset.n || "", items: []}); var n = h.firstChild; L.appendChild(n);
+    var f = n.querySelector(".syg-t"); if (b.dataset.n) n.querySelector(".syg-i").focus(); else f.focus(); n.scrollIntoView({block: "nearest"}); return true;
+  }
+  if (!g) return false;
+  if (a === "sydel") { var tt = g.querySelector(".syg-t").value.trim(), ii = g.querySelector(".syg-i").value.trim(); if ((tt || ii) && !confirm("Hapus jenis izin" + (tt ? " \"" + tt + "\"" : "") + " beserta persyaratannya? (Belum tersimpan sampai Anda menekan Simpan.)")) return true; g.remove(); return true; }
+  if (a === "syup" && g.previousElementSibling) { L.insertBefore(g, g.previousElementSibling); return true; }
+  if (a === "sydn" && g.nextElementSibling) { L.insertBefore(g.nextElementSibling, g); return true; }
+  if (a === "sydup") {
+    var h2 = document.createElement("div"); h2.innerHTML = syGrup({t: g.querySelector(".syg-t").value.trim() + " (salinan)", items: g.querySelector(".syg-i").value.split(/\r?\n/).filter(Boolean)}); var c = h2.firstChild;
+    L.insertBefore(c, g.nextElementSibling); c.querySelector(".syg-t").focus(); return true;
+  }
+  return true;
+}
+
 /* ---------- Bagian 2: loket dan uraian ---------- */
 function formLoket(e) {
   var n = !e;
   return '<div class="card lkf"><h3>' + (n ? "Tambah loket baru di " + esc((lokOf(LL) || {}).nama || "") : "Ubah loket: " + esc(e.nama)) + '</h3>' +
     '<label for="lf-n">Nama loket / instansi</label><input class="si" id="lf-n" maxlength="80" value="' + esc(e ? e.nama : "") + '">' +
     '<label for="lf-u">Uraian layanan <small class="sys" id="lf-c"></small></label>' + editorU("lf-u", e && !kosong(e.uraian) ? e.uraian : "", 2000, 8) +
-    '<label for="lf-sy">Persyaratan yang harus dibawa <small class="sys">(satu per baris; awali dengan # untuk judul layanan, mis. # Izin parkir)</small></label><textarea class="si" id="lf-sy" rows="7" maxlength="6400" placeholder="# Nama layanan&#10;KTP&#10;Kartu Keluarga&#10;Surat permohonan bermaterai">' + esc(e && e.syarat ? e.syarat.join("\n") : "") + '</textarea>' +
-    (e && e.syarat && e.syarat.length && !e.syv ? '<p class="sys">Isi awal bawaan aplikasi, <b>belum diverifikasi</b> loket. Periksa, ubah bila perlu, lalu Simpan: setelah itu tampil sebagai terverifikasi admin.</p>' : '<p class="sys">Tampil di Booking, Pendamping, dan Lembar Pengantar pemohon sesuai loket yang dituju. Maksimal 40 baris.</p>') +
+    '<label>Persyaratan per jenis izin <small class="sys">(tiap loket bisa punya beberapa jenis izin, masing-masing dengan syarat sendiri)</small></label>' + syEditor(e && e.syarat) +
+    (e && e.syarat && e.syarat.length && !e.syv ? '<p class="sys">Isi awal bawaan aplikasi, <b>belum diverifikasi</b> loket. Periksa, ubah bila perlu, lalu Simpan: setelah itu tampil sebagai terverifikasi admin.</p>' : '<p class="sys">Tampil di Booking, Pendamping, dan Lembar Pengantar pemohon sesuai loket yang dituju. Maksimal 150 baris syarat per loket.</p>') +
     '<label for="lf-s">Sistem / cara layanan</label><input class="si" id="lf-s" maxlength="120" placeholder="mis. SSW / OSS atau Datang langsung" value="' + esc(e ? e.sistem : "") + '">' +
     '<div class="lk-2"><div><label for="lf-j">Jam layanan loket <small class="sys">(opsional)</small></label><input class="si" id="lf-j" maxlength="120" placeholder="mis. 08.00-14.00" value="' + esc(e ? e.jam || "" : "") + '"></div>' +
     '<div><label for="lf-z">Zona <small class="sys">(MPP, mis. Zona 2)</small></label><input class="si" id="lf-z" maxlength="20" value="' + esc(e ? e.zona || "" : "") + '"></div></div>' +
@@ -212,7 +264,7 @@ function periksaImpor() {
 
 /* ---------- Simpan ---------- */
 function bodyLoket(e) {
-  return {kunci: e ? e.kunci : "", lokasi: e ? e.lokasi : LL, nama: $("lf-n").value, uraian: $("lf-u").value, syarat: $("lf-sy").value, sistem: $("lf-s").value, zona: $("lf-z").value, jam: $("lf-j").value, tautan: $("lf-l").value, diskusi: $("lf-d").checked, sembunyi: e ? !!e.sembunyi : false};
+  return {kunci: e ? e.kunci : "", lokasi: e ? e.lokasi : LL, nama: $("lf-n").value, uraian: $("lf-u").value, syarat: syBaca(), sistem: $("lf-s").value, zona: $("lf-z").value, jam: $("lf-j").value, tautan: $("lf-l").value, diskusi: $("lf-d").checked, sembunyi: e ? !!e.sembunyi : false};
 }
 function keLoket(e, ov) { var o = {kunci: e.kunci, lokasi: e.lokasi, nama: e.nama, uraian: e.uraian, sistem: e.sistem, zona: e.zona || "", jam: e.jam || "", tautan: e.tautan || "", diskusi: e.diskusi !== false, sembunyi: !!e.sembunyi}; for (var k in ov) o[k] = ov[k]; return o; }
 
@@ -221,6 +273,7 @@ window.aLk = async function (el) {
   el.onclick = async function (ev) {
     var b = ev.target.closest("[data-lk]"); if (!b || BUSY) return;
     var a = b.dataset.lk, k = b.dataset.k, id = b.dataset.l, e = k && LK.loket.filter(function (x) { return x.kunci === k; })[0];
+    if (/^sy(add|del|up|dn|dup)$/.test(a)) { syAksi(a, b); return; }
     try {
       if (a === "fmt") fmtTa($(b.dataset.t), b.dataset.f);
       else if (a === "vw") { VW = b.dataset.v; ED = EL = null; IM = null; draw(el); }
