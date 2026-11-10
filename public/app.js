@@ -234,7 +234,7 @@ function admList(){var el=$("al");if(!el||S!=="adm")return;title();var all=T,now
 function pick(x){var cu=T.filter(function(t){return t.pid===x.pid&&t.kunci===x.kunci})[0]||x;SEL={pid:x.pid,kunci:x.kunci,nama:x.nama,hp:x.hp,email:x.email,skor:cu.skor||0,meta:cu.meta||{topik:[],senti:0,urg:0}};SM=[];admList();admPane();tick()}
 function admPane(){var p=$("ap");if(!p||S!=="adm")return;
  if(!SEL){p.innerHTML='<div class="empty">Pilih percakapan di sebelah kiri. Tips: tekan <b>J</b>/<b>K</b> untuk pindah percakapan, <b>Ctrl+Enter</b> untuk mengirim.</div>';return}
- var keep=$("rt")?$("rt").value:"",lb=label(SEL.kunci),msg="Halo "+SEL.nama+", admin admin sudah membalas pertanyaan Anda ("+lb+"). Silakan buka Takok Pelayanan Suroboyo untuk membacanya: "+APP;
+ var keep=$("rt")?$("rt").value:"",lb=label(SEL.kunci),msg="Halo "+SEL.nama+", admin sudah membalas pertanyaan Anda ("+lb+"). Silakan buka Takok Pelayanan Suroboyo untuk membacanya: "+APP;
  var ltk=SM.length?SM[SM.length-1].tk:"";if(ltk)msg+=" (Tiket "+ltk+")";var wa=waLink(SEL.hp,msg),mail=SEL.email?"mailto:"+SEL.email+"?subject="+encodeURIComponent("Balasan admin - "+lb)+"&body="+encodeURIComponent(msg):"";
  var an=SEL.an,tg=SEL.tag||{tags:[],pic:"",tl:""},pl=prLvl(SEL.skor||0),mt=SEL.meta||{topik:[]};
  var dl=p.querySelector("details.lab"),da=p.querySelector("details.ana"),labOpen=dl?dl.open:!!(tg.tags.length||tg.pic||tg.tl),anaOpen=da?da.open:true;

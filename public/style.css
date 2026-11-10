@@ -822,3 +822,60 @@ body.dm-on .dm-go{display:none}
 .akc{display:flex;align-items:center;gap:8px;margin:4px 0;font-size:.9rem;color:var(--ink)}
 .akc input{width:auto;margin:0}
 #a-who{margin:0 0 6px}
+
+/* ===== Versi 35: Pendamping Kunjungan ===== */
+.pkr{position:sticky;top:0;z-index:70;margin:0 0 12px;padding:10px 14px;border-radius:16px;background:linear-gradient(135deg,#1b4fc4,#0c2a86);color:#fff;box-shadow:var(--shadow);display:grid;gap:4px}
+.pkr[hidden]{display:none}
+.pkr.call{background:linear-gradient(135deg,#ffb800,#ff8a00);color:#3a2a00;animation:pkpulse 1.4s ease-in-out infinite}
+@keyframes pkpulse{50%{box-shadow:0 0 0 6px rgba(255,184,0,.35)}}
+.pkr-m{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.pkr-k{font-weight:800;letter-spacing:.03em;font-size:1.05rem}
+.pkr-s{font-size:.74rem;font-weight:800;padding:2px 10px;border-radius:99px;background:rgba(255,255,255,.22)}.pkr.call .pkr-s{background:rgba(58,42,0,.14)}
+.pkr-d{font-size:.88rem;opacity:.95}.pkr-d b{font-size:1rem}
+.pkr-b{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px}
+.pkr-b button,.pkr-b a{font:inherit;font-size:.8rem;font-weight:700;padding:5px 12px;border-radius:99px;border:1px solid rgba(255,255,255,.7);background:rgba(255,255,255,.12);color:inherit;text-decoration:none;cursor:pointer}
+.pkr.call .pkr-b button,.pkr.call .pkr-b a{border-color:rgba(58,42,0,.5);background:rgba(255,255,255,.35)}
+.pkr-b button.pk-go{background:#ffb800;border-color:#ffb800;color:#3a2a00}.pkr-b button:disabled{opacity:.5;cursor:not-allowed}
+.pkr-h{font-size:.74rem;opacity:.85}
+/* kartu pendamping di chat */
+.pkc .pk-h{display:flex;justify-content:space-between;align-items:center;gap:8px}.pk-k{font-size:1.1rem;letter-spacing:.03em;color:var(--acc)}
+.pk-tl{list-style:none;display:flex;gap:0;margin:10px 0 6px;padding:0}.pk-tl li{flex:1;text-align:center;font-size:.72rem;color:var(--mute);position:relative;padding-top:18px}
+.pk-tl li:before{content:"";position:absolute;top:2px;left:50%;width:12px;height:12px;margin-left:-6px;border-radius:50%;background:var(--line);z-index:1}
+.pk-tl li:after{content:"";position:absolute;top:7px;left:-50%;width:100%;height:2px;background:var(--line)}.pk-tl li:first-child:after{display:none}
+.pk-tl li.done:before,.pk-tl li.done:after,.pk-tl li.now:after{background:var(--tick)}.pk-tl li.now:before{background:var(--acc);box-shadow:0 0 0 4px var(--accsoft)}
+.pk-tl li.now{color:var(--ink);font-weight:800}.pk-tl li.done{color:var(--ink)}
+.pk-m{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:8px 0}.pk-m>div{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:6px 8px;text-align:center}
+.pk-m small{font-size:.68rem}.pk-m b{display:block;font-size:1.05rem;color:var(--ink)}
+.pk-trv{margin:6px 0;padding:8px 10px;border-radius:12px;background:var(--accsoft)}.pk-trv small{display:block;margin:2px 0 0}
+.pk-trv .bch button[aria-pressed="true"]{background:var(--acc)!important;color:var(--onacc)!important}
+.pk-act{margin-top:8px}.pk-act .pk-go,.bch .pk-main{background:var(--acc)!important;color:var(--onacc)!important}.pk-act button:disabled{opacity:.5;cursor:not-allowed}
+/* Urusan saya (beranda dan chat) */
+.pku{margin:0 0 16px;padding:12px 14px;border-radius:18px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow)}
+.pku[hidden]{display:none}
+.pku-h{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px}.pku-h b{display:block;font-size:1.05rem;color:var(--ink)}.pku-h small{color:var(--mute)}
+.pku ul,.pku-l{list-style:none;margin:0;padding:0}
+.pku-i{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px dashed var(--line)}.pku-i:first-child{border-top:0}
+.pku-ic{flex:none;width:36px;height:36px;border-radius:12px;display:grid;place-items:center;background:var(--accsoft);font-size:1.1rem}
+.pku-i>div{flex:1;min-width:0}.pku-i b{display:block;font-size:.92rem;color:var(--ink)}.pku-i small{display:block;color:var(--mute);font-size:.78rem;overflow-wrap:anywhere}
+.pku-go,.pku-all{flex:none;font:inherit;font-size:.78rem;font-weight:700;padding:6px 12px;border-radius:99px;border:1px solid var(--acc);background:var(--surface);color:var(--acc);cursor:pointer}
+.pku-go:hover,.pku-all:hover{background:var(--acc);color:var(--onacc)}
+.bot .pku-l{margin-top:8px}.bot .pku-i{padding:8px 0}
+/* lembar pengantar */
+.pk-lb{display:block;margin:10px 0 4px;font-size:.8rem;font-weight:700;color:var(--ink)}
+.pk-in{width:100%;box-sizing:border-box;font:inherit;font-size:16px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:9px 12px}
+#pk-print{display:none}
+@media print{body.pk-printing>*:not(#pk-print){display:none!important}body.pk-printing #pk-print,body.pk-printing #pk-print *{visibility:visible!important}body.pk-printing #pk-print{display:block!important;color:#000;background:#fff;padding:20px;font-family:system-ui,sans-serif;font-size:12pt}
+#pk-print h1{font-size:18pt;margin:0}#pk-print h2{font-size:12pt;margin:14px 0 6px;border-bottom:1px solid #000;padding-bottom:2px}#pk-print p{margin:2px 0}
+.pkp-id{border-collapse:collapse;margin:10px 0}.pkp-id th{text-align:left;padding:2px 14px 2px 0;width:90px}
+.pkp-t{display:flex;justify-content:space-between;gap:12px;align-items:center;border:1px solid #000;border-radius:6px;padding:8px;margin:6px 0;break-inside:avoid}.pkp-bc svg{max-width:240px;height:54px}
+.pkp-c{list-style:none;padding:0;margin:0}.pkp-c li{margin:3px 0}.pkp-c span{font-size:14pt;margin-right:6px}#pk-print ul{margin:4px 0;padding-left:18px}.pkp-f{margin-top:18px;font-size:9pt;color:#444}}
+/* pemilih bidang dan saran ketikan */
+.pk-bid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
+.bot .pk-bid button{display:flex;align-items:center;gap:8px;text-align:left;font:inherit;font-size:.82rem;font-weight:700;padding:9px 10px;border-radius:14px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+.bot .pk-bid button:hover{border-color:var(--acc);background:var(--accsoft)}.pk-bid span{font-size:1.2rem}
+.bch.pk-nf{align-items:center;border-top:1px dashed var(--line);padding-top:8px}.bch.pk-nf>span{font-size:.74rem;color:var(--mute);font-weight:700}
+.pk-ac button.on{background:var(--accsoft)}.pk-ac button b{color:var(--acc);margin:0}
+@media (prefers-reduced-motion:reduce){.pkr.call{animation:none}}
+@media (max-width:420px){.pkr{margin-left:-2px;margin-right:-2px}}
+
+/* Perbaikan v35: aturan cetak lama (body *{visibility:hidden}) ikut menyembunyikan Paket Siap Datang KBLI; tampilkan lagi saat mencetak */
+@media print{body.kp-printing #kp-print,body.kp-printing #kp-print *{visibility:visible!important}}

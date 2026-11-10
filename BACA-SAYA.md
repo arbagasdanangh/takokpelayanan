@@ -355,3 +355,36 @@ Catatan:
 - Survei SKM dihubungkan ke loket lewat `unit`. Penilaian per instansi MPP (id `mpp_s1` dst.) bukan kunci loket, jadi hanya terlihat oleh superuser; penilaian seluruh lokasi (tanpa unit) juga hanya superuser.
 - Batas percobaan masuk: 6 kali per nama pengguna per 15 menit dan 15 kali per IP per 10 menit (dinaikkan dari 5 karena petugas satu kantor sering berbagi IP). Kata sandi akun minimal 8 karakter, disimpan sebagai hash PBKDF2. Maksimal 200 akun.
 - Data akun ada di Redis hash `adm` (dan `admlog` untuk waktu masuk terakhir). Tidak ada variabel lingkungan baru.
+
+## Versi 35: Pendamping Kunjungan dan Asisten lebih cerdas (file baru `public/pendamping.js`)
+Semua berjalan di browser dari data yang sudah ada (booking, permohonan, tiket, daftar dokumen, loket): tanpa AI luar, tanpa server baru, tanpa variabel lingkungan baru. Cache browser: berkas kini `?v=35`.
+
+**Pita Tiket Aktif (semua halaman, pemohon yang masuk)**
+- Muncul di bawah bilah atas bila punya booking aktif hari ini: kode tiket, loket, jam, **jumlah antrean di depan** (diperbarui tiap 30 detik selama halaman terbuka), hitung mundur, tombol **Saya sudah tiba** (aktif 60 menit sebelum jam booking, sama dengan aturan server), **Rute** (Google Maps) dan **Pendamping**.
+- Saat petugas menekan Panggil, pita berubah kuning berdenyut "Giliran Anda!".
+- Pengingat lokal (notifikasi/toast, hanya saat halaman terbuka): "Antrean hampir tiba" (3 antrean lagi), "Giliran Anda berikutnya", dan "Saatnya berangkat".
+- Hemat kuota Redis: data booking ikut polling yang sudah ada; hanya bila ada tiket aktif hari ini, tambah satu `GET /api/booking` tiap sekitar 30 detik (hanya saat tab terlihat).
+
+**Pendamping Hari Kunjungan (chat: `/harini`, "kunjungan hari ini", atau tombol Pendamping)**
+Kartu per tiket: garis waktu (Terjadwal, Sudah tiba, Dipanggil), antrean di depan, hitung mundur, **jam berangkat paling lambat** (pilih lama perjalanan 15 sampai 90 menit, diingat di perangkat; tiba 15 menit sebelum jam booking), check-in, rute, telepon loket, dan progres daftar dokumen yang cocok.
+
+**Urusan Saya (kartu di beranda dan chat: `/urusan`, "urusan saya", "apa yang harus saya lakukan")**
+Daftar langkah berikutnya, urut paling mendesak: giliran dipanggil, kunjungan hari ini/mendatang, permohonan "Perlu perbaikan berkas" / "Siap diambil" / "Ditolak", balasan admin, dan daftar dokumen yang belum lengkap. Setiap baris punya tombol aksi.
+
+**Lembar Pengantar (chat: `/pengantar`)**
+Satu halaman berisi nama dan HP akun, keperluan singkat (opsional, NIK 16 digit ditolak), tiket antrean + barcode Code 39, permohonan aktif, daftar dokumen (centang sesuai progres), dan KBLI pilihan. Bisa **Cetak / simpan PDF**, **Salin teks**, atau kirim ke WhatsApp. Tidak memuat NIK dan diberi catatan "bukan dokumen resmi".
+
+**Asisten lebih cerdas**
+- **Rencana Gabungan**: kalimat seperti "mau buka usaha dan renovasi rumah" dikenali sebagai 2 urusan; Asisten menyusun urutan loket per urusan dan **menggabungkan daftar dokumen** (KTP/NPWP kembar jadi satu, diberi tanda "dipakai di 2 urusan"), lengkap dengan tombol Booking dan Cetak lembar pengantar.
+- **Klarifikasi "Pilih salah satu"** untuk kata yang terlalu umum (izin, bayar, usaha, tanah, kesehatan, KTP/KK). Daftar ada di variabel `AMB` (`pendamping.js`).
+- **Bantu pilih bidang** (`/bantu`, "bingung"): 8 bidang (usaha, bangunan dan tanah, kesehatan, pajak dan pembayaran, kependudukan, hukum dan ketenagakerjaan, lansia dan difabel, pengaduan) dengan pilihan layanan yang paling sering dicari (variabel `BID`). Muncul juga otomatis saat pertanyaan tidak ditemukan.
+- **Saran ketikan** di kolom chat: ketik 2 huruf, muncul sampai 5 saran dari kata kunci aturan "Kata cari", nama loket, daftar dokumen, dan frasa umum; panah atas/bawah + Enter atau ketuk.
+- **"Apakah loket buka sekarang?"**: menjawab menurut jam booking (hari kerja 08.00 sampai 14.00 WIB) dan jam yang diumumkan di Pengaturan. Hari libur nasional tidak dihitung otomatis.
+- Tombol cepat baru di bilah chat: Kunjungan hari ini, Urusan saya, Lembar pengantar, Bantu pilih bidang; perintah `/harini`, `/urusan`, `/pengantar`, `/bantu` di menu garis miring.
+
+**Perbaikan dari versi sebelumnya**
+- **Cetak "Paket Siap Datang" KBLI sebelumnya bisa tercetak kosong**: aturan cetak lama `body *{visibility:hidden}` ikut menyembunyikannya. Sudah diperbaiki di `style.css`.
+
+**File yang berubah**: `public/pendamping.js` (baru), `public/style.css` (akhir berkas), `public/index.html` (skrip baru, `?v=35`), `public/wow.js` (4 perintah menu garis miring). Server (`api/`) tidak diubah.
+
+**Pengujian**: diuji otomatis di Chromium (HP 390 px terang dan gelap, desktop 1100 px) dengan API tiruan dari data loket asli: pita (Terjadwal, check-in, jauh dari jam, Dipanggil), kartu pendamping, Urusan Saya, cetak lembar (media cetak), Rencana Gabungan, semua tombol klarifikasi/bidang menemukan loket, saran ketikan dengan keyboard. Belum diuji dengan Redis/produksi, di HP sungguhan, maupun dengan printer. Antrean "di depan" memakai data server apa adanya (tiket aktif di loket yang sama dengan jam lebih awal); petugas tetap menentukan urutan panggilan.
