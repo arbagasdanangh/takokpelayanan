@@ -280,7 +280,7 @@ function build() {
   var h = document.querySelector(".hero .tag2");
   if (h) h.insertAdjacentHTML("afterend", '<button class="heroask" id="hb" type="button">Ngobrol dengan Asisten Takok</button>');
 }
-function openB() { $b("bp").hidden = false; $b("bf").hidden = true; if (!$b("bm").children.length) bot(sapa() + " Saya Asisten Takok. Tanyakan layanan apa saja: saya carikan loketnya, siapkan daftar dokumen, cek status dan antrean, sampai bantu menyusun pengaduan.", chips(MENU.slice(0, 5)), 600); setTimeout(function () { $b("bi").focus(); }, 60); }
+function openB() { $b("bp").hidden = false; $b("bf").hidden = true; if (!$b("bm").children.length) bot(sapa() + " Saya Asisten Takok. Tanyakan layanan apa saja: saya carikan loketnya, siapkan daftar dokumen, cek status dan antrean, sampai bantu menyusun pengaduan.", chips(MENU.slice(0, 5)), 600); if (window.TP) setTimeout(TP.welcome, 1400); setTimeout(function () { $b("bi").focus(); }, 60); }
 function closeB() { $b("bp").hidden = true; $b("bf").hidden = false; try { speechSynthesis.cancel(); } catch (x) {} }
 /* Buka halaman Booking dengan loket terpilih (dipakai chatbot dan kartu loket) */
 function goBook(a) {

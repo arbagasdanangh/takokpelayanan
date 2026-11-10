@@ -531,7 +531,7 @@ function QS(b) {
 var S = null;
 function play(bi) {
   API.stopAll(); API.ping("usaha"); PICK = bi; var b = BIZ[bi]; API.title("Usaha 3D");
-  S = {bi: bi, q: 0, mist: 0, pts: 0, Q: QS(b)};
+  S = {bi: bi, q: 0, mist: 0, pts: 0, Q: QS(b), t0: Date.now(), to: 0, cepat: 0, habis: 0};
   API.view(API.bar("Bangun " + esc(b.n), 'KBLI ' + b.k) + stageHtml(skyCls()) + steps(1) + '<div id="u3q"></div>');
   mount(bi, 0, false, true); say("Aku mau buka " + b.n + ". Bantu aku ya!"); API.later(function () { say(""); }, 3200); ask();
 }
@@ -540,6 +540,11 @@ function ask() {
   S.opts = shuffle([q.ok].concat(q.no)); S.wrong = {};
   el.innerHTML = '<div class="u3-q"><small>Tahap ' + (S.q + 1) + ' dari 5 &middot; ' + STEP[S.q] + '</small><b>' + esc(q.t) + '</b><div class="u3-os" id="u3o">' +
     S.opts.map(function (o, i) { return '<button type="button" class="u3-o" data-u3="ans" data-o="' + i + '">' + esc(o) + '</button>'; }).join("") + '</div><p class="u3-fb" id="u3f" role="status" aria-live="polite"></p></div>';
+  if (window.WK) WK.start(el.querySelector(".u3-q"), 30, function () { timeUp(); });
+}
+function timeUp() {
+  var q = S.Q[S.q]; if (!q || !$("u3o")) return; var idx = S.opts.indexOf(q.ok), btn = document.querySelector('.u3-o[data-o="' + idx + '"]'); if (!btn || btn.disabled) return;
+  S.to = 1; S.habis++; S.mist++; answer(idx); S.to = 0;
 }
 function answer(i) {
   var q = S.Q[S.q], btn = document.querySelector('.u3-o[data-o="' + i + '"]'), f = $("u3f"), b = BIZ[S.bi]; if (!btn || btn.disabled) return;
@@ -547,13 +552,13 @@ function answer(i) {
     S.mist++; S.wrong[i] = 1; btn.disabled = true; btn.classList.add("bad"); API.beep(150, 0.3, "sawtooth");
     if (f) f.innerHTML = '<b>Belum tepat.</b> ' + esc(q.hint); return;
   }
-  var first = !Object.keys(S.wrong).length; S.pts += first ? 10 : 4; API.beep(660, 0.12); setTimeout(function () { API.beep(880, 0.15); }, 120);
+  var to = S.to, sisa = window.WK ? WK.stop() : 0, first = !to && !Object.keys(S.wrong).length, cepat = first && window.WK && WK.on() && sisa >= 15; S.pts += to ? 2 : first ? 10 : 4; if (cepat) { S.pts += 3; S.cepat++; } API.beep(660, 0.12); setTimeout(function () { API.beep(880, 0.15); }, 120);
   [].forEach.call(document.querySelectorAll(".u3-o"), function (o) { o.disabled = true; }); btn.classList.add("ok");
   var st = $("u3"); if (st && st.scrollIntoView) { try { st.scrollIntoView({block: "nearest", behavior: RM ? "auto" : "smooth"}); } catch (e) {} }
   add(S.q + 1, true); setSteps(S.q + 2); camTo(CAMS[S.q], 1200);
   var last = S.q === 4;
   if (last) { API.later(function () { API.konfeti(80); API.beep(988, 0.3); say("Grand opening! Terima kasih Takok!"); }, 1000); }
-  if (f) f.innerHTML = '<b>' + (first ? "Benar! +10 poin." : "Benar. +4 poin.") + '</b> ' + q.ex;
+  if (f) f.innerHTML = '<b>' + (to ? "Waktu habis. Jawabannya ini. +2 poin." : first ? "Benar! +10 poin." + (cepat ? " ⚡ Cepat +3." : "") : "Benar. +4 poin.") + '</b> ' + q.ex;
   var nx = document.createElement("div"); nx.className = "btns"; nx.style.justifyContent = "center";
   nx.innerHTML = last ? '<button type="button" class="send" data-u3="done">Lihat hasil &amp; poin</button><button type="button" class="btn" data-u3="ask">Tanya Asisten: KBLI ' + b.k + '</button>' : '<button type="button" class="send" data-u3="next">Lanjut ke tahap ' + (S.q + 2) + '</button>';
   f.parentNode.appendChild(nx);
@@ -562,7 +567,7 @@ function done() {
   var b = BIZ[S.bi], st = S.mist === 0 ? 3 : S.mist <= 2 ? 2 : 1, g = API.G();
   g.ub = g.ub || {}; g.ub[b.k] = Math.max(g.ub[b.k] || 0, st);
   API.fin("usaha", {title: "Grand Opening " + b.n + "!", stars: st, pts: S.pts + 20, m: {usaha: 1}, again: function () { play(S.bi); },
-    sub: b.e + ' Usaha <b>' + esc(b.n) + '</b> (KBLI ' + b.k + ') sudah berdiri dengan ' + S.mist + ' kali salah jawab.<br><small class="sys">' + note(b) + '</small>',
+    sub: b.e + ' Usaha <b>' + esc(b.n) + '</b> (KBLI ' + b.k + ') sudah berdiri dengan ' + S.mist + ' kali salah jawab' + (S.habis ? ' (' + S.habis + ' tahap kehabisan waktu)' : '') + '.' + (window.WK && WK.on() ? ' Waktu membangun: ' + Math.floor((Date.now() - S.t0) / 60000) + ' mnt ' + Math.round(((Date.now() - S.t0) % 60000) / 1000) + ' dtk' + (S.cepat ? ', bonus kecepatan ×' + S.cepat : '') + '.' : '') + '<br><small class="sys">' + note(b) + '</small>',
     share: "Saya baru membangun usaha " + b.n + " (KBLI " + b.k + ") di Bangun Usaha 3D, Ruang Main Takok Pelayanan Suroboyo. " + "★".repeat(st) + "\n" + location.origin});
 }
 

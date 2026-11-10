@@ -4,7 +4,7 @@ Penyimpanan : Upstash Redis (lewat Vercel Marketplace), diakses via REST.
 Variabel    : lihat BACA-SAYA.md (SESSION_SECRET, ADMIN_PASSWORD, KV_REST_API_URL/TOKEN).
 Satu endpoint: /api/app?p=/rute  (mis. /api/app?p=/info)
 """
-import base64, csv, hashlib, hmac, io, json, os, re, secrets, sys, time
+import base64, collections, csv, hashlib, hmac, io, json, os, re, secrets, sys, time
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import parse_qs, urlparse
 import urllib.request
@@ -758,6 +758,8 @@ class handler(BaseHTTPRequestHandler):
             return self.bot_miss(b)
         if path == "/game/main" and method == "POST":
             return self.game_main(b)
+        if path == "/populer" and method == "GET":
+            return self.populer_publik()
         if path == "/bot/hit" and method == "POST":
             return self.bot_hit(b)
         if path == "/keluar" and method == "POST":
@@ -841,11 +843,25 @@ class handler(BaseHTTPRequestHandler):
             cmds = [["HINCRBY", h, k, 1] for k in ks]
             if v == 0:
                 cmds.append(["HINCRBY", "khd", time.strftime("%Y%m%d", wib()), 1])
+                hk = "khw:" + time.strftime("%Y%m%d", wib())  # hitungan harian untuk "ramai ditanyakan"; kedaluwarsa sendiri
+                cmds += [["HINCRBY", hk, k, 1] for k in ks] + [["EXPIRE", hk, 9 * 86400]]
             db().pipe(cmds)
         return self.json({"ok": True})
 
     def q1(self, k):
         return (parse_qs(urlparse(self.path).query).get(k) or [""])[0]
+
+    def populer_publik(self):
+        """Pertanyaan yang paling ramai dalam 7 hari terakhir (dari pemakaian aturan Kata cari). Anonim: hanya kata kunci dan jumlahnya."""
+        hari = [time.strftime("%Y%m%d", time.gmtime(time.time() + 7 * 3600 - i * 86400)) for i in range(7)]
+        res = db().pipe([["HGETALL", "khw:" + h] for h in hari])
+        tot = collections.Counter()
+        for r in res:
+            for k, v in hall(r).items():
+                tot[k] += int(v)
+        ada = kata_cache()[3]
+        top = [{"k": k, "n": n} for k, n in tot.most_common(12) if k in ada][:6]
+        return self.json({"populer": top}, extra=[("Cache-Control", "public, max-age=60, s-maxage=300")])
 
     def kata_publik(self):
         """Daftar aturan untuk pengunjung. Dipasang cache CDN selama satu tahun karena URL-nya memuat nomor versi."""
