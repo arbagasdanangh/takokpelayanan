@@ -924,3 +924,4 @@ body.dm-on .dm-go{display:none}
 .syg-t{flex:1 1 220px;min-width:0;font-weight:700;margin:0}.syg-b{display:flex;gap:4px;flex-wrap:wrap}.syg-b .btn{padding:4px 9px;font-size:.8rem}
 .syg-i{width:100%;margin-top:8px;resize:vertical}
 .syw-a{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.syw-a .sys{margin:0 2px 0 6px}
+.syp{margin-top:10px;padding-top:8px;border-top:1px dashed var(--line)}.syp[hidden]{display:none}.syp textarea{width:100%}

@@ -115,7 +115,10 @@ function syEditor(L) {
   var G = syParse(L);
   return '<div id="lf-syw" class="syw"><div id="lf-syl">' + G.map(syGrup).join("") + '</div>' +
     '<div class="syw-a"><button type="button" class="send" data-lk="syadd">+ Tambah jenis izin</button>' +
-    '<span class="sys">Tambah cepat:</span>' + SY_CEPAT.map(function (n) { return '<button type="button" class="chip" data-lk="syadd" data-n="' + esc(n) + '">' + esc(n) + '</button>'; }).join("") + '</div></div>';
+    '<button type="button" class="btn" data-lk="sytempel">Tempel massal</button><span class="sys">Tambah cepat:</span>' + SY_CEPAT.map(function (n) { return '<button type="button" class="chip" data-lk="syadd" data-n="' + esc(n) + '">' + esc(n) + '</button>'; }).join("") + '</div>' +
+    '<div id="lf-syp" class="syp" hidden><p class="sys">Tempel daftar. <b>Cara 1:</b> satu nama jenis izin per baris (mis. daftar peruntukan PBG), syaratnya diisi sesudahnya. <b>Cara 2:</b> awali nama dengan <b>#</b>, baris di bawahnya jadi syarat. Hasilnya <b>ditambahkan</b> ke kartu yang ada.</p>' +
+    '<textarea class="si" id="lf-syt" rows="8" placeholder="# PBG Rumah Tinggal Sederhana&#10;KTP&#10;Bukti hak tanah&#10;# PBG Menara Telekomunikasi&#10;..."></textarea>' +
+    '<div class="btns"><button type="button" class="send" data-lk="sytapply">Buat kartu</button><button type="button" class="btn" data-lk="sytutup">Batal</button></div></div></div>';
 }
 function syBaca() {
   var out = [];
@@ -129,6 +132,16 @@ function syBaca() {
 function syAksi(a, b) {
   var L = $("lf-syl"); if (!L) return false;
   var g = b.closest(".syg");
+  if (a === "sytempel") { $("lf-syp").hidden = false; $("lf-syt").focus(); return true; }
+  if (a === "sytutup") { $("lf-syp").hidden = true; return true; }
+  if (a === "sytapply") {
+    var tx = $("lf-syt").value.split(/\r?\n/).map(function (x) { return x.trim(); }).filter(Boolean);
+    if (!tx.length) { toast("Tempel dulu daftarnya."); return true; }
+    var G = syParse(/^#/.test(tx[0]) || tx.some(function (x) { return /^#/.test(x); }) ? tx : tx.map(function (x) { return "# " + x; }));
+    if (G.length > 40) { toast("Maksimal 40 jenis izin sekali tempel."); return true; }
+    L.insertAdjacentHTML("beforeend", G.map(syGrup).join("")); $("lf-syt").value = ""; $("lf-syp").hidden = true;
+    toast(G.length + " jenis izin ditambahkan. Isi syaratnya, lalu Simpan."); return true;
+  }
   if (a === "syadd") {
     var h = document.createElement("div"); h.innerHTML = syGrup({t: b.dataset.n || "", items: []}); var n = h.firstChild; L.appendChild(n);
     var f = n.querySelector(".syg-t"); if (b.dataset.n) n.querySelector(".syg-i").focus(); else f.focus(); n.scrollIntoView({block: "nearest"}); return true;
@@ -273,7 +286,7 @@ window.aLk = async function (el) {
   el.onclick = async function (ev) {
     var b = ev.target.closest("[data-lk]"); if (!b || BUSY) return;
     var a = b.dataset.lk, k = b.dataset.k, id = b.dataset.l, e = k && LK.loket.filter(function (x) { return x.kunci === k; })[0];
-    if (/^sy(add|del|up|dn|dup)$/.test(a)) { syAksi(a, b); return; }
+    if (/^sy(add|del|up|dn|dup|tempel|tutup|tapply)$/.test(a)) { syAksi(a, b); return; }
     try {
       if (a === "fmt") fmtTa($(b.dataset.t), b.dataset.f);
       else if (a === "vw") { VW = b.dataset.v; ED = EL = null; IM = null; draw(el); }
