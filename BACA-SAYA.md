@@ -336,3 +336,6 @@ Variabel lingkungan di Vercel (semua rahasia, jangan dimasukkan ke kode):
 - Telegram: `TG_TOKEN`, `TG_SECRET`, `TG_USER` (nama bot tanpa @). Webhook: `https://DOMAIN/api/tg` (set lewat setWebhook dengan `secret_token=TG_SECRET`).
 - WhatsApp: `WA_TOKEN`, `WA_PHONE_ID`, `WA_SECRET` (App Secret), `WA_VERIFY`, opsional `WA_BOT_NUM`. Callback: `https://DOMAIN/api/wa`, subscribe ke `messages`.
 Keamanan: tanda tangan `X-Hub-Signature-256` (WA) dan header rahasia (Telegram) wajib; tanpa variabel itu webhook menolak (503/403). Duplikat pesan dibuang, batas 30 pesan/jam/pengirim, nomor tidak disimpan (hanya 3 digit terakhir di log). `vercel.json` sudah memuat rewrite `/api/wa` dan `/api/tg` serta menyertakan `public/kbli-2025.json` ke fungsi.
+
+## Tur Demo (v33)
+Tombol "▶ Tur Demo" (kiri bawah), alamat `/?demo=1`, atau tombol Alt+D menjalankan tur otomatis ±90 detik: pencarian, Pandu KBLI, Paket Siap Datang, Pandu Zona, chatbot, Ruang Main, Tebak KBLI, lalu ringkasan fitur admin. Ada jeda/mundur/maju/berhenti (Esc). Cocok untuk presentasi lomba: bagikan tautan `/?demo=1`. File: `public/demo.js`. Tidak mengirim data apa pun ke server.
