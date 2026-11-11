@@ -1,0 +1,93 @@
+/* Versi 47: tampilan baru panel admin dan Asisten Takok. Hanya memoles tampilan; tidak mengubah perilaku. */
+
+/* ===================== Panel admin ===================== */
+body.adm-on h2.sec{font-size:1.15rem;font-weight:750;letter-spacing:-.01em;margin:26px 0 10px}
+body.adm-on h2.sec::before{display:none}
+body.adm-on .card,body.adm-on .kpi,body.adm-on article.card{box-shadow:none;border-radius:14px;border-color:var(--line)}
+body.adm-on .kpis{grid-template-columns:repeat(auto-fit,minmax(176px,1fr));gap:12px}
+body.adm-on .kpi{padding:14px 16px;gap:3px;transition:border-color .15s,background .15s}
+body.adm-on .kpi .kv{font-size:2rem;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+body.adm-on button.kpi:hover{border-color:var(--acc);background:var(--accsoft)}
+body.adm-on .kpi>span:nth-child(2){font-weight:650;font-size:.92rem}
+body.adm-on .kpi small{color:var(--mute)}
+body.adm-on .tb th{font-size:.8rem;font-weight:700;color:var(--mute);border-bottom:1px solid var(--line);padding:8px 10px}
+body.adm-on .tb td{padding:9px 10px;border-bottom:1px solid var(--line)}
+body.adm-on .tb tr:hover td{background:var(--accsoft)}
+body.adm-on .si,body.adm-on select.si,body.adm-on textarea.si{border-radius:10px}
+body.adm-on .si:focus-visible,body.adm-on textarea:focus-visible{outline:2px solid var(--acc);outline-offset:1px;border-color:var(--acc)}
+body.adm-on .btn,body.adm-on a.btn{border-radius:10px;font-weight:600;transition:border-color .15s,background .15s}
+body.adm-on .btn:hover{border-color:var(--acc);background:var(--accsoft)}
+body.adm-on .send{border-radius:10px}
+body.adm-on #a-who{display:flex;align-items:center;gap:10px;margin:6px 0 14px;padding:10px 14px;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+body.adm-on #a-who b{font-size:1rem}
+body.adm-on #a-who .sys{margin:0}
+#atabs .ni{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#atabs .ng,#atabs .nb{display:none}
+
+@media (min-width:960px){
+  body.adm-on main{max-width:1220px}
+  body.adm-on #v-adm{display:grid;grid-template-columns:240px minmax(0,1fr);column-gap:28px;align-items:start}
+  body.adm-on #v-adm>*{grid-column:2;min-width:0}
+  body.adm-on #v-adm>#a-who{grid-column:1/-1;grid-row:1}
+  body.adm-on #v-adm>#atabs{grid-column:1;grid-row:2/span 60;position:sticky;top:12px;margin:0}
+  #atabs.ng-on{display:flex;flex-direction:column;flex-wrap:nowrap;gap:1px;overflow:auto;-webkit-mask-image:none;mask-image:none;scroll-snap-type:none;
+    background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:8px;max-height:calc(100dvh - 24px)}
+  #atabs.ng-on .chip{display:flex;align-items:center;gap:10px;width:100%;border:0;background:none;border-radius:10px;padding:8px 10px;text-align:left;font-size:.9rem;font-weight:550;color:var(--ink);white-space:normal}
+  #atabs.ng-on .chip:hover{background:var(--accsoft)}
+  #atabs.ng-on .chip[aria-pressed="true"]{background:var(--acc);color:var(--onacc);font-weight:700}
+  #atabs.ng-on .chip:focus-visible{outline:2px solid var(--acc);outline-offset:-2px}
+  #atabs.ng-on .ng{display:block;font-size:.78rem;font-weight:700;color:var(--mute);padding:12px 10px 4px}
+  #atabs.ng-on .ng:first-child{padding-top:4px}
+  #atabs.ng-on .nb{display:inline-block;margin-left:auto;background:var(--warn);color:#fff;border-radius:99px;font-size:.72rem;font-weight:700;padding:0 7px;line-height:1.6}
+}
+@media (max-width:959px){
+  #atabs .ni{display:none}
+  #atabs .chip{display:inline-flex;align-items:center;gap:6px}
+  #atabs .nb{display:inline-block;background:var(--warn);color:#fff;border-radius:99px;font-size:.7rem;padding:0 6px;font-weight:700}
+}
+
+/* ===================== Asisten Takok ===================== */
+.bot{border:0;border-radius:22px;box-shadow:0 24px 60px rgba(8,25,80,.32),0 0 0 1px rgba(20,60,150,.12)}
+.bot header{padding:14px 14px 13px;gap:12px;background:radial-gradient(120% 140% at 0 0,#2459d6 0,#143a9c 45%,#0b2160 100%)}
+.bot .bav{position:relative;width:42px;height:42px;box-shadow:0 0 0 3px rgba(255,201,51,.9)}
+.bot .bav::after{content:"";position:absolute;right:-3px;bottom:-3px;width:12px;height:12px;border-radius:50%;background:#34d399;border:2px solid #143a9c}
+.bot .bti b{font-size:1.05rem;letter-spacing:-.01em}
+.bot .bti small{opacity:.8}
+.bot .bhb{gap:6px}
+.bot .bhb button{min-width:34px;height:34px;padding:0 10px;border-radius:12px;border-color:rgba(255,255,255,.28);background:rgba(255,255,255,.1);transition:background .15s}
+.bot .bhb button:hover{background:rgba(255,255,255,.22)}
+.bot .bhb button:focus-visible{outline:2px solid #ffc933;outline-offset:2px}
+.bot .bmsgs{padding:18px 14px;gap:12px;scroll-behavior:smooth}
+.bot .bmsg{border-radius:18px}
+.bot .bmsg.b{border-radius:5px 18px 18px 18px;box-shadow:none;background:var(--surface)}
+.bot .bmsg.u{border-radius:18px 5px 18px 18px;background:linear-gradient(135deg,#2459d6,#1a46b5);box-shadow:0 4px 12px rgba(26,70,181,.25)}
+.bot .bc2{border-left-width:4px;border-radius:12px}
+.bot .bch button,.bot .ba button,.bot .bch a,.bot .ba a{transition:background .15s,color .15s}
+.bot .bq{-webkit-mask-image:linear-gradient(90deg,#000 90%,transparent);mask-image:linear-gradient(90deg,#000 90%,transparent);scrollbar-width:none}
+.bot .bq::-webkit-scrollbar{display:none}
+.bot .bin{padding:10px 12px calc(12px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line)}
+.bot .bin input{border-radius:14px;padding:11px 14px}
+.bot .bin input:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
+.bot .bsend{border-radius:14px}
+.bot .bin #b-m{border-radius:14px}
+
+/* Menu ⋯ berisi pengaturan yang dulu menumpuk di judul */
+.bmore{min-width:236px;border-radius:16px;padding:8px}
+.bmore .bmt{display:flex;flex-wrap:wrap;gap:6px;padding:4px 4px 10px;margin-bottom:6px;border-bottom:1px solid var(--line)}
+.bmore .bmt button{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:99px;padding:5px 11px;font:inherit;font-size:.8rem;font-weight:600;cursor:pointer;text-align:center}
+.bmore .bmt button[aria-pressed="true"]{background:var(--acc);border-color:var(--acc);color:var(--onacc)}
+.bmore .bmt button:hover{border-color:var(--acc)}
+
+/* Kartu sambutan */
+.bw{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:2px 0 4px}
+.bw button{display:grid;grid-template-columns:34px 1fr;grid-template-rows:auto auto;column-gap:10px;align-items:center;text-align:left;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:14px;padding:10px 12px;font:inherit;cursor:pointer;transition:border-color .15s,background .15s}
+.bw button:hover{border-color:var(--acc);background:var(--accsoft)}
+.bw button:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.bw .bwi{grid-row:1/span 2;width:34px;height:34px;border-radius:10px;background:var(--accsoft);color:var(--acc);display:grid;place-items:center}
+.bw .bwi svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.bw b{font-size:.86rem;line-height:1.2}
+.bw small{font-size:.74rem;color:var(--mute);line-height:1.25}
+@media (max-width:380px){.bw{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){.bot .bmsgs{scroll-behavior:auto}}
+body.adm-on .ug-fab,body.adm-on .dm-go{display:none}
+body:has(#bp:not([hidden])) .ug-fab,body:has(#bp:not([hidden])) .dm-go{display:none}
