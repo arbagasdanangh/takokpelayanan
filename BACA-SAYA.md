@@ -420,3 +420,11 @@ Satu halaman berisi nama dan HP akun, keperluan singkat (opsional, NIK 16 digit 
 - **Game baru Suroboyo Rush** (`public/rush.js`): runner 3 jalur bergaya pseudo-3D. Cak Takok berlari di jalan Surabaya (ada Tugu Pahlawan), langit berganti siang, senja, malam. Ambil berkas (+10) dan stempel emas (+40), Jalur Cepat (kebal dan menerobos 5 detik), hati (+1 nyawa); hindari antrean dan formulir salah. Kombo hingga x4, kecepatan naik bertahap. Kontrol: geser, ketuk sisi layar, panah, A/D. Terhubung ke poin, lencana baru **Pelari Kota Pahlawan**, dan tantangan harian. `api/app.py`: "rush" ditambahkan ke daftar permainan yang dihitung.
 - **Tampilan beranda interaktif** (`public/keren.js`, `public/keren.css`): bilah kemajuan gulir dan tombol ke atas bercincin; jam WIB hidup di hero dengan keterangan jam booking; pita tips berjalan; ubin menu bercahaya mengikuti kursor dan miring halus; konten muncul saat digulir; lembar pintasan (tekan `?`), tombol `G` membuka Ruang Main; kode rahasia ↑↑↓↓←→←→ untuk Mode Pahlawan. Semua menghormati pengaturan "kurangi gerakan".
 - **Diuji** di Chromium (desktop 1224 px dan HP 390 px) dengan API tiruan: tombol ganda hilang di desktop, game dimainkan sampai selesai tanpa galat JS. Belum diuji di produksi.
+
+## Pembaruan versi 49
+- **Jam WIB dirapikan**: kini baris sendiri di bawah tombol "Ngobrol dengan Asisten Takok", tidak lagi menimpa ilustrasi kota dan gelembung maskot. Keterangannya lebih berguna: "Jam booking berlangsung" atau "Booking tutup, buka lagi hari ini/besok/Senin 08.00". Di HP jadi dua baris.
+- **Sapaan personal**: setelah pemohon masuk, baris kecil di hero menjadi "Selamat pagi, Danang!" (menyesuaikan waktu WIB).
+- **Warna tampilan**: tombol palet di bilah atas membuka pilihan 6 warna (biru, hijau, ungu, tosca, oranye, merah). Berlaku untuk tema terang dan gelap, tersimpan di perangkat. Ada juga tombol "Bagikan Takok ke teman" (lembar bagikan bawaan HP, atau salin tautan di desktop).
+- **Peringkat lokal Suroboyo Rush**: 5 skor terbaik di perangkat tampil di menu game, dan hasil akhir menyebut peringkatnya.
+- File: `public/keren.js`, `public/keren.css`, `public/rush.js`, `public/index.html` (`?v=49`).
+- Diuji di Chromium desktop dan HP 390 px dengan API tiruan; belum diuji di produksi.

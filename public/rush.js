@@ -52,6 +52,15 @@ function px(lane, d) { return CX + lane * LW / d; }
 var P_BUBBLE = typeof Path2D === "function" ? new Path2D("M12 8h56a10 10 0 0110 10v32a10 10 0 01-10 10H38l-14 14V60H12A10 10 0 012 50V18A10 10 0 0112 8z") : null;
 var P_HEART = typeof Path2D === "function" ? new Path2D("M50 88C23 67 9 50 9 34a20 20 0 0 1 41-7 20 20 0 0 1 41 7c0 16-14 33-41 54z") : null;
 
+/* ---------- Peringkat lokal (5 terbaik, hanya di perangkat ini) ---------- */
+var TOPK = "tk_rush_top";
+function topList() { try { var a = JSON.parse(localStorage.getItem(TOPK) || "[]"); return Array.isArray(a) ? a.filter(function (z) { return z && typeof z.s === "number"; }).slice(0, 5) : []; } catch (e) { return []; } }
+function topAdd(sc, jarak) {
+  var a = topList(), e = {s: sc, j: jarak, d: Date.now()}; a.push(e); a.sort(function (p, q) { return q.s - p.s; }); a = a.slice(0, 5);
+  try { localStorage.setItem(TOPK, JSON.stringify(a)); } catch (x) {} return a.indexOf(e) + 1;
+}
+function tgl(ms) { try { return new Date(ms).toLocaleDateString("id-ID", {day: "numeric", month: "short"}); } catch (e) { return ""; } }
+
 /* ---------- Menu ---------- */
 function menu() {
   API.stopAll(); CUR = null; API.title("Suroboyo Rush");
@@ -61,6 +70,7 @@ function menu() {
     '<div class="rs-hero"><div class="rs-sky" aria-hidden="true"><i></i><i></i><i></i></div><small>BARU &middot; ARCADE</small><b>Suroboyo Rush</b><p>Lari bersama Cak Takok menyusuri jalan Surabaya. Ambil berkas, hindari antrean panjang, dan kejar kombo hingga x4. Siang berganti malam, kecepatan makin tinggi.</p>' +
     '<div class="btns" style="justify-content:center"><button type="button" class="send" data-rs="go">Main sekarang</button></div><p class="sys" style="margin:8px auto 0">' + (best ? "Rekor Anda: <b>" + best + "</b> poin" : "Belum dimainkan") + '</p></div>' +
     '<h2>Isi jalan</h2><div class="rs-leg">' + leg.map(function (l) { return '<div><span class="' + l[0] + '" aria-hidden="true"></span><b>' + l[1] + '</b><small>' + l[2] + '</small></div>'; }).join("") + '</div>' +
+    (topList().length ? '<h2>Peringkat di perangkat ini</h2><div class="rs-top">' + topList().map(function (z, i) { return '<div><span>' + (i + 1) + '</span><b>' + z.s + ' poin <small>&middot; ' + z.j + ' m</small></b><small>' + tgl(z.d) + '</small></div>'; }).join("") + '</div>' : "") +
     '<h2>Kontrol</h2><p class="sys">Geser jari ke kiri atau kanan, ketuk sisi layar, tombol panah, atau tombol A dan D. Dapat dimainkan tanpa suara; nyalakan Suara di bagian atas bila mau.</p>');
 }
 
@@ -171,9 +181,9 @@ function hit(S, it) {
 }
 
 function finish(S) {
-  var sc = Math.round(S.sc), st = sc >= 900 ? 3 : sc >= 450 ? 2 : 1, g = API.G(), best = Math.max(g.best.rs || 0, sc), jarak = Math.round(S.pos * 5), baru = sc > (g.best.rs || 0) && sc > 0;
+  var sc = Math.round(S.sc), st = sc >= 900 ? 3 : sc >= 450 ? 2 : 1, g = API.G(), best = Math.max(g.best.rs || 0, sc), jarak = Math.round(S.pos * 5), baru = sc > (g.best.rs || 0) && sc > 0, rank = sc > 0 ? topAdd(sc, jarak) : 0;
   API.fin("rush", {title: baru ? "Rekor baru!" : st === 3 ? "Pelari Kota Pahlawan!" : st === 2 ? "Larimu kencang!" : "Tabrakan antrean!", stars: st,
-    sub: "Skor <b>" + sc + "</b> &middot; " + jarak + " m &middot; kombo terbaik " + S.maxC + ". Rekor Anda: " + best + ".",
+    sub: "Skor <b>" + sc + "</b> &middot; " + jarak + " m &middot; kombo terbaik " + S.maxC + ". Rekor Anda: " + best + "." + (rank ? " Peringkat #" + rank + " di perangkat ini." : ""),
     pts: Math.round(sc / 15) + 5, bk: "rs", bv: sc, m: {rush: sc}, again: play,
     share: "Saya mencetak " + sc + " poin (" + jarak + " m) di Suroboyo Rush, Ruang Main Takok Pelayanan Suroboyo. Berani menandingi?\n" + location.origin});
 }

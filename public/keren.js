@@ -31,26 +31,71 @@ function onScroll() {
 }
 window.addEventListener("scroll", onScroll, {passive: true}); window.addEventListener("resize", onScroll); onScroll();
 
-/* ---- jam WIB hidup ---- */
+/* ---- jam WIB hidup + sapaan personal (di bawah tombol Asisten, tidak menimpa ilustrasi) ---- */
 var hero = $(".hero");
 if (hero && window.Intl) {
   var live = D.createElement("div"); live.className = "kr-live"; live.setAttribute("role", "status");
-  live.innerHTML = '<i aria-hidden="true"></i><b id="kr-clk">--.--.--</b><span>WIB</span><span id="kr-st"></span>';
-  var anchor = $(".tag2", hero); if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(live, anchor.nextSibling); else hero.appendChild(live);
+  live.innerHTML = '<i aria-hidden="true"></i><b id="kr-clk">--.--.--</b><em>WIB</em><span id="kr-st"></span>';
+  var hb = $("#hb", hero) || $(".heroask", hero), anchor = $(".tag2", hero);
+  if (hb && hb.parentNode) hb.parentNode.insertBefore(live, hb.nextSibling); else if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(live, anchor.nextSibling); else hero.appendChild(live);
   var fmt = new Intl.DateTimeFormat("en-GB", {timeZone: "Asia/Jakarta", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false, weekday: "short"});
-  var clk = $("#kr-clk"), st = $("#kr-st"), lastMin = -1;
+  var clk = $("#kr-clk"), st = $("#kr-st"), lastMin = -1, HARI = {Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7};
   function jam() {
     if (D.hidden) return;
     var p = {}; fmt.formatToParts(new Date()).forEach(function (x) { p[x.type] = x.value; });
-    var hh = +p.hour % 24, mm = +p.minute, wd = p.weekday, kerja = wd !== "Sat" && wd !== "Sun";
+    var hh = +p.hour % 24, mm = +p.minute, wd = HARI[p.weekday] || 1, kerja = wd <= 5;
     clk.textContent = String(hh).padStart(2, "0") + "." + p.minute + "." + p.second;
     if (mm !== lastMin) {
-      lastMin = mm; var buka = kerja && hh >= 8 && hh < 14;
-      live.classList.toggle("off", !buka);
-      st.textContent = buka ? "\u00b7 Jam booking berlangsung" : "\u00b7 Di luar jam booking (Sen\u2013Jum 08.00\u201314.00)";
+      lastMin = mm; var buka = kerja && hh >= 8 && hh < 14; live.classList.toggle("off", !buka);
+      if (buka) st.textContent = "Jam booking berlangsung";
+      else { var kapan = kerja && hh < 8 ? "hari ini" : wd === 5 && hh >= 14 || wd === 6 ? "Senin" : wd === 7 ? "besok" : "besok"; st.textContent = "Booking tutup \u00b7 buka lagi " + kapan + " 08.00"; }
     }
   }
   jam(); setInterval(jam, 1000);
+}
+/* Sapaan: bila pemohon sudah masuk, baris "Selamat Datang di" menyapa namanya. */
+(function () {
+  var role = $("#role"), sm = hero && $("small", hero); if (!role || !sm) return; var asli = sm.textContent;
+  function sapa() {
+    var m = /^Pemohon:\s*(.+)$/.exec((role.textContent || "").trim()), h = +(new Intl.DateTimeFormat("en-GB", {timeZone: "Asia/Jakarta", hour: "2-digit", hour12: false}).format(new Date())) % 24;
+    sm.textContent = m ? "Selamat " + (h < 11 ? "pagi" : h < 15 ? "siang" : h < 18 ? "sore" : "malam") + ", " + m[1].split(" ")[0] + "!" : asli;
+  }
+  sapa(); if (window.MutationObserver) new MutationObserver(sapa).observe(role, {childList: true, characterData: true, subtree: true});
+})();
+
+
+/* ---- Personalisasi: warna aksen + bagikan Takok ---- */
+var AK = [["biru", "Biru (bawaan)", "#1a46b5"], ["hijau", "Hijau", "#0f8a5f"], ["ungu", "Ungu", "#6d3fd6"], ["tosca", "Tosca", "#0b7f8f"], ["oranye", "Oranye", "#d9560b"], ["merah", "Merah", "#c8102e"]];
+function aksen(k) { if (k === "biru") D.documentElement.removeAttribute("data-aksen"); else D.documentElement.setAttribute("data-aksen", k); try { localStorage.setItem("tk_aksen", k); } catch (e) {} }
+try { var ak0 = localStorage.getItem("tk_aksen"); if (ak0 && AK.some(function (a) { return a[0] === ak0; })) aksen(ak0); } catch (e) {}
+var tools = $(".tools");
+if (tools) {
+  var pb = D.createElement("button"); pb.type = "button"; pb.className = "btn kr-pb"; pb.id = "kr-pb"; pb.setAttribute("aria-haspopup", "dialog"); pb.setAttribute("aria-expanded", "false"); pb.setAttribute("aria-label", "Personalisasi tampilan"); pb.title = "Warna dan bagikan";
+  pb.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 100 18c1.4 0 2-.9 2-1.8 0-1.2-1-1.4-1-2.5 0-.9.7-1.7 1.7-1.7H17a4 4 0 004-4c0-4.4-4-8-9-8z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10" cy="7.5" r="1"/><circle cx="14.5" cy="7.5" r="1"/></svg>';
+  tools.appendChild(pb);
+  var pop = null;
+  function tutupPop() { if (!pop) return; pop.remove(); pop = null; pb.setAttribute("aria-expanded", "false"); D.removeEventListener("keydown", kd, true); D.removeEventListener("pointerdown", pd, true); }
+  function kd(e) { if (e.key === "Escape") { tutupPop(); pb.focus(); } }
+  function pd(e) { if (pop && !pop.contains(e.target) && e.target !== pb && !pb.contains(e.target)) tutupPop(); }
+  pb.onclick = function () {
+    if (pop) { tutupPop(); return; }
+    var cur = D.documentElement.getAttribute("data-aksen") || "biru";
+    pop = D.createElement("div"); pop.className = "kr-pop"; pop.setAttribute("role", "dialog"); pop.setAttribute("aria-label", "Personalisasi tampilan");
+    pop.innerHTML = '<b>Warna tampilan</b><div class="kr-sw">' + AK.map(function (a) { return '<button type="button" class="kr-s' + (a[0] === cur ? " on" : "") + '" data-ak="' + a[0] + '" style="--c:' + a[2] + '" aria-label="' + a[1] + '" aria-pressed="' + (a[0] === cur) + '"></button>'; }).join("") + '</div><button type="button" class="btn" data-kr="share">Bagikan Takok ke teman</button>';
+    pop.onclick = function (e) {
+      var x = e.target.closest("[data-ak]"), sh = e.target.closest("[data-kr=share]");
+      if (x) { aksen(x.dataset.ak); [].forEach.call(pop.querySelectorAll(".kr-s"), function (b) { var on = b === x; b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on)); }); }
+      else if (sh) {
+        var d = {title: "Takok Pelayanan Suroboyo", text: "Cari izin, booking kunjungan, dan tanya layanan publik Surabaya di Takok.", url: location.origin};
+        if (navigator.share) navigator.share(d).catch(function () {}); else { try { navigator.clipboard.writeText(d.url).then(function () { if (window.toast) toast("Tautan Takok disalin."); }); } catch (z) { if (window.toast) toast(d.url); } }
+        tutupPop();
+      }
+    };
+    tools.style.position = tools.style.position || "relative"; D.body.appendChild(pop);
+    var r = pb.getBoundingClientRect(); pop.style.top = (r.bottom + window.scrollY + 8) + "px"; pop.style.left = Math.max(8, Math.min(window.innerWidth - 268, r.right - 260)) + "px";
+    pb.setAttribute("aria-expanded", "true"); D.addEventListener("keydown", kd, true); D.addEventListener("pointerdown", pd, true);
+    var f = pop.querySelector(".kr-s.on") || pop.querySelector("button"); if (f) f.focus();
+  };
 }
 
 /* ---- pita info ---- */

@@ -15,12 +15,15 @@ body.adm-on .kr-prog,body.adm-on .kr-up,body.adm-on .kr-tick{display:none}
 .kr-up b{position:relative;font-size:1.15rem;line-height:1}
 @media (max-width:560px){.kr-up{right:14px;bottom:calc(88px + env(safe-area-inset-bottom,0px));width:42px;height:42px}}
 
-/* ---------- Jam hidup di hero ---------- */
-.kr-live{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0 0;padding:6px 14px;border-radius:99px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.26);color:#fff;font-size:.82rem;backdrop-filter:blur(4px);position:relative}
-.kr-live i{width:9px;height:9px;border-radius:50%;background:#58e08b;box-shadow:0 0 0 0 rgba(88,224,139,.7);animation:krp 1.8s infinite}
+/* ---------- Jam hidup di hero (baris sendiri di bawah tombol Asisten) ---------- */
+.kr-live{position:relative;z-index:2;display:flex;align-items:center;gap:8px;width:fit-content;max-width:min(100%,470px);margin:12px 0 0;padding:7px 14px;border-radius:14px;background:rgba(5,18,70,.5);border:1px solid rgba(255,255,255,.2);color:#fff;font-size:.82rem;line-height:1.25;backdrop-filter:blur(6px)}
+.kr-live i{flex:none;width:9px;height:9px;border-radius:50%;background:#58e08b;box-shadow:0 0 0 0 rgba(88,224,139,.7);animation:krp 1.8s infinite}
 .kr-live.off i{background:#ffb800;animation:none}
-.kr-live b{font-variant-numeric:tabular-nums;font-weight:800}
+.kr-live b{font-variant-numeric:tabular-nums;font-weight:800;font-size:.98rem;letter-spacing:.02em}
+.kr-live em{font-style:normal;opacity:.75;font-size:.72rem;font-weight:700}
+.kr-live span{padding-left:8px;border-left:1px solid rgba(255,255,255,.28);opacity:.95}
 @keyframes krp{70%{box-shadow:0 0 0 9px rgba(88,224,139,0)}100%{box-shadow:0 0 0 0 rgba(88,224,139,0)}}
+@media (max-width:560px){.kr-live{max-width:100%;flex-wrap:wrap}.kr-live span{border-left:0;padding-left:0;flex-basis:100%}}
 
 /* ---------- Pita info berjalan ---------- */
 .kr-tick{overflow:hidden;margin:0 0 16px;border:1px solid var(--line);border-radius:99px;background:var(--surface);box-shadow:var(--shadow);position:relative;-webkit-mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent);mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent)}
@@ -79,3 +82,42 @@ html.kr-hero .hero h1,html.kr-hero .hero small,html.kr-hero .hero p{text-shadow:
 .tg-ov small{font-size:.8rem;color:#c8d8ff}
 @media (prefers-reduced-motion:reduce){.kr-tick div{animation:none}.kr-rv{opacity:1;transform:none}.kr-live i,.rs-sky i{animation:none}}
 @media print{.kr-prog,.kr-up,.kr-tick,.kr-live{display:none!important}}
+
+/* ---------- Warna aksen (personalisasi) ---------- */
+html[data-aksen="hijau"]{--acc:#0f8a5f;--accsoft:#e0f5ec}
+html[data-aksen="hijau"][data-theme="dark"]{--acc:#5be0a8;--accsoft:#12423a}
+@media (prefers-color-scheme:dark){html[data-aksen="hijau"]:not([data-theme="light"]){--acc:#5be0a8;--accsoft:#12423a}}
+html[data-aksen="hijau"] .hero{background:linear-gradient(135deg,#13a074,#0a5c40)}
+html[data-aksen="hijau"] .bfab{background:linear-gradient(135deg,#13a074,#0a5c40)}
+html[data-aksen="ungu"]{--acc:#6d3fd6;--accsoft:#efe8ff}
+html[data-aksen="ungu"][data-theme="dark"]{--acc:#b69cff;--accsoft:#35206b}
+@media (prefers-color-scheme:dark){html[data-aksen="ungu"]:not([data-theme="light"]){--acc:#b69cff;--accsoft:#35206b}}
+html[data-aksen="ungu"] .hero{background:linear-gradient(135deg,#8458e8,#432a8f)}
+html[data-aksen="ungu"] .bfab{background:linear-gradient(135deg,#8458e8,#432a8f)}
+html[data-aksen="tosca"]{--acc:#0b7f8f;--accsoft:#dff4f7}
+html[data-aksen="tosca"][data-theme="dark"]{--acc:#5fd8e8;--accsoft:#0e4a54}
+@media (prefers-color-scheme:dark){html[data-aksen="tosca"]:not([data-theme="light"]){--acc:#5fd8e8;--accsoft:#0e4a54}}
+html[data-aksen="tosca"] .hero{background:linear-gradient(135deg,#1597a9,#07525c)}
+html[data-aksen="tosca"] .bfab{background:linear-gradient(135deg,#1597a9,#07525c)}
+html[data-aksen="oranye"]{--acc:#d9560b;--accsoft:#ffeadb}
+html[data-aksen="oranye"][data-theme="dark"]{--acc:#ffa366;--accsoft:#5a2a10}
+@media (prefers-color-scheme:dark){html[data-aksen="oranye"]:not([data-theme="light"]){--acc:#ffa366;--accsoft:#5a2a10}}
+html[data-aksen="oranye"] .hero{background:linear-gradient(135deg,#ef7126,#a13c05)}
+html[data-aksen="oranye"] .bfab{background:linear-gradient(135deg,#ef7126,#a13c05)}
+html[data-aksen="merah"]{--acc:#c8102e;--accsoft:#ffe6ea}
+html[data-aksen="merah"][data-theme="dark"]{--acc:#ff7a85;--accsoft:#4a1a26}
+@media (prefers-color-scheme:dark){html[data-aksen="merah"]:not([data-theme="light"]){--acc:#ff7a85;--accsoft:#4a1a26}}
+html[data-aksen="merah"] .hero{background:linear-gradient(135deg,#e22a47,#8c0a20)}
+html[data-aksen="merah"] .bfab{background:linear-gradient(135deg,#e22a47,#8c0a20)}
+.kr-pb{display:inline-grid;place-items:center;padding:8px 10px}
+.kr-pop{position:absolute;z-index:1100;width:260px;padding:14px;border-radius:18px;background:var(--surface);color:var(--ink);border:1px solid var(--line);box-shadow:0 14px 40px rgba(0,0,0,.28);display:grid;gap:10px;animation:krpop .18s both}
+.kr-sw{display:flex;gap:10px;flex-wrap:wrap}
+.kr-s{width:34px;height:34px;border-radius:50%;border:3px solid var(--surface);background:var(--c);box-shadow:0 0 0 2px var(--line);cursor:pointer;padding:0;transition:transform .15s}
+.kr-s:hover{transform:scale(1.12)}.kr-s.on{box-shadow:0 0 0 3px var(--c)}
+/* Peringkat lokal Suroboyo Rush */
+.rs-top{display:grid;gap:6px;margin:0 0 6px}
+.rs-top div{display:grid;grid-template-columns:30px 1fr auto;gap:10px;align-items:center;padding:8px 12px;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+.rs-top div.new{border-color:var(--tick);box-shadow:0 0 0 2px color-mix(in srgb,var(--tick) 35%,transparent)}
+.rs-top span{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:.8rem;background:var(--accsoft);color:var(--acc)}
+.rs-top div:nth-child(1) span{background:#ffc933;color:#3a2a00}.rs-top div:nth-child(2) span{background:#d5dbe6;color:#27304d}.rs-top div:nth-child(3) span{background:#e9b48a;color:#4a2a10}
+.rs-top small{color:var(--mute)}.rs-top b{font-variant-numeric:tabular-nums}
