@@ -31,11 +31,12 @@ function html(k, o) {
   var utama = G.filter(cocok), lain = G.filter(function (g) { return !cocok(g); });
   if (!utama.length) { utama = G; lain = []; }
   var blok = function (g) {
-    return '<div class="sy-grp">' + (g.t ? '<b class="sy-g">' + esc(g.t) + '</b>' : '') + g.items.map(function (x) {
+    return '<div class="sy-grp" data-gi="' + G.indexOf(g) + '">' + (g.t ? '<b class="sy-g">' + esc(g.t) + '</b>' : '') + g.items.map(function (x) {
       return '<label class="sy-i"><input type="checkbox" data-sy="ck:' + K + '" data-i="' + esc(gk(g, x)) + '"' + (c[gk(g, x)] ? " checked" : "") + '><span>' + esc(x) + '</span></label>';
     }).join("") + '</div>';
   };
   return '<div class="sy" data-sy-k="' + K + '"><div class="sy-h"><small class="sy-v' + (verif(k) ? '' : ' sy-no') + '">' + (verif(k) ? "✓ Terverifikasi admin loket" : "Panduan umum, belum diverifikasi loket. Pastikan ke loket sebelum berangkat.") + '</small><small class="sy-n" data-sy-n="' + K + '">' + t.n + ' dari ' + t.m + ' siap</small></div>' +
+    (G.length > 1 && !f.length ? '<div class="sy-tab" role="group" aria-label="Pilih jenis izin"><span class="sys">Pilih jenis izin:</span><button type="button" class="chip" aria-pressed="true" data-sy="tab:-1">Semua (' + G.length + ')</button>' + G.map(function (g, i) { return '<button type="button" class="chip" aria-pressed="false" data-sy="tab:' + i + '">' + esc(g.t || "Umum") + ' (' + g.items.length + ')</button>'; }).join("") + '</div>' : "") +
     utama.map(blok).join("") + (lain.length ? '<details class="sy-lain"><summary>Layanan lain di loket ini (' + lain.length + ')</summary>' + lain.map(blok).join("") + '</details>' : "") + '</div>';
 }
 function teks(k) {
@@ -52,6 +53,13 @@ document.addEventListener("change", function (e) {
   [].forEach.call(document.querySelectorAll('input[data-sy="ck:' + k.replace(/"/g, "") + '"]'), function (i) { if (i.dataset.i === b.dataset.i) i.checked = b.checked; });
 });
 document.addEventListener("click", function (e) {
+  var tb = e.target.closest && e.target.closest('[data-sy^="tab:"]');
+  if (tb) {
+    var w = tb.closest(".sy"), n = +tb.dataset.sy.slice(4); if (!w) return;
+    [].forEach.call(w.querySelectorAll(".sy-tab .chip"), function (c) { c.setAttribute("aria-pressed", c === tb ? "true" : "false"); });
+    [].forEach.call(w.querySelectorAll(".sy-grp"), function (g) { g.hidden = n >= 0 && +g.dataset.gi !== n; });
+    return;
+  }
   var b = e.target.closest && e.target.closest('[data-sy^="tanya:"]'); if (!b) return;
   var k = b.dataset.sy.slice(6); if (window.BOTI && BOTI.closeB) { try { BOTI.closeB(); } catch (x) {} } if (window.openKey) openKey(k);
 });

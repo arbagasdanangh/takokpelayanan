@@ -340,9 +340,10 @@ var R_BANTU = /^\/?bantu(an)?$|^bantu (saya )?(pilih|cari)|^(saya )?(lagi )?bing
 var R_BUKA = /(sekarang|saat ini|hari ini).{0,18}(buka|tutup)|(buka|tutup) (sekarang|saat ini)|apakah (sudah |masih )?(buka|tutup)|masih (buka|tutup)|loket (sudah |masih )?buka\b/;
 var R_SY = /syarat|persyaratan|bawa apa|dibawa|dokumen apa|berkas apa|perlu apa|harus (saya )?(bawa|siapkan)/;
 var STOPW = /^(syarat|syaratnya|persyaratan|apa|saja|aja|untuk|buat|dan|yang|di|ke|dari|mengurus|ngurus|urus|pengurusan|bikin|membuat|loket|bawa|dibawa|harus|perlu|dokumen|berkas|cara|mau|saya|itu|nya|ya|dong|sih|izin|perizinan|surat|apakah|ada|kalau|kalo|jika|bagaimana|gimana|siapkan|disiapkan)$/;
+var JENIS_SYN = {perpanjang: "perpanjang", memperpanjang: "perpanjang", habis: "perpanjang", expired: "perpanjang", kadaluarsa: "perpanjang", pertama: "baru", hilang: "pengganti", rusak: "pengganti", ganti: "pengganti", penggantian: "pengganti", ubah: "perubahan", revisi: "perubahan", bersyarat: "bersyarat", sementara: "bersyarat"};
 var ALIAS = {skck: "polrestabes", polisi: "polrestabes", perhubungan: "dishub", jkn: "bpjs", kis: "bpjs", bpjstk: "ketenagakerjaan", jht: "ketenagakerjaan", andalalin: "dishub"};
 function cariSyarat(s) {
-  var toks = s.split(/[^a-z0-9]+/).filter(function (w) { return w.length > 1 && !STOPW.test(w); }).map(function (w) { return ALIAS[w] || w; });
+  var toks = s.split(/[^a-z0-9]+/).filter(function (w) { return w.length > 1 && !STOPW.test(w); }).map(function (w) { return JENIS_SYN[w] || ALIAS[w] || w; });
   if (!toks.length || !window.SY) return null;
   var C = [], max = 0;
   LOCS.forEach(function (l) { (LD[l.id] || []).forEach(function (d) {
@@ -355,7 +356,8 @@ function cariSyarat(s) {
 }
 function syaratChat(c, dl) {
   var k = c.k, e = c.d, ada = SY.ada(k);
-  return bot(ada ? "Persyaratan " + e[1] + (c.f && c.f.length ? " (fokus: " + c.f.join(", ") + ")" : "") + ". Centang yang sudah siap; centangan tersimpan di perangkat ini." : "Persyaratan " + e[1] + " belum diisi oleh admin loket.",
+  var nj = ada ? SY.grup(k).length : 0;
+  return bot(ada ? "Persyaratan " + e[1] + (c.f && c.f.length ? " (fokus: " + c.f.join(", ") + ")" : nj > 1 ? ": ada " + nj + " jenis izin, pilih yang Anda butuhkan" : "") + ". Centang yang sudah siap; centangan tersimpan di perangkat ini." : "Persyaratan " + e[1] + " belum diisi oleh admin loket.",
     NS + '<div class="bc2"><b>' + esc(e[1]) + '</b> <span class="btag">' + esc(c.l.nm) + '</span>' + SY.html(k, {fokus: c.f}) + '<div class="ba">' + (e[6] !== false ? bx("Booking", "bk:" + k) : "") + bx("Tanya admin loket", "buka:" + k) + (ada ? bx("Lembar pengantar", "pengantar") : "") + '</div></div>' +
     '<p class="bnote">Persyaratan resmi mengikuti ketentuan loket dan bisa berubah. Pastikan lagi sebelum berangkat.</p>', dl);
 }

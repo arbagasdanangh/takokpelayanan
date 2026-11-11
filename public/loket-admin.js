@@ -14,6 +14,7 @@ function potong(u, n) { u = plain(u); return u.length > n ? u.slice(0, n) + "...
 function lokOf(id) { return LK.lokasi.filter(function (l) { return l.id === id; })[0]; }
 function loketDi(id) { return LK.loket.filter(function (e) { return e.lokasi === id; }); }
 function stat(id) { var L = loketDi(id), t = L.length, ok = L.filter(function (e) { return !kosong(e.uraian); }).length; return {t: t, ok: ok, p: t ? Math.round(ok * 100 / t) : 0}; }
+function statSy(id) { var r = {ada: 0, ver: 0, jenis: 0}; loketDi(id).forEach(function (e) { if (e.syarat && e.syarat.length) { r.ada++; if (e.syv) r.ver++; r.jenis += e.syarat.filter(function (x) { return /^#\s*/.test(x); }).length || 1; } }); return r; }
 function bar(p) { return '<div class="lk-bar" role="img" aria-label="' + p + ' persen terisi"><i style="width:' + p + '%"></i></div>'; }
 function pb(t, c) { return '<i class="pb" style="background:' + c + '">' + t + '</i> '; }
 function pv(v) { return window.fmtJawab ? fmtJawab(v) : "<p>" + esc(v) + "</p>"; }
@@ -178,6 +179,8 @@ function daftarLoket() {
     if (FL === "kosong" && !kosong(e.uraian)) return false;
     if (FL === "diubah" && !e.diubah && e.asli) return false;
     if (FL === "sembunyi" && !e.sembunyi) return false;
+    if (FL === "sybelum" && e.syarat && e.syarat.length) return false;
+    if (FL === "syvbelum" && !(e.syarat && e.syarat.length && !e.syv)) return false;
     return !q || (e.nama + " " + e.uraian + " " + e.sistem + " " + (e.zona || "")).toLowerCase().indexOf(q) > -1;
   });
 }
@@ -203,10 +206,10 @@ function viewImpor() {
     }).join("") + '</div><div class="btns"><button type="button" class="send" data-lk="impterap"' + (ubah.length ? "" : " disabled") + '>Terapkan ' + ubah.length + ' perubahan</button><button type="button" class="btn" data-lk="impbatal">Batal</button></div></div>';
 }
 function viewLoket() {
-  var L = daftarLoket(), s = stat(LL), kos = loketDi(LL).filter(function (e) { return kosong(e.uraian); }).length;
+  var L = daftarLoket(), s = stat(LL), sy = statSy(LL), kos = loketDi(LL).filter(function (e) { return kosong(e.uraian); }).length;
   return '<div class="hint" id="lk-lc" role="group" aria-label="Tempat pelayanan">' + LK.lokasi.map(function (l) { return '<button type="button" class="chip" data-lk="loc" data-l="' + esc(l.id) + '" aria-pressed="' + (l.id === LL) + '">' + esc(l.nama) + (l.sembunyi ? " (sembunyi)" : "") + '</button>'; }).join("") + '</div>' +
-    '<div class="card lk-sum"><div><b>' + esc((lokOf(LL) || {}).nama) + '</b><p class="sys" style="margin:2px 0 0">' + s.ok + ' dari ' + s.t + ' uraian terisi' + (kos ? ", " + kos + " belum" : " (lengkap)") + '</p></div>' + bar(s.p) + '</div>' +
-    '<div class="hint" id="lk-fl" role="group" aria-label="Saring">' + [["semua", "Semua"], ["kosong", "Uraian belum diisi"], ["diubah", "Diubah admin"], ["sembunyi", "Disembunyikan"]].map(function (f) { return '<button type="button" class="chip" data-lk="fl" data-f="' + f[0] + '" aria-pressed="' + (FL === f[0]) + '">' + f[1] + '</button>'; }).join("") + '</div>' +
+    '<div class="card lk-sum"><div><b>' + esc((lokOf(LL) || {}).nama) + '</b><p class="sys" style="margin:2px 0 0">' + s.ok + ' dari ' + s.t + ' uraian terisi' + (kos ? ", " + kos + " belum" : " (lengkap)") + '</p><p class="sys" style="margin:2px 0 0">Persyaratan: ' + sy.ada + ' loket terisi (' + sy.jenis + ' jenis izin), ' + sy.ver + ' terverifikasi admin</p></div>' + bar(s.p) + '</div>' +
+    '<div class="hint" id="lk-fl" role="group" aria-label="Saring">' + [["semua", "Semua"], ["kosong", "Uraian belum diisi"], ["diubah", "Diubah admin"], ["sembunyi", "Disembunyikan"], ["sybelum", "Syarat belum diisi"], ["syvbelum", "Syarat belum diverifikasi"]].map(function (f) { return '<button type="button" class="chip" data-lk="fl" data-f="' + f[0] + '" aria-pressed="' + (FL === f[0]) + '">' + f[1] + '</button>'; }).join("") + '</div>' +
     '<div class="hint"><input class="si" id="lk-q" type="search" placeholder="Cari loket atau isi uraian..." value="' + esc(LQ) + '" style="flex:1;min-width:160px"><button type="button" class="send" data-lk="new">+ Tambah loket</button><button type="button" class="btn" data-lk="impor">Isi massal uraian (Excel/CSV)</button><button type="button" class="btn" data-lk="impsy">Impor persyaratan (Excel/CSV)</button></div>' +
     (IM ? viewImpor() : "") + (ED === "new" ? formLoket(null) : "") +
     (L.length ? L.map(function (e) {
