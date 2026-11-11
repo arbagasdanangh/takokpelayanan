@@ -98,8 +98,12 @@ var SY_CEPAT = ["Izin Baru", "Perpanjangan", "Perubahan Data", "Penggantian (hil
 function syParse(L) {
   var G = [], cur = null;
   (L || []).forEach(function (x) {
-    if (/^#\s*/.test(x)) { cur = {t: x.replace(/^#\s*/, "").trim(), items: []}; G.push(cur); }
-    else if (String(x).trim()) { if (!cur) { cur = {t: "", items: []}; G.push(cur); } cur.items.push(String(x).trim()); }
+    if (/^#\s*/.test(x)) { cur = {t: x.replace(/^#\s*/, "").trim(), items: [], biaya: "", waktu: "", catatan: ""}; G.push(cur); }
+    else if (String(x).trim()) {
+      if (!cur) { cur = {t: "", items: [], biaya: "", waktu: "", catatan: ""}; G.push(cur); }
+      var m = /^@(biaya|waktu|catatan)\s*:\s*(.*)$/i.exec(String(x).trim());
+      if (m) cur[m[1].toLowerCase()] = m[2].trim(); else cur.items.push(String(x).trim());
+    }
   });
   return G;
 }
@@ -110,7 +114,10 @@ function syGrup(g, i) {
     '<button type="button" class="btn" data-lk="sydn" title="Turunkan" aria-label="Turunkan jenis izin">&darr;</button>' +
     '<button type="button" class="btn" data-lk="sydup" title="Gandakan sebagai dasar jenis izin lain">Gandakan</button>' +
     '<button type="button" class="btn" data-lk="sydel">Hapus</button></span></div>' +
-    '<textarea class="si syg-i" rows="' + Math.max(4, Math.min(12, g.items.length + 1)) + '" maxlength="4000" placeholder="Satu syarat per baris&#10;KTP&#10;Surat permohonan bermaterai" aria-label="Persyaratan jenis izin">' + esc(g.items.join("\n")) + '</textarea></div>';
+    '<div class="syg-m"><div><label>Biaya <small class="sys">(opsional)</small></label><input class="si syg-bi" maxlength="120" placeholder="mis. Gratis / Rp 150.000 / sesuai Perwali" value="' + esc(g.biaya || "") + '"></div>' +
+    '<div><label>Lama proses <small class="sys">(opsional)</small></label><input class="si syg-wa" maxlength="120" placeholder="mis. 3 hari kerja" value="' + esc(g.waktu || "") + '"></div>' +
+    '<div class="syg-full"><label>Catatan <small class="sys">(opsional)</small></label><input class="si syg-ca" maxlength="140" placeholder="mis. Bawa dokumen asli untuk dicocokkan" value="' + esc(g.catatan || "") + '"></div></div>' +
+    '<label>Syarat dokumen <small class="sys">(satu per baris)</small></label><textarea class="si syg-i" rows="' + Math.max(4, Math.min(12, g.items.length + 1)) + '" maxlength="4000" placeholder="Satu syarat per baris&#10;KTP&#10;Surat permohonan bermaterai" aria-label="Persyaratan jenis izin">' + esc(g.items.join("\n")) + '</textarea></div>';
 }
 function syEditor(L) {
   var G = syParse(L);
@@ -125,8 +132,9 @@ function syBaca() {
   var out = [];
   [].forEach.call(document.querySelectorAll("#lf-syl .syg"), function (g) {
     var t = g.querySelector(".syg-t").value.replace(/^[#\s]+/, "").trim(), items = g.querySelector(".syg-i").value.split(/\r?\n/).map(function (x) { return x.replace(/^[#\s]+/, "").trim(); }).filter(Boolean);
-    if (!t && !items.length) return;
-    out.push("# " + (t || "Persyaratan umum")); items.forEach(function (x) { out.push(x); });
+    var mv = function (c) { return g.querySelector(c).value.replace(/[\r\n]+/g, " ").trim(); }, bi = mv(".syg-bi"), wa = mv(".syg-wa"), ca = mv(".syg-ca");
+    if (!t && !items.length && !bi && !wa && !ca) return;
+    out.push("# " + (t || "Persyaratan umum")); if (bi) out.push("@biaya: " + bi); if (wa) out.push("@waktu: " + wa); if (ca) out.push("@catatan: " + ca); items.forEach(function (x) { out.push(x); });
   });
   return out;
 }
@@ -152,7 +160,7 @@ function syAksi(a, b) {
   if (a === "syup" && g.previousElementSibling) { L.insertBefore(g, g.previousElementSibling); return true; }
   if (a === "sydn" && g.nextElementSibling) { L.insertBefore(g.nextElementSibling, g); return true; }
   if (a === "sydup") {
-    var h2 = document.createElement("div"); h2.innerHTML = syGrup({t: g.querySelector(".syg-t").value.trim() + " (salinan)", items: g.querySelector(".syg-i").value.split(/\r?\n/).filter(Boolean)}); var c = h2.firstChild;
+    var h2 = document.createElement("div"); h2.innerHTML = syGrup({t: g.querySelector(".syg-t").value.trim() + " (salinan)", items: g.querySelector(".syg-i").value.split(/\r?\n/).filter(Boolean), biaya: g.querySelector(".syg-bi").value, waktu: g.querySelector(".syg-wa").value, catatan: g.querySelector(".syg-ca").value}); var c = h2.firstChild;
     L.insertBefore(c, g.nextElementSibling); c.querySelector(".syg-t").focus(); return true;
   }
   return true;

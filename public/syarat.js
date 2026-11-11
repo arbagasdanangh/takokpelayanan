@@ -8,8 +8,12 @@ function ent(k) { return window.entryOf ? entryOf(k) : null; }
 function grup(k) {
   var e = ent(k), L = (e && e[9]) || [], G = [], cur = null;
   L.forEach(function (x) {
-    if (/^#\s*/.test(x)) { cur = {t: x.replace(/^#\s*/, "").trim(), items: []}; G.push(cur); }
-    else if (x.trim()) { if (!cur) { cur = {t: "", items: []}; G.push(cur); } cur.items.push(x.trim()); }
+    if (/^#\s*/.test(x)) { cur = {t: x.replace(/^#\s*/, "").trim(), items: [], meta: {}}; G.push(cur); }
+    else if (x.trim()) {
+      if (!cur) { cur = {t: "", items: [], meta: {}}; G.push(cur); }
+      var m = /^@(biaya|waktu|catatan)\s*:\s*(.*)$/i.exec(x.trim());
+      if (m) cur.meta[m[1].toLowerCase()] = m[2].trim(); else cur.items.push(x.trim());
+    }
   });
   return G.filter(function (g) { return g.items.length; });
 }
@@ -22,6 +26,13 @@ function hitung(k) { var c = ck()[k] || {}, n = 0, m = 0; grup(k).forEach(functi
 /* Daftar bertanda untuk cetak/salin: [{t, items:[{x, ok}]}] */
 function daftar(k) { var c = ck()[k] || {}; return grup(k).map(function (g) { return {t: g.t, items: g.items.map(function (x) { return {x: x, ok: !!c[gk(g, x)]}; })}; }); }
 function lbl(k) { return window.label ? label(k) : k; }
+function metaHtml(g) {
+  var m = g.meta || {}, p = [];
+  if (m.biaya) p.push('<span class="sy-m">Biaya: <b>' + esc(m.biaya) + '</b></span>');
+  if (m.waktu) p.push('<span class="sy-m">Proses: <b>' + esc(m.waktu) + '</b></span>');
+  return (p.length ? '<div class="sy-meta">' + p.join("") + '</div>' : '') + (m.catatan ? '<small class="sy-cat">' + esc(m.catatan) + '</small>' : '');
+}
+function info(k) { return grup(k).map(function (g) { return {t: g.t, biaya: g.meta.biaya || "", waktu: g.meta.waktu || "", catatan: g.meta.catatan || ""}; }); }
 function html(k, o) {
   o = o || {};
   var K = esc(k);
@@ -31,7 +42,7 @@ function html(k, o) {
   var utama = G.filter(cocok), lain = G.filter(function (g) { return !cocok(g); });
   if (!utama.length) { utama = G; lain = []; }
   var blok = function (g) {
-    return '<div class="sy-grp" data-gi="' + G.indexOf(g) + '">' + (g.t ? '<b class="sy-g">' + esc(g.t) + '</b>' : '') + g.items.map(function (x) {
+    return '<div class="sy-grp" data-gi="' + G.indexOf(g) + '">' + (g.t ? '<b class="sy-g">' + esc(g.t) + '</b>' : '') + metaHtml(g) + g.items.map(function (x) {
       return '<label class="sy-i"><input type="checkbox" data-sy="ck:' + K + '" data-i="' + esc(gk(g, x)) + '"' + (c[gk(g, x)] ? " checked" : "") + '><span>' + esc(x) + '</span></label>';
     }).join("") + '</div>';
   };
@@ -41,7 +52,7 @@ function html(k, o) {
 }
 function teks(k) {
   var out = [];
-  daftar(k).forEach(function (g) { if (g.t) out.push(g.t + ":"); g.items.forEach(function (x) { out.push((x.ok ? "[v] " : "[ ] ") + x.x); }); });
+  var IN = info(k); daftar(k).forEach(function (g, gi) { if (g.t) out.push(g.t + ":"); if (IN[gi] && IN[gi].biaya) out.push("Biaya: " + IN[gi].biaya); if (IN[gi] && IN[gi].waktu) out.push("Proses: " + IN[gi].waktu); g.items.forEach(function (x) { out.push((x.ok ? "[v] " : "[ ] ") + x.x); }); });
   return out;
 }
 document.addEventListener("change", function (e) {
@@ -63,5 +74,5 @@ document.addEventListener("click", function (e) {
   var b = e.target.closest && e.target.closest('[data-sy^="tanya:"]'); if (!b) return;
   var k = b.dataset.sy.slice(6); if (window.BOTI && BOTI.closeB) { try { BOTI.closeB(); } catch (x) {} } if (window.openKey) openKey(k);
 });
-window.SY = {grup: grup, ada: ada, verif: verif, html: html, daftar: daftar, teks: teks, hitung: hitung};
+window.SY = {info: info, grup: grup, ada: ada, verif: verif, html: html, daftar: daftar, teks: teks, hitung: hitung};
 })();

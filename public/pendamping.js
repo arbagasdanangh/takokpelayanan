@@ -339,7 +339,7 @@ var R_PENG = /^\/?pengantar\b|lembar pengantar|kartu pengantar|surat pengantar k
 var R_BANTU = /^\/?bantu(an)?$|^bantu (saya )?(pilih|cari)|^(saya )?(lagi )?bingung( mau| harus)?( urus| apa| ke ?mana)?\??$|(tidak|gak|nggak|ga) tahu (harus|mau) (ke ?mana|urus apa|mulai)|pilih bidang/;
 var R_BUKA = /(sekarang|saat ini|hari ini).{0,18}(buka|tutup)|(buka|tutup) (sekarang|saat ini)|apakah (sudah |masih )?(buka|tutup)|masih (buka|tutup)|loket (sudah |masih )?buka\b/;
 var R_SY = /syarat|persyaratan|bawa apa|dibawa|dokumen apa|berkas apa|perlu apa|harus (saya )?(bawa|siapkan)/;
-var STOPW = /^(syarat|syaratnya|persyaratan|apa|saja|aja|untuk|buat|dan|yang|di|ke|dari|mengurus|ngurus|urus|pengurusan|bikin|membuat|loket|bawa|dibawa|harus|perlu|dokumen|berkas|cara|mau|saya|itu|nya|ya|dong|sih|izin|perizinan|surat|apakah|ada|kalau|kalo|jika|bagaimana|gimana|siapkan|disiapkan)$/;
+var STOPW = /^(biaya|biayanya|tarif|berapa|lama|proses|waktu|harga|bayar|gratis|hari|selesai|estimasi|pengurusan|lamanya|syarat|syaratnya|persyaratan|apa|saja|aja|untuk|buat|dan|yang|di|ke|dari|mengurus|ngurus|urus|pengurusan|bikin|membuat|loket|bawa|dibawa|harus|perlu|dokumen|berkas|cara|mau|saya|itu|nya|ya|dong|sih|izin|perizinan|surat|apakah|ada|kalau|kalo|jika|bagaimana|gimana|siapkan|disiapkan)$/;
 var JENIS_SYN = {perpanjang: "perpanjang", memperpanjang: "perpanjang", habis: "perpanjang", expired: "perpanjang", kadaluarsa: "perpanjang", pertama: "baru", hilang: "pengganti", rusak: "pengganti", ganti: "pengganti", penggantian: "pengganti", ubah: "perubahan", revisi: "perubahan", bersyarat: "bersyarat", sementara: "bersyarat"};
 var ALIAS = {skck: "polrestabes", polisi: "polrestabes", perhubungan: "dishub", jkn: "bpjs", kis: "bpjs", bpjstk: "ketenagakerjaan", jht: "ketenagakerjaan", andalalin: "dishub"};
 function cariSyarat(s) {
@@ -373,8 +373,20 @@ function syaratCmd(s) {
   if (!ada.length && r.C.length === 1 && !kbm) return syaratChat(r.C[0]);
   return null;
 }
+var R_BIAYA = /biaya|tarif|bayar (berapa|apa)|berapa (harga|duit|rupiah)|gratis|bayar$/, R_WAKTU = /berapa lama|lama(nya)? (proses|pengurusan|urus)|berapa hari|selesai (berapa|kapan)|estimasi (waktu|selesai)|proses(nya)? (berapa|sampai)|kapan (jadi|selesai)/;
+function infoCmd(s) {
+  var b = R_BIAYA.test(s), w = R_WAKTU.test(s); if ((!b && !w) || s.length > 90 || !window.SY || !SY.info) return null;
+  var r = cariSyarat(s); if (!r) return null;
+  var ok = r.C.filter(function (c) { return SY.info(c.k).some(function (x) { return x.biaya || x.waktu; }); });
+  if (ok.length !== 1) return null;
+  var c = ok[0], IN = SY.info(c.k).filter(function (x) { return (x.biaya || x.waktu) && (!c.f.length || c.f.some(function (f) { return x.t.toLowerCase().indexOf(f) > -1; })); });
+  if (!IN.length) IN = SY.info(c.k).filter(function (x) { return x.biaya || x.waktu; });
+  var rows = IN.map(function (x) { return '<div class="sy-grp">' + (x.t ? '<b class="sy-g">' + esc(x.t) + '</b>' : '') + '<div class="sy-meta">' + (x.biaya ? '<span class="sy-m">Biaya: <b>' + esc(x.biaya) + '</b></span>' : '') + (x.waktu ? '<span class="sy-m">Proses: <b>' + esc(x.waktu) + '</b></span>' : '') + '</div>' + (x.catatan ? '<small class="sy-cat">' + esc(x.catatan) + '</small>' : '') + '</div>'; }).join("");
+  return bot((b && w ? "Biaya dan lama proses " : b ? "Biaya " : "Lama proses ") + c.d[1] + ", sesuai data admin loket.",
+    NS + '<div class="bc2"><b>' + esc(c.d[1]) + '</b> <span class="btag">' + esc(c.l.nm) + '</span>' + rows + '<div class="ba">' + bx("Lihat syarat", "sy:" + c.k) + bx("Tanya admin loket", "buka:" + c.k) + (c.d[6] !== false ? bx("Booking", "bk:" + c.k) : "") + '</div></div><p class="bnote">Biaya dan waktu dapat berubah sesuai ketentuan. Pastikan ke loket.</p>');
+}
 function cmd(t, s) {
-  var rs = syaratCmd(s); if (rs) return rs;
+  var rs = syaratCmd(s) || infoCmd(s); if (rs) return rs;
   if (R_HARI.test(s)) return harini();
   if (R_URUS.test(s)) return urusanChat();
   if (R_PENG.test(s)) return pengantarChat();
