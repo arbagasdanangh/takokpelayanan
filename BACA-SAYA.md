@@ -405,3 +405,8 @@ Satu halaman berisi nama dan HP akun, keperluan singkat (opsional, NIK 16 digit 
 
 **File berubah**: `public/syarat.js`, `public/booking-rapi.js`, `api/_syarat.py` (baru); `api/app.py`, `public/app.js`, `public/bot.js`, `public/loket-admin.js`, `public/pendamping.js`, `public/style.css`, `public/index.html` (`?v=36`).
 **Diuji** di Chromium (HP 390 px) dengan 35 booking tiruan: tab, buka/tutup, cari, muat lebih banyak, centang, panel syarat di formulir, chat Dishub/BPJS/SKCK, lembar cetak. Logika server diuji dengan Redis tiruan; belum diuji di produksi.
+
+## Pembaruan versi 46
+- **Perbaikan "Cari izin" di desktop**: tombol melayang tertutup tombol "Tur Demo" di layar lebar (di HP posisinya sudah bergeser, jadi hanya terlihat di mobile). Kini tombol berada di atas "Tur Demo" dan ada tombol "Cari izin" di bilah atas. `Ctrl+K` membuka Cari izin; pencarian cepat berpindah ke `Alt+K` (sebelumnya keduanya bentrok di `Ctrl+K`).
+- **Asisten Takok Pro** (`public/bot-pro.js`): ingat konteks loket (tanya "biayanya?", "berapa lama?", "syaratnya?", "jam bukanya?"), tombol "Tanya lanjut", cari izin lewat chat (`/izin perpanjang parkir`), koreksi salah ketik ("Maksud Anda..."), menu perintah `/`, riwayat pesan (panah atas), efek mengetik, tombol Membantu/Belum (jawaban "Belum" dicatat anonim ke daftar pertanyaan tak terjawab), menu ⋯ (bersihkan, unduh, salin, cetak, mode lebar untuk desktop).
+- **Admin baru** (`public/admin-plus.js`): tab **Laporan** (cetak/PDF + CSV), **Direktori pemohon**, **Log aktivitas** (siapa mengubah apa; tanpa isi pesan), **Kesehatan sistem** (cek SESSION_SECRET, Redis, kanal, kata sandi bawaan, KBLI, loket tanpa syarat). Tiga tab terakhir hanya untuk superuser dan dibatasi di server.

@@ -43,7 +43,7 @@ function palGo(i) { var r = PR[i]; if (r) { if (r.keep) { r.run(); return; } rec
 function pal() {
   if ($w("wk")) { palClose(); return; }
   var o = document.createElement("div"); o.id = "wk"; o.setAttribute("role", "dialog"); o.setAttribute("aria-label", "Pencarian cepat");
-  o.innerHTML = '<div class="wkb"><input id="wki" placeholder="Cari loket, menu, atau KBLI (mis. kbli warung kopi)..." autocomplete="off" aria-label="Cari cepat"><ul id="wkl" role="listbox"></ul><small>\u2191\u2193 pilih &middot; Enter buka &middot; Ctrl+K</small></div>';
+  o.innerHTML = '<div class="wkb"><input id="wki" placeholder="Cari loket, menu, atau KBLI (mis. kbli warung kopi)..." autocomplete="off" aria-label="Cari cepat"><ul id="wkl" role="listbox"></ul><small>\u2191\u2193 pilih &middot; Enter buka &middot; Alt+K</small></div>';
   document.body.appendChild(o); PI = 0; palList("");
   var i = $w("wki"); i.focus();
   i.addEventListener("input", function () { PI = 0; palList(i.value); });
@@ -55,7 +55,7 @@ function pal() {
   o.addEventListener("click", function (e) { if (e.target.closest("[data-pd=back]")) { palList(i.value); i.focus(); return; } var li = e.target.closest("li[data-i]"); if (li) palGo(+li.dataset.i); else if (e.target === o) palClose(); });
 }
 document.addEventListener("keydown", function (e) {
-  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); pal(); }
+  if (e.altKey && !e.ctrlKey && !e.metaKey && e.key.toLowerCase() === "k") { e.preventDefault(); pal(); }
   else if (e.key === "Escape" && $w("wk")) palClose();
 });
 
@@ -236,6 +236,6 @@ function hClear() { try { localStorage.removeItem(HK); } catch (x) {} var m = $w
 
 /* tombol pencarian cepat di bilah atas */
 var tl = document.querySelector(".tools");
-if (tl) { var kb = document.createElement("button"); kb.className = "btn"; kb.type = "button"; kb.textContent = "Cari cepat"; kb.title = "Ctrl+K"; kb.onclick = pal; tl.insertBefore(kb, tl.firstChild.nextSibling); }
+if (tl) { var kb = document.createElement("button"); kb.className = "btn"; kb.type = "button"; kb.textContent = "Cari cepat"; kb.title = "Alt+K"; kb.onclick = pal; tl.insertBefore(kb, tl.firstChild.nextSibling); }
 scan();
 })();

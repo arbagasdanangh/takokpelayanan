@@ -124,6 +124,9 @@ function buka(tab) {
 function tutup() { if (!P) return; P.hidden = true; D.body.classList.remove("ug-lock"); if (OPENER && OPENER.focus) try { OPENER.focus(); } catch (x) {} }
 var fab = D.createElement("button"); fab.type = "button"; fab.className = "ug-fab"; fab.setAttribute("aria-label", "Cari izin, Takok dalam angka, dan aksesibilitas (Ctrl+K)"); fab.innerHTML = '<span aria-hidden="true">&#128269;</span> Cari izin';
 fab.onclick = function () { buka("cari"); }; D.body.appendChild(fab);
+/* Tombol juga ada di bilah atas supaya selalu terlihat di desktop (tombol melayang bisa tertutup tombol lain). */
+var bar = D.querySelector(".tools");
+if (bar) { var tb = D.createElement("button"); tb.type = "button"; tb.className = "btn"; tb.id = "ug-top"; tb.textContent = "Cari izin"; tb.title = "Ctrl+K"; tb.onclick = function () { buka("cari"); }; bar.insertBefore(tb, bar.firstChild); }
 D.addEventListener("keydown", function (e) { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); buka("cari"); } });
 window.UG = {buka: buka, cari: cari, angka: angka};
 })();

@@ -299,7 +299,7 @@ async function pnClick(e) {
 function admSup() { return !(ME && ME.level === "loket"); }
 var TAB_LOKET = ["ring", "inbox", "pmh", "bk", "an", "skm"];
 function admTabs() {
-  $("atabs").innerHTML = [["ring", "Ringkasan"], ["inbox", "Kotak masuk"], ["pmh", "Permohonan"], ["bk", "Booking"], ["an", "Analitik Chat"], ["bt", "Berita"], ["skm", "Rekap SKM"], ["kt", "Kata cari chatbot"], ["kam", "Keamanan & biro jasa"], ["lk", "Editor loket"], ["pk", "Asisten Piket"], ["kn", "Kanal WA & Telegram"], ["kb", "Data KBLI"], ["ak", "Akun admin"]].filter(function (t) { return admSup() || TAB_LOKET.indexOf(t[0]) > -1; }).map(function (t) {
+  $("atabs").innerHTML = [["ring", "Ringkasan"], ["inbox", "Kotak masuk"], ["pmh", "Permohonan"], ["bk", "Booking"], ["an", "Analitik Chat"], ["bt", "Berita"], ["skm", "Rekap SKM"], ["kt", "Kata cari chatbot"], ["kam", "Keamanan & biro jasa"], ["lk", "Editor loket"], ["pk", "Asisten Piket"], ["kn", "Kanal WA & Telegram"], ["kb", "Data KBLI"], ["lap", "Laporan"], ["pem", "Direktori pemohon"], ["log", "Log aktivitas"], ["sh", "Kesehatan sistem"], ["ak", "Akun admin"]].filter(function (t) { return admSup() || TAB_LOKET.indexOf(t[0]) > -1; }).map(function (t) {
     return '<button type="button" class="chip" data-at="' + t[0] + '" aria-pressed="' + (t[0] === AT) + '">' + t[1] + '</button>';
   }).join("");
   $("atabs").onclick = function (e) { var b = e.target.closest("[data-at]"); if (b) admTab(b.dataset.at); };
@@ -317,7 +317,7 @@ async function aX(t) {
   var el = $("a-x");
   el.innerHTML = '<div class="empty">Memuat&hellip;</div>';
   try {
-    if (t === "kam") await window.aKam(el); else if (t === "ring") await aRing(el); else if (t === "pmh") await aPmh(el); else if (t === "bk") await aBk(el); else if (t === "bt") await aBt(el); else if (t === "skm") await aSkm(el); else if (t === "kt") { await aKt(el); if (window.AN_KT) { var w = window.AN_KT; window.AN_KT = null; ktAdd(w); } } else if (t === "lk") await window.aLk(el); else if (t === "kb") await window.aKb(el); else if (t === "pk") await window.aPk(el); else if (t === "kn") await window.aKn(el); else if (t === "an") await aAn(el); else if (t === "ak") await window.aAk(el);
+    if (t === "kam") await window.aKam(el); else if (t === "ring") await aRing(el); else if (t === "pmh") await aPmh(el); else if (t === "bk") await aBk(el); else if (t === "bt") await aBt(el); else if (t === "skm") await aSkm(el); else if (t === "kt") { await aKt(el); if (window.AN_KT) { var w = window.AN_KT; window.AN_KT = null; ktAdd(w); } } else if (t === "lk") await window.aLk(el); else if (t === "kb") await window.aKb(el); else if (t === "pk") await window.aPk(el); else if (t === "kn") await window.aKn(el); else if (t === "an") await aAn(el); else if (t === "ak") await window.aAk(el); else if (t === "lap") await window.aLap(el); else if (t === "pem") await window.aPem(el); else if (t === "log") await window.aLog(el); else if (t === "sh") await window.aSh(el);
   } catch (x) { el.innerHTML = '<div class="empty">' + esc(x.message) + '</div>'; }
 }
 function pkOpts() {

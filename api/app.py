@@ -106,8 +106,10 @@ ADM_SUPER = frozenset([
     "berita", "berita/hapus",
     "kata", "kata.xlsx", "kata-templat.xlsx", "kata/impor", "kstat", "kstat/reset", "miss", "miss/hapus",
     "kbli/impor", "kbli/hapus",
-    "data.xlsx",
+    "data.xlsx", "audit", "kesehatan", "pemohon",
 ])
+# Rute admin berupa aksi baca lewat POST atau pemeriksaan: tidak dicatat di Log aktivitas.
+AUDIT_ABAIKAN = frozenset(["kanal/uji", "piket", "kata/impor-cek"])
 
 
 # ---------------- Util ----------------
@@ -1526,9 +1528,67 @@ class handler(BaseHTTPRequestHandler):
     def skm_ok(self, o):
         return self.adm["sup"] or bool(o.get("unit") and self.boleh(o["unit"]))
 
+    def audit_catat(self, r, b):
+        """Catat siapa mengubah apa dan kapan (tanpa isi pesan/data pribadi). Kegagalan pencatatan tidak boleh mengganggu aksi admin."""
+        try:
+            tgt = ""
+            for k in ("kunci", "id", "pid", "u", "kode", "lokasi"):
+                if k in b and isinstance(b[k], (str, int)) and len(str(b[k])) <= 40:
+                    tgt = "%s=%s" % (k, re.sub(r"[^\w.:=@ -]", "", str(b[k])))
+                    break
+            db().pipe([["LPUSH", "audit", json.dumps({"t": now_ms(), "u": self.adm.get("u") or ADM_SUPER_NAMA, "nm": self.adm.get("nm", ""), "r": r[:60], "x": tgt}, ensure_ascii=False)],
+                       ["LTRIM", "audit", 0, 299]])
+        except Exception as e:
+            print("AUDIT", repr(e))
+
+    def kesehatan(self, ex):
+        """Pemeriksaan konfigurasi untuk superuser: variabel lingkungan, Redis, kanal, data."""
+        e = os.environ
+        redis_ok, redis_ms, redis_err = False, None, ""
+        try:
+            t0 = time.time()
+            redis_ok = db().cmd("PING") in ("PONG", True)
+            redis_ms = int((time.time() - t0) * 1000)
+        except Exception as x:
+            redis_err = str(x)[:120]
+        sec = e.get("SESSION_SECRET", "")
+        h_adm, env_pw = (db().cmd("HGET", "cfg", "admin_hash") or "") if redis_ok else "", e.get("ADMIN_PASSWORD") or ""
+        pw_ok = bool(h_adm) and not (env_pw and check_pw(env_pw, h_adm))
+        lok = loket_urut()
+        kosong = sum(1 for d in lok if not (d.get("syarat") if isinstance(d, dict) else (len(d) > 9 and d[9])))
+        cek = [
+            {"n": "SESSION_SECRET", "ok": len(sec) >= 32, "d": "Panjang %d karakter (minimal 32)." % len(sec) if sec else "Belum diisi. Sesi tidak bisa dibuat."},
+            {"n": "Penyimpanan Redis", "ok": bool(redis_ok), "d": ("Terhubung, %s ms." % redis_ms) if redis_ok else (redis_err or "Belum terhubung. Isi KV_REST_API_URL dan KV_REST_API_TOKEN.")},
+            {"n": "Cookie aman (Secure)", "ok": SECURE, "d": "Aktif." if SECURE else "COOKIE_SECURE=0: hanya untuk pengujian lokal."},
+            {"n": "Kata sandi superuser", "ok": pw_ok, "d": "Sudah berbeda dari ADMIN_PASSWORD." if pw_ok else "Masih sama dengan ADMIN_PASSWORD di Environment Variables. Ganti lewat Pengaturan."},
+            {"n": "Kanal WhatsApp", "ok": bool(e.get("WA_SECRET") and e.get("WA_TOKEN") and e.get("WA_PHONE_ID")), "d": "Siap." if (e.get("WA_SECRET") and e.get("WA_TOKEN") and e.get("WA_PHONE_ID")) else "Belum dikonfigurasi (opsional).", "opsi": True},
+            {"n": "Kanal Telegram", "ok": bool(e.get("TG_TOKEN")), "d": "Siap." if e.get("TG_TOKEN") else "Belum dikonfigurasi (opsional).", "opsi": True},
+            {"n": "Data KBLI", "ok": bool(_KB.get("rows")) or bool(db().cmd("HGET", "kbli", "v")), "d": "Daftar KBLI termuat." if (_KB.get("rows") or db().cmd("HGET", "kbli", "v")) else "Belum diimpor; pencarian KBLI memakai berkas bawaan."},
+            {"n": "Loket tanpa persyaratan", "ok": kosong == 0, "d": "%d dari %d loket belum punya persyaratan." % (kosong, len(lok)) if kosong else "Semua loket punya persyaratan.", "opsi": True},
+        ]
+        return self.json({"cek": cek, "waktu": now_ms(), "versi": 46}, extra=ex)
+
+    def pemohon_daftar(self, ex):
+        """Direktori pemohon terdaftar (superuser). Tanpa hash PIN."""
+        out = []
+        for v in list(hall(db().cmd("HGETALL", "pemohon")).values())[:5000]:
+            o = parse(v, None)
+            if isinstance(o, dict):
+                out.append({"id": o.get("id"), "nama": o.get("nama", ""), "hp": o.get("hp", ""), "email": o.get("email", ""), "dibuat": o.get("dibuat", 0)})
+        out.sort(key=lambda x: -int(x.get("dibuat") or 0))
+        return self.json({"daftar": out, "total": len(out)}, extra=ex)
+
     def admin(self, method, r, q, b, ex):
         if not self.adm["sup"] and (r in ADM_SUPER or (r == "templat" and method == "POST")):
             raise HttpError(403, "Fitur ini hanya untuk superuser.")
+        if method == "POST" and r not in AUDIT_ABAIKAN:
+            self.audit_catat(r, b)
+        if r == "audit" and method == "GET":
+            return self.json({"daftar": [x for x in (parse(v, None) for v in db().cmd("LRANGE", "audit", 0, 299) or []) if isinstance(x, dict)]}, extra=ex)
+        if r == "kesehatan" and method == "GET":
+            return self.kesehatan(ex)
+        if r == "pemohon" and method == "GET":
+            return self.pemohon_daftar(ex)
         if r == "akun" and method == "GET":
             masuk = hall(db().cmd("HGETALL", "admlog"))
             out = []

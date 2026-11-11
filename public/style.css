@@ -947,7 +947,7 @@ body.dm-on .dm-go{display:none}
 .zn-g{margin:8px 0}.zn-h{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:6px}.zn-n{flex:1 1 140px;max-width:220px;margin:0;font-weight:700}
 .zn-r{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:5px 0;border-top:1px solid var(--line)}.zn-r span{flex:1;min-width:0}.zn-sel{width:auto;min-width:130px;margin:0}
 /* v45 pusat fitur unggulan */
-.ug-fab{position:fixed;left:14px;bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:70;border:0;border-radius:99px;background:var(--acc);color:var(--onacc);padding:10px 16px;font:inherit;font-weight:700;font-size:.9rem;box-shadow:var(--shadow);cursor:pointer}
+.ug-fab{position:fixed;left:12px;bottom:calc(64px + env(safe-area-inset-bottom,0px));z-index:901;border:0;border-radius:99px;background:var(--acc);color:var(--onacc);padding:10px 16px;font:inherit;font-weight:700;font-size:.9rem;box-shadow:var(--shadow);cursor:pointer}
 .ug-ov{position:fixed;inset:0;z-index:95;background:rgba(5,15,40,.55);display:flex;align-items:flex-start;justify-content:center;padding:4vh 12px;overflow:auto}.ug-ov[hidden]{display:none}
 .ug-dlg{background:var(--surface);color:var(--ink);border-radius:18px;width:min(640px,100%);box-shadow:0 20px 60px rgba(0,0,0,.4);padding:14px 16px 18px}
 .ug-h{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px}.ug-tabs{display:flex;gap:6px;flex-wrap:wrap}.ug-x{border:0;background:none;color:var(--ink);font-size:1.6rem;line-height:1;cursor:pointer;padding:2px 8px}
@@ -964,3 +964,25 @@ html.ug-nm *,html.ug-nm *::before,html.ug-nm *::after{animation:none!important;t
 html.ug-hc.ug-hc:root{--bg:#fff;--bg2:#fff;--surface:#fff;--ink:#000;--mute:#1a1a1a;--line:#000;--acc:#0033aa;--accsoft:#e6ecff;--onacc:#fff}
 html.ug-hc .btn,html.ug-hc .chip,html.ug-hc .si,html.ug-hc .card{border-color:#000!important}
 @media (max-width:560px){.ug-fab{bottom:calc(76px + env(safe-area-inset-bottom,0px))}}
+
+/* v46 laporan admin */
+@media print{body.lap-printing>*:not(main){display:none!important}body.lap-printing main>*:not(#v-adm){display:none!important}body.lap-printing #v-adm>*:not(#a-x){display:none!important}body.lap-printing #a-x>.noprint{display:none!important}body.lap-printing .print-area{position:static;border:0!important;box-shadow:none}}
+
+/* v46 Asisten Takok Pro */
+.bfc{align-items:center}.bfc-l{font-size:.74rem;color:var(--mute);font-weight:700}
+.bot .bch.bfc button{font-size:.76rem;padding:3px 10px}
+.bfx{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:.74rem;color:var(--mute);flex-wrap:wrap}
+.bfx button{border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:2px 9px;cursor:pointer;font:inherit;font-size:.85rem;line-height:1.4}
+.bfx button:hover{border-color:var(--acc)}
+.bsl{position:absolute;left:10px;right:10px;bottom:62px;z-index:5;margin:0;padding:4px;list-style:none;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);max-height:240px;overflow:auto}
+.bsl[hidden]{display:none}
+.bsl li{display:flex;flex-direction:column;gap:0;padding:7px 10px;border-radius:10px;cursor:pointer}.bsl li b{color:var(--acc)}.bsl li small{color:var(--mute)}
+.bsl li.on,.bsl li:hover{background:var(--accsoft)}
+.bot{position:fixed}.bot .bin{position:relative}
+.bmore{position:absolute;right:12px;top:58px;z-index:6;min-width:200px;padding:6px;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);display:grid;gap:2px}
+.bmore[hidden]{display:none}
+.bmore button{text-align:left;border:0;background:none;color:var(--ink);font:inherit;padding:9px 12px;border-radius:9px;cursor:pointer}.bmore button:hover,.bmore button:focus-visible{background:var(--accsoft)}
+@media (min-width:1000px){.bot{width:min(450px,calc(100vw - 32px))}.bot.wide{width:min(780px,calc(100vw - 48px));height:min(860px,calc(100dvh - 32px))}.bot.wide .bmsg{max-width:84%}}
+@media print{body.bt-printing>*:not(#bt-print){display:none!important}body.bt-printing #bt-print{display:block!important;color:#000;background:#fff;padding:24px;font-family:system-ui,sans-serif}}
+#bt-print{display:none}
+.bhb{flex:none}.bti b,.bti small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
