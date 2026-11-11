@@ -91,7 +91,7 @@ function viewLok() {
         '<button type="button" class="btn" data-lk="lup" data-l="' + esc(l.id) + '"' + (i === 0 ? " disabled" : "") + ' aria-label="Naikkan urutan">&uarr;</button>' +
         '<button type="button" class="btn" data-lk="ldn" data-l="' + esc(l.id) + '"' + (i === LK.lokasi.length - 1 ? " disabled" : "") + ' aria-label="Turunkan urutan">&darr;</button>' +
         '<button type="button" class="btn" data-lk="lhide" data-l="' + esc(l.id) + '">' + (l.sembunyi ? "Tampilkan" : "Sembunyikan") + '</button>' +
-        (l.asli && l.diubah ? '<button type="button" class="btn" data-lk="lreset" data-l="' + esc(l.id) + '">Kembalikan bawaan</button>' : "") + '</div></article>' +
+        (l.asli && l.diubah ? '<button type="button" class="btn" data-lk="lreset" data-l="' + esc(l.id) + '">Kembalikan bawaan</button>' : "") + (!l.asli ? '<button type="button" class="btn" data-lk="ldel" data-l="' + esc(l.id) + '">Hapus</button>' : "") + '</div></article>' +
         (EL === l.id ? formLok(l) : "");
     }).join("");
 }
@@ -169,6 +169,35 @@ function syAksi(a, b) {
   return true;
 }
 
+/* ---------- Zona (versi 45) ---------- */
+var ZP = {};
+function zonaMap() {
+  var g = {}; loketDi(LL).forEach(function (e) { var z = e.zona || ""; (g[z] = g[z] || []).push(e); });
+  (ZP[LL] || []).forEach(function (z) { g[z] = g[z] || []; });
+  return g;
+}
+function viewZona() {
+  var g = zonaMap(), names = Object.keys(g).filter(Boolean).sort(function (a, b) { return a.localeCompare(b, "id", {numeric: true}); }), opt = function (sel) {
+    return '<option value=""' + (!sel ? " selected" : "") + '>Tanpa zona</option>' + names.map(function (z) { return '<option value="' + esc(z) + '"' + (z === sel ? " selected" : "") + '>' + esc(z) + '</option>'; }).join("");
+  };
+  var grup = function (z) {
+    var L = g[z] || [];
+    return '<div class="card zn-g"><div class="zn-h">' + (z ? '<input class="si zn-n" maxlength="20" value="' + esc(z) + '" data-old="' + esc(z) + '" aria-label="Nama zona">' +
+      '<button type="button" class="btn" data-lk="znren">Ubah nama</button><button type="button" class="btn" data-lk="zndel" data-z="' + esc(z) + '">Hapus zona</button>' : '<b>Tanpa zona</b>') +
+      '<small class="sys">' + L.length + ' loket</small></div>' +
+      (L.length ? L.map(function (e) { return '<div class="zn-r"><span>' + (e.no ? e.no + ". " : "") + esc(e.nama) + (e.sembunyi ? ' <i class="sys">(disembunyikan)</i>' : "") + '</span><select class="si zn-sel" data-k="' + e.kunci + '" aria-label="Zona untuk ' + esc(e.nama) + '">' + opt(z) + '</select></div>'; }).join("") : '<p class="sys">Belum ada loket di zona ini. Pindahkan loket dari zona lain lewat pilihan di sampingnya.</p>') + '</div>';
+  };
+  return '<div class="card"><h3>Kelola zona</h3><p class="sys">Zona dipakai untuk mengelompokkan loket di satu tempat pelayanan (mis. MPP: Zona 1 sampai Zona 5) dan tampil sebagai saringan di beranda. Pilih tempat pelayanan, lalu pindahkan loket antarzona, ubah nama zona, atau buat zona baru.</p>' +
+    '<label for="zn-l">Tempat pelayanan</label><select class="si" id="zn-l">' + LK.lokasi.map(function (l) { return '<option value="' + esc(l.id) + '"' + (l.id === LL ? " selected" : "") + '>' + esc(l.nama) + '</option>'; }).join("") + '</select>' +
+    '<div class="qf" style="margin-top:8px"><input class="si" id="zn-new" maxlength="20" placeholder="Nama zona baru, mis. Zona 6" aria-label="Nama zona baru"><button type="button" class="send" data-lk="znadd">+ Tambah zona</button></div></div>' +
+    names.map(grup).join("") + grup("");
+}
+async function zonaSimpan(el, items, pesan) {
+  if (BUSY) return; BUSY = true;
+  try { var r = await api("/api/admin/loket/massal", {items: items}); await load(el); refreshPublik(); toast(pesan || ((r.diubah || items.length) + " loket diperbarui.")); } catch (x) { toast(x.message); }
+  BUSY = false;
+}
+
 /* ---------- Bagian 2: loket dan uraian ---------- */
 function formLoket(e) {
   var n = !e;
@@ -179,7 +208,7 @@ function formLoket(e) {
     (e && e.syarat && e.syarat.length && !e.syv ? '<p class="sys">Isi awal bawaan aplikasi, <b>belum diverifikasi</b> loket. Periksa, ubah bila perlu, lalu Simpan: setelah itu tampil sebagai terverifikasi admin.</p>' : '<p class="sys">' + (e && e.syv && e.syt ? 'Terakhir diverifikasi: <b>' + esc(tglId(e.syt)) + '</b>' + (lawas(e) ? ' (sudah lebih dari 6 bulan, mohon dicek ulang). ' : '. ') : '') + 'Tampil di Booking, Pendamping, dan Lembar Pengantar pemohon sesuai loket yang dituju. Maksimal 150 baris syarat per loket.</p>') +
     '<label for="lf-s">Sistem / cara layanan</label><input class="si" id="lf-s" maxlength="120" placeholder="mis. SSW / OSS atau Datang langsung" value="' + esc(e ? e.sistem : "") + '">' +
     '<div class="lk-2"><div><label for="lf-j">Jam layanan loket <small class="sys">(opsional)</small></label><input class="si" id="lf-j" maxlength="120" placeholder="mis. 08.00-14.00" value="' + esc(e ? e.jam || "" : "") + '"></div>' +
-    '<div><label for="lf-z">Zona <small class="sys">(MPP, mis. Zona 2)</small></label><input class="si" id="lf-z" maxlength="20" value="' + esc(e ? e.zona || "" : "") + '"></div></div>' +
+    '<div><label for="lf-z">Zona <small class="sys">(MPP, mis. Zona 2)</small></label><input class="si" id="lf-z" maxlength="20" list="lf-zl" value="' + esc(e ? e.zona || "" : "") + '"><datalist id="lf-zl">' + Object.keys(zonaMap()).filter(Boolean).map(function (z) { return '<option value="' + esc(z) + '">'; }).join("") + '</datalist></div></div>' +
     '<label for="lf-l">Tautan informasi resmi <small class="sys">(opsional, https://...)</small></label><input class="si" id="lf-l" maxlength="300" type="url" value="' + esc(e ? e.tautan || "" : "") + '">' +
     '<label class="ckl"><input type="checkbox" id="lf-d"' + (!e || e.diskusi !== false ? " checked" : "") + '><span>Terima pertanyaan pemohon (Diskusi dengan admin)</span></label>' +
     '<div class="btns"><button type="button" class="send" data-lk="save">Simpan</button>' + (!n ? '<button type="button" class="btn" data-lk="savenext">Simpan &amp; loket berikutnya</button>' : "") + '<button type="button" class="btn" data-lk="cancel">Batal</button></div></div>';
@@ -227,14 +256,16 @@ function viewLoket() {
     (L.length ? L.map(function (e) {
       return '<article class="card lkc' + (e.sembunyi ? " off" : "") + '" style="margin:0 0 8px"><b>' + e.no + '. ' + esc(e.nama) + '</b> ' + (e.sembunyi ? pb("Disembunyikan", "#64748b") : "") + (e.diubah ? pb("Diubah admin", "#d97706") : "") + (!e.asli ? pb("Baru", "#16a34a") : "") + (kosong(e.uraian) ? pb("Uraian kosong", "#dc2626") : "") +
         '<p class="sys" style="margin:4px 0">' + (kosong(e.uraian) ? '<i>Uraian belum diisi.</i>' : esc(potong(e.uraian, 180))) + '</p><small class="sys">Sistem: ' + esc(e.sistem || "-") + (e.zona ? " &middot; " + esc(e.zona) : "") + (e.jam ? " &middot; Jam: " + esc(e.jam) : "") + '</small>' +
-        '<div class="btns"><button type="button" class="btn" data-lk="edit" data-k="' + e.kunci + '">Ubah</button>' + (e.syarat && e.syarat.length && e.syv ? '<button type="button" class="btn" data-lk="sycek" data-k="' + e.kunci + '" title="Syarat masih berlaku, tidak ada perubahan">' + (lawas(e) ? '⚠ ' : '') + 'Tandai sudah dicek</button>' : '') + '<button type="button" class="btn" data-lk="hide" data-k="' + e.kunci + '">' + (e.sembunyi ? "Tampilkan" : "Sembunyikan") + '</button>' + (e.asli && e.diubah ? '<button type="button" class="btn" data-lk="reset" data-k="' + e.kunci + '">Kembalikan bawaan</button>' : "") + '</div></article>' + (ED === e.kunci ? formLoket(e) : "");
+        '<div class="btns"><button type="button" class="btn" data-lk="edit" data-k="' + e.kunci + '">Ubah</button>' + (!e.asli ? '<button type="button" class="btn" data-lk="kdel" data-k="' + e.kunci + '">Hapus</button>' : '') + (e.syarat && e.syarat.length && e.syv ? '<button type="button" class="btn" data-lk="sycek" data-k="' + e.kunci + '" title="Syarat masih berlaku, tidak ada perubahan">' + (lawas(e) ? '⚠ ' : '') + 'Tandai sudah dicek</button>' : '') + '<button type="button" class="btn" data-lk="hide" data-k="' + e.kunci + '">' + (e.sembunyi ? "Tampilkan" : "Sembunyikan") + '</button>' + (e.asli && e.diubah ? '<button type="button" class="btn" data-lk="reset" data-k="' + e.kunci + '">Kembalikan bawaan</button>' : "") + '</div></article>' + (ED === e.kunci ? formLoket(e) : "");
     }).join("") : '<div class="empty">' + (FL === "kosong" ? "Semua uraian di tempat ini sudah terisi." : "Tidak ada loket yang cocok.") + '</div>');
 }
 
 function draw(el) {
   el.innerHTML = '<h2 class="sec">Editor loket</h2><p class="sys">Perubahan langsung tampil di beranda dan chatbot tanpa deploy ulang. Yang disembunyikan tidak tampil dan tidak menerima booking atau pertanyaan baru, tetapi riwayatnya aman.</p>' +
-    '<div class="hint" role="group" aria-label="Bagian editor"><button type="button" class="chip" data-lk="vw" data-v="lok" aria-pressed="' + (VW === "lok") + '">Tempat pelayanan</button><button type="button" class="chip" data-lk="vw" data-v="lkt" aria-pressed="' + (VW === "lkt") + '">Loket &amp; uraian</button></div>' +
-    (VW === "lok" ? viewLok() : viewLoket());
+    '<div class="hint" role="group" aria-label="Bagian editor"><button type="button" class="chip" data-lk="vw" data-v="lok" aria-pressed="' + (VW === "lok") + '">Tempat pelayanan</button><button type="button" class="chip" data-lk="vw" data-v="lkt" aria-pressed="' + (VW === "lkt") + '">Loket &amp; uraian</button><button type="button" class="chip" data-lk="vw" data-v="zn" aria-pressed="' + (VW === "zn") + '">Zona</button></div>' +
+    (VW === "lok" ? viewLok() : VW === "zn" ? viewZona() : viewLoket());
+  var zl = $("zn-l"); if (zl) zl.onchange = function () { LL = zl.value; draw(el); };
+  [].forEach.call(document.querySelectorAll(".zn-sel"), function (sl) { sl.onchange = function () { zonaSimpan(el, [{kunci: sl.dataset.k, zona: sl.value}], "Loket dipindahkan."); }; });
   bindEditor("lo-u", "lo-c", 2000); bindEditor("lf-u", "lf-c", 2000);
   var qi = $("lk-q"); if (qi) qi.oninput = function () { LQ = qi.value; var p = qi.selectionStart; draw(el); var n = $("lk-q"); n.focus(); n.setSelectionRange(p, p); };
   var fi = $("im-f"); if (fi) fi.onchange = function () { var f = fi.files[0]; if (!f) return; if (f.size > 900000) { toast("Berkas terlalu besar (maksimal 900 KB)."); return; } var r = new FileReader(); r.onload = function () { $("im-t").value = String(r.result); }; r.readAsText(f, "utf-8"); };
@@ -388,6 +419,22 @@ window.aLk = async function (el) {
       }
       else if (a === "hide") { BUSY = true; await api("/api/admin/loket/simpan", keLoket(e, {sembunyi: !e.sembunyi})); await load(el); refreshPublik(); toast(e.sembunyi ? "Loket ditampilkan." : "Loket disembunyikan."); }
       else if (a === "sycek") { BUSY = true; await api("/api/admin/loket/simpan", keLoket(e, {syarat: e.syarat})); await load(el); refreshPublik(); toast("Persyaratan ditandai sudah dicek hari ini."); }
+      else if (a === "znadd") { var zn = $("zn-new").value.trim(); if (!zn) { toast("Isi nama zona."); return; } (ZP[LL] = ZP[LL] || []).indexOf(zn) < 0 && ZP[LL].push(zn); draw(el); toast("Zona \"" + zn + "\" dibuat. Pindahkan loket ke zona ini lewat pilihan di sampingnya."); }
+      else if (a === "znren") {
+        var ib = b.parentNode.querySelector(".zn-n"), nw = ib.value.trim(), old = ib.dataset.old; if (!nw || nw === old) return;
+        var its = loketDi(LL).filter(function (x) { return x.zona === old; }).map(function (x) { return {kunci: x.kunci, zona: nw}; });
+        if (ZP[LL]) ZP[LL] = ZP[LL].filter(function (z) { return z !== old; });
+        if (!its.length) { (ZP[LL] = ZP[LL] || []).push(nw); draw(el); return; }
+        await zonaSimpan(el, its, "Nama zona diubah.");
+      }
+      else if (a === "zndel") {
+        var zz = b.dataset.z, ls = loketDi(LL).filter(function (x) { return x.zona === zz; });
+        if (!confirm("Hapus zona \"" + zz + "\"? " + (ls.length ? ls.length + " loket di dalamnya menjadi \"Tanpa zona\"." : ""))) return;
+        if (ZP[LL]) ZP[LL] = ZP[LL].filter(function (z) { return z !== zz; });
+        if (ls.length) await zonaSimpan(el, ls.map(function (x) { return {kunci: x.kunci, zona: ""}; }), "Zona dihapus."); else draw(el);
+      }
+      else if (a === "kdel") { if (!confirm("Hapus permanen loket \"" + e.nama + "\"? Hanya bisa bila belum punya riwayat booking, permohonan, atau percakapan.")) return; BUSY = true; await api("/api/admin/loket/hapus", {kunci: k}); await load(el); refreshPublik(); toast("Loket dihapus."); }
+      else if (a === "ldel") { var lx = LK.lokasi.filter(function (x) { return x.id === id; })[0]; if (!confirm("Hapus permanen tempat pelayanan \"" + (lx ? lx.nama : id) + "\"? Hanya bisa bila sudah tidak punya loket.")) return; BUSY = true; await api("/api/admin/lokasi/hapus", {id: id}); await load(el); refreshPublik(); toast("Tempat pelayanan dihapus."); }
       else if (a === "reset") { if (!confirm("Kembalikan loket ini ke isi bawaan?")) return; BUSY = true; await api("/api/admin/loket/reset", {kunci: k}); await load(el); refreshPublik(); toast("Dikembalikan ke bawaan."); }
       /* isi massal */
       else if (a === "impor") { IM = "buka"; IMS = false; ED = null; draw(el); }

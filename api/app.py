@@ -14,6 +14,7 @@ from html.parser import HTMLParser
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _data import SEED, SKM_MPP  # noqa: E402
 from _syarat import SYARAT_AWAL  # noqa: E402
+import _waspada as WS  # noqa: E402
 import _analisa as AN  # noqa: E402
 import _bot as BOT  # noqa: E402
 
@@ -99,9 +100,9 @@ ADM_SUPER_NAMA = "superuser"  # nama cadangan untuk akun utama (kata sandi ADMIN
 ADM_MAX = 200
 # Rute admin yang hanya boleh dipakai superuser: pengaturan global, isi chatbot, editor loket, kanal, data seluruh instansi, dan akun.
 ADM_SUPER = frozenset([
-    "akun", "akun/simpan", "akun/hapus",
+    "akun", "akun/simpan", "akun/hapus", "keamanan", "bj/tandai",
     "pengaturan", "kanal", "kanal/uji", "piket",
-    "loket", "loket/simpan", "loket/massal", "loket/reset", "lokasi/simpan", "lokasi/urutan", "lokasi/reset",
+    "loket", "loket/simpan", "loket/massal", "loket/reset", "loket/hapus", "lokasi/hapus", "lokasi/simpan", "lokasi/urutan", "lokasi/reset",
     "berita", "berita/hapus",
     "kata", "kata.xlsx", "kata-templat.xlsx", "kata/impor", "kstat", "kstat/reset", "miss", "miss/hapus",
     "kbli/impor", "kbli/hapus",
@@ -154,7 +155,7 @@ def ok_email(s):
 
 
 def clean(s, n):
-    return re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]", "", str(s)).strip()[:n]
+    return WS.bersih(re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]", "", str(s))).strip()[:n]
 
 
 OK_TAG = {"p", "br", "b", "strong", "i", "em", "u", "ul", "ol", "li", "h3", "h4", "blockquote", "a", "hr"}
@@ -407,6 +408,46 @@ def limited(key, maxn, window):
     """Hitung percobaan di Redis; True bila sudah melewati batas."""
     c = db().pipe([["INCR", key], ["EXPIRE", key, window, "NX"]])[0]
     return int(c) > maxn
+
+
+def ip_hash(ip):
+    return hmac.new(SECRET or b"x", str(ip).encode(), hashlib.sha256).hexdigest()[:12]
+
+
+def seclog(jenis, rute, pid, iph, cuplikan):
+    """Catat percobaan serangan; 4 percobaan dalam 10 menit dari jaringan yang sama memblokir akses selama 30 menit."""
+    e = {"t": now_ms(), "jenis": jenis, "rute": rute, "pid": pid, "ip": iph, "cup": WS.bersih(str(cuplikan))[:80]}
+    db().pipe([["LPUSH", "seclog", json.dumps(e, ensure_ascii=False)], ["LTRIM", "seclog", 0, 299], ["HINCRBY", "secn", jenis, 1]])
+    if limited("rl:sec:" + iph, 4, 600):
+        db().cmd("SET", "blk:" + iph, "1", "EX", 1800)
+
+
+def cek_masukan(ip, rute, pid, *teks):
+    """Tolak teks berpola XSS/injeksi dan akses dari jaringan yang sedang diblokir."""
+    h = ip_hash(ip)
+    if db().cmd("EXISTS", "blk:" + h):
+        raise HttpError(429, "Akses dibatasi sementara karena aktivitas yang mencurigakan. Coba lagi beberapa saat.")
+    for t in teks:
+        j = WS.serangan(t)
+        if j:
+            seclog(j, rute, pid, h, t)
+            raise HttpError(400, "Teks berisi pola kode atau perintah yang tidak diperbolehkan. Tulislah dengan kalimat biasa.")
+
+
+def loket_dipakai(kunci):
+    """True bila loket sudah punya booking, permohonan, atau percakapan (maka tidak boleh dihapus permanen)."""
+    for v in hall(db().cmd("HGETALL", "bk")).values():
+        if '"kunci": "%s"' % kunci in v:
+            return True
+    for v in hall(db().cmd("HGETALL", "pmh")).values():
+        if '"kunci": "%s"' % kunci in v:
+            return True
+    return any(str(f).endswith("|" + kunci) for f in (hall(db().cmd("HGETALL", "tlast")) or {}).keys())
+
+
+def bj_status(pid):
+    o = parse(db().cmd("HGET", "bj", pid), None)
+    return o.get("s", "") if isinstance(o, dict) else ""
 
 
 def cfg_all():
@@ -719,6 +760,9 @@ class handler(BaseHTTPRequestHandler):
         self.send_header("Referrer-Policy", "no-referrer")
         self.send_header("Content-Security-Policy", CSP)
         self.send_header("X-Frame-Options", "DENY")
+        self.send_header("Permissions-Policy", "camera=(), microphone=(self), geolocation=(), payment=(), usb=(), interest-cohort=()")
+        self.send_header("Cross-Origin-Opener-Policy", "same-origin")
+        self.send_header("Cross-Origin-Resource-Policy", "same-origin")
         if not any(k.lower() == "cache-control" for k, _ in extra):
             self.send_header("Cache-Control", "no-store")
         for k, v in extra:
@@ -1055,6 +1099,7 @@ class handler(BaseHTTPRequestHandler):
         if limited("rl:daftar:" + ip, 10, 3600):
             raise HttpError(429, "Terlalu banyak pendaftaran. Coba lagi nanti.")
         nama, hp, em, pin = clean(b.get("nama", ""), 60), norm_hp(b.get("hp", "")), ok_email(b.get("email", "")), str(b.get("pin", ""))
+        cek_masukan(ip, "daftar", 0, nama, b.get("email", ""))
         if len(nama) < 2:
             raise HttpError(400, "Isi nama Anda.")
         if not hp:
@@ -1066,7 +1111,8 @@ class handler(BaseHTTPRequestHandler):
         pid = int(db().cmd("INCR", "seq:pemohon"))
         if int(db().cmd("HSETNX", "hp", hp, pid)) == 0:
             raise HttpError(409, "Nomor HP sudah terdaftar. Silakan masuk dengan PIN Anda.")
-        db().cmd("HSET", "pemohon", pid, json.dumps({"id": pid, "nama": nama, "hp": hp, "email": em, "pin": hash_pw(pin), "dibuat": now_ms()}))
+        db().cmd("HSET", "pemohon", pid, json.dumps({"id": pid, "nama": nama, "hp": hp, "email": em, "pin": hash_pw(pin), "dibuat": now_ms(), "iph": ip_hash(ip)}))
+        db().cmd("SADD", "iph:" + ip_hash(ip), pid)
         tok = sign({"r": "user", "id": pid, "exp": int(time.time()) + 3600})
         self.json({"ok": True, "saya": {"peran": "pemohon", "nama": nama, "hp": hp, "email": em}}, extra=self.cookie(tok, 3600))
 
@@ -1254,6 +1300,11 @@ class handler(BaseHTTPRequestHandler):
         kep = clean(b.get("keperluan", ""), 200)
         if len(kep) < 3:
             raise HttpError(400, "Isi keperluan kunjungan.")
+        cek_masukan(self.ip(), "booking", pid, kep)
+        if b.get("deklarasi") not in (True, 1, "1", "true"):
+            raise HttpError(400, "Centang pernyataan: Anda mengurus untuk diri sendiri, keluarga, atau usaha sendiri dan tidak menarik bayaran dari pemohon lain.")
+        if bj_status(pid) == "bj":
+            raise HttpError(403, "Booking untuk akun ini dibatasi karena terindikasi sebagai pihak perantara berbayar. Jika ini keliru, hubungi admin PTSP.")
         todo, jams, keys = [], set(), set()
         for it in items:
             k, j = str(it.get("kunci", "")), str(it.get("jam", ""))
@@ -1294,7 +1345,7 @@ class handler(BaseHTTPRequestHandler):
             urut = int(db().cmd("INCR", "bkn:%s|%s" % (k, tgl)))
             bid = int(db().cmd("INCR", "seq:booking"))
             kode = "%s%02d-%s-%03d" % (lok[:3].upper(), int(no), tgl[8:10] + tgl[5:7], urut)
-            o = {"id": bid, "pid": pid, "kunci": k, "lokasi": lok, "tanggal": tgl, "jam": j, "keperluan": kep, "kode": kode, "status": "Terjadwal", "dibuat": now_ms()}
+            o = {"id": bid, "pid": pid, "kunci": k, "lokasi": lok, "tanggal": tgl, "jam": j, "keperluan": kep, "kode": kode, "status": "Terjadwal", "dibuat": now_ms(), "dek": 1}
             db().pipe([["HSET", "bk", bid, json.dumps(o, ensure_ascii=False)], ["SADD", "bk:%s" % pid, bid], ["SADD", "bkd:%s" % tgl, bid]])
             hasil.append(o)
         self.json({"ok": True, "booking": hasil}, extra=ex)
@@ -1343,11 +1394,16 @@ class handler(BaseHTTPRequestHandler):
             raise HttpError(400, "Fasilitas ini tidak menerima pertanyaan lewat aplikasi.")
         if re.search(r"\d{16}", re.sub(r"[\s.\-]", "", isi)):
             raise HttpError(400, "Demi keamanan, jangan kirim NIK/KTP lengkap di sini.")
+        cek_masukan(self.ip(), "pesan", pid, isi)
         if limited("rl:kirim:%s" % pid, 5, 60):
             raise HttpError(429, "Terlalu banyak pesan dalam satu menit.")
         if int(db().cmd("LLEN", "msgs:%s|%s" % (pid, k)) or 0) >= 200:
             raise HttpError(400, "Percakapan ini sudah penuh. Silakan hubungi loket langsung.")
         tk = add_msg(pid, k, "pemohon", isi)
+        if WS.bj_kata(isi):
+            db().cmd("SADD", "bjset", pid)
+        for w, lab, cup in WS.bj_kata(isi):  # indikasi biro jasa: dicatat untuk ditinjau admin, tidak menolak pesan
+            db().pipe([["HINCRBY", "bjk:%s" % pid, "%s|%d" % (lab, w), 1], ["LPUSH", "bjs:%s" % pid, json.dumps({"t": now_ms(), "c": cup}, ensure_ascii=False)], ["LTRIM", "bjs:%s" % pid, 0, 4]])
         pc = piket_cfg()
         bot = False
         if pc["mode"] == "langsung" and not b.get("eskalasi"):
@@ -1483,6 +1539,65 @@ class handler(BaseHTTPRequestHandler):
                                 "dibuat": a.get("dibuat", 0), "masuk": int(masuk.get(u, 0) or 0)})
             out.sort(key=lambda x: (x["peran"] != "super", x["u"]))
             return self.json({"daftar": out, "saya": self.adm.get("u", "")}, extra=ex)
+        if r == "keamanan" and method == "GET":
+            t0, hari30 = now_ms(), time.strftime("%Y-%m-%d", time.gmtime(time.time() + 7 * 3600 - 30 * 86400))
+            log = [x for x in (parse(v, None) for v in db().cmd("LRANGE", "seclog", 0, 99) or []) if isinstance(x, dict)]
+            sec_n = {k: int(v) for k, v in hall(db().cmd("HGETALL", "secn")).items()}
+            tanda = {int(k): parse(v, {}) for k, v in hall(db().cmd("HGETALL", "bj")).items() if str(k).isdigit()}
+            bk_by, pmh_by = {}, {}
+            for v in hall(db().cmd("HGETALL", "bk")).values():
+                o = parse(v, None)
+                if isinstance(o, dict) and o.get("tanggal", "") >= hari30:
+                    bk_by.setdefault(int(o.get("pid", 0)), []).append(o)
+            for v in hall(db().cmd("HGETALL", "pmh")).values():
+                o = parse(v, None)
+                if isinstance(o, dict) and int(o.get("dibuat", 0)) >= t0 - 30 * 86400000:
+                    pmh_by[int(o.get("pid", 0))] = pmh_by.get(int(o.get("pid", 0)), 0) + 1
+            kandidat = set(tanda) | {p for p, v in bk_by.items() if len(v) >= 4} | {p for p, n in pmh_by.items() if n >= 4}
+            kandidat |= {int(x) for x in db().cmd("SMEMBERS", "bjset") or [] if str(x).isdigit()}
+            kandidat = set(sorted(kandidat)[:400])
+            kata_by = {}
+            for pid in kandidat:
+                kk = hall(db().cmd("HGETALL", "bjk:%s" % pid))
+                if kk:
+                    kata_by[pid] = {}
+                    for lw, n in kk.items():
+                        lab, _, w = lw.rpartition("|")
+                        kata_by[pid][lab] = [int(w or 1), int(n)]
+            pem = {}
+            kl = sorted(kandidat)
+            for pid, v in zip(kl, db().cmd("HMGET", "pemohon", *kl) if kl else []):
+                pem[pid] = v
+            out = []
+            for pid in kandidat:
+                pm = parse(pem.get(pid), None)
+                if not isinstance(pm, dict):
+                    continue
+                bks = bk_by.get(pid, [])
+                akun_ip = int(db().cmd("SCARD", "iph:" + pm["iph"]) or 0) if pm.get("iph") else 0
+                umur = (t0 - int(pm.get("dibuat", t0))) // 86400000
+                skor, alasan = WS.hitung_bj(len(bks), pmh_by.get(pid, 0), akun_ip, umur, kata_by.get(pid, {}), len({x.get("keperluan", "")[:30].lower() for x in bks}))
+                tn = tanda.get(pid) or {}
+                if skor < 3 and not tn:
+                    continue
+                cont = [x.get("c", "") for x in (parse(v, {}) for v in db().cmd("LRANGE", "bjs:%s" % pid, 0, 2) or [])]
+                out.append({"pid": pid, "nama": pm.get("nama", ""), "hp": pm.get("hp", ""), "email": pm.get("email", ""), "skor": skor, "tingkat": WS.tingkat(skor),
+                            "alasan": alasan, "contoh": cont, "booking30": len(bks), "loket": len({x.get("kunci") for x in bks}), "status": tn.get("s", ""), "catatan": tn.get("cat", ""),
+                            "oleh": tn.get("oleh", ""), "tanda": tn.get("t", 0)})
+            out.sort(key=lambda x: -x["skor"])
+            return self.json({"bj": out[:100], "log": log, "n": sec_n, "diblokir": 0}, extra=ex)
+        if r == "bj/tandai" and method == "POST":
+            pid = str(b.get("pid", ""))
+            st = str(b.get("s", ""))
+            if not pid.isdigit() or st not in ("", "pantau", "bj", "bukan"):
+                raise HttpError(400, "Data tidak valid.")
+            if not db().cmd("HGET", "pemohon", pid):
+                raise HttpError(404, "Pemohon tidak ditemukan.")
+            if st:
+                db().cmd("HSET", "bj", pid, json.dumps({"s": st, "cat": clean(b.get("cat", ""), 200), "t": now_ms(), "oleh": self.adm.get("u", "")}, ensure_ascii=False))
+            else:
+                db().cmd("HDEL", "bj", pid)
+            return self.json({"ok": True}, extra=ex)
         if r == "akun/simpan" and method == "POST":
             u = clean(b.get("u", ""), 30).lower()
             if not ADM_RE.match(u) or u == ADM_SUPER_NAMA:
@@ -1807,7 +1922,7 @@ class handler(BaseHTTPRequestHandler):
             if "syarat" in b:
                 d["syarat"] = norm_syarat(b.get("syarat", []))
                 d["syt"] = time.strftime("%Y-%m-%d", wib())  # tanggal terakhir diverifikasi admin
-            elif kunci and LOKET[kunci].get("syv"):  # tombol Sembunyikan/Tampilkan tidak mengirim syarat: jangan dihapus
+            elif LOKET.get(kunci, {}).get("syv"):  # tombol Sembunyikan/Tampilkan tidak mengirim syarat: jangan dihapus
                 d["syarat"] = LOKET[kunci].get("syarat", [])
                 d["syt"] = LOKET[kunci].get("syt", "")
             db().cmd("HSET", "loketx", kunci, json.dumps(d, ensure_ascii=False))
@@ -1848,6 +1963,8 @@ class handler(BaseHTTPRequestHandler):
                 if e.get("syv"):  # jangan hilangkan persyaratan yang sudah dikonfirmasi admin
                     d["syarat"] = e.get("syarat", [])
                     d["syt"] = e.get("syt", "")
+                if "zona" in it:  # kelola zona: ganti nama, pindah, atau kosongkan zona banyak loket sekaligus
+                    d["zona"] = clean(it["zona"], 20)
                 if "syarat" in it:  # impor persyaratan: menggantikan seluruh syarat loket ini
                     d["syarat"] = norm_syarat(it["syarat"])
                     d["syt"] = time.strftime("%Y-%m-%d", wib())
@@ -1868,6 +1985,31 @@ class handler(BaseHTTPRequestHandler):
                 _LX["t"] = 0.0
                 refresh_loket(0)
             return self.json({"ok": True, "diubah": hasil, "dilewati": lewat[:50]}, extra=ex)
+        if r == "loket/hapus" and method == "POST":
+            kunci = str(b.get("kunci", ""))
+            if kunci in BASE:
+                raise HttpError(400, "Loket bawaan tidak bisa dihapus. Cukup disembunyikan.")
+            if kunci not in LOKET:
+                raise HttpError(404, "Loket tidak ditemukan.")
+            if loket_dipakai(kunci):
+                raise HttpError(409, "Loket ini sudah punya riwayat (booking, permohonan, atau percakapan). Sembunyikan saja agar riwayat tetap aman.")
+            db().cmd("HDEL", "loketx", kunci)
+            _LX["t"] = 0.0
+            refresh_loket(0)
+            return self.json({"ok": True}, extra=ex)
+        if r == "lokasi/hapus" and method == "POST":
+            refresh_loket(0)
+            i = str(b.get("id", ""))
+            if i in LOK_BASE:
+                raise HttpError(400, "Tempat pelayanan bawaan tidak bisa dihapus. Cukup disembunyikan.")
+            if i not in LOKASI:
+                raise HttpError(404, "Tempat pelayanan tidak ditemukan.")
+            if any(e["lokasi"] == i for e in LOKET.values()):
+                raise HttpError(409, "Masih ada loket di tempat pelayanan ini. Hapus atau sembunyikan loketnya dulu.")
+            db().cmd("HDEL", "lokx", i)
+            _LX["t"] = 0.0
+            refresh_loket(0)
+            return self.json({"ok": True}, extra=ex)
         if r == "loket/reset" and method == "POST":
             kunci = str(b.get("kunci", ""))
             if kunci not in BASE:

@@ -65,6 +65,7 @@ $("v-pn").addEventListener("change", function (e) {
   else if (id === "bk3") { BJ = ""; slots(); }
   else if (id === "bt2") { if (CART.length && CART_TGL !== $("bt2").value) { CART = []; rencana(); toast("Tanggal diganti, rencana kunjungan dikosongkan."); } BJ = ""; slots(); }
   else if (id === "bk2") KEP = e.target.value;
+  else if (id === "bkdek") DEK = e.target.checked;
   else if (id === "sl") skmIsi();
   else if (e.target.name && e.target.name.indexOf("q") === 0) skmProg();
 });
@@ -94,7 +95,7 @@ async function pPmh(el) {
 }
 
 /* ---------- Pemohon: Booking Kunjungan (per loket / instansi) ---------- */
-var CART = [], CART_TGL = "", KEP = "", BSEEN = null;
+var CART = [], CART_TGL = "", KEP = "", DEK = false, BSEEN = null;
 var BK_WARNA = {"Terjadwal": "#2563eb", "Sudah tiba": "#0d9488", "Dipanggil": "#d97706", "Hadir": "#15803d", "Tidak hadir": "#dc2626", "Batal": "#64748b"};
 function bkBdg(st) { return '<span class="bdg" style="background:' + (BK_WARNA[st] || "#64748b") + '">' + esc(st) + '</span>'; }
 function tglOpts() {
@@ -130,7 +131,7 @@ function rencana() {
   if (!CART.length) { el.innerHTML = '<p class="sys" style="margin:0">Rencana kunjungan masih kosong. Pilih loket dan jam, lalu tambahkan.</p>'; return; }
   el.innerHTML = '<b>Rencana kunjungan ' + esc(CART_TGL) + '</b>' + CART.slice().sort(function (a, b) { return a.jam < b.jam ? -1 : 1; }).map(function (c) {
     return '<div class="rc"><span><b>' + c.jam + '</b> &middot; ' + esc(label(c.kunci)) + '</span><button type="button" class="btn" data-rm="' + CART.indexOf(c) + '" aria-label="Hapus">Hapus</button></div>';
-  }).join("") + '<textarea class="si" id="bk2" rows="2" maxlength="200" placeholder="Keperluan kunjungan (mis. mengurus BPJS dan pajak)" aria-label="Keperluan">' + esc(KEP) + '</textarea><button type="button" class="send" id="bgo">Buat ' + CART.length + ' booking</button>';
+  }).join("") + '<textarea class="si" id="bk2" rows="2" maxlength="200" placeholder="Keperluan kunjungan (mis. mengurus BPJS dan pajak)" aria-label="Keperluan">' + esc(KEP) + '</textarea><label class="bk-dek"><input type="checkbox" id="bkdek"' + (DEK ? " checked" : "") + '> Saya mengurus untuk diri sendiri, keluarga, atau usaha sendiri, dan <b>tidak menerima bayaran</b> dari pemohon lain (biro jasa/calo).</label><button type="button" class="send" id="bgo">Buat ' + CART.length + ' booking</button>';
 }
 async function slots() {
   var box = $("bj");
@@ -269,9 +270,10 @@ async function pnClick(e) {
     }
     if (t.dataset.rm) { CART.splice(+t.dataset.rm, 1); rencana(); return; }
     if (id === "bgo") {
-      KEP = $("bk2").value;
+      KEP = $("bk2").value; DEK = !!($("bkdek") && $("bkdek").checked);
+      if (!DEK) { err("Centang pernyataan bahwa Anda tidak menerima bayaran dari pemohon lain."); return; }
       t.disabled = true;
-      var r = await api("/api/booking", {tanggal: CART_TGL, keperluan: clean(KEP), item: CART});
+      var r = await api("/api/booking", {tanggal: CART_TGL, keperluan: clean(KEP), item: CART, deklarasi: true});
       toast("Booking berhasil: " + r.booking.map(function (o) { return o.kode; }).join(", ")); if (window.konfeti) window.konfeti(60);
       CART = []; KEP = ""; BJ = ""; rencana(); await slots(); await bSaya(); return;
     }
@@ -297,7 +299,7 @@ async function pnClick(e) {
 function admSup() { return !(ME && ME.level === "loket"); }
 var TAB_LOKET = ["ring", "inbox", "pmh", "bk", "an", "skm"];
 function admTabs() {
-  $("atabs").innerHTML = [["ring", "Ringkasan"], ["inbox", "Kotak masuk"], ["pmh", "Permohonan"], ["bk", "Booking"], ["an", "Analitik Chat"], ["bt", "Berita"], ["skm", "Rekap SKM"], ["kt", "Kata cari chatbot"], ["lk", "Editor loket"], ["pk", "Asisten Piket"], ["kn", "Kanal WA & Telegram"], ["kb", "Data KBLI"], ["ak", "Akun admin"]].filter(function (t) { return admSup() || TAB_LOKET.indexOf(t[0]) > -1; }).map(function (t) {
+  $("atabs").innerHTML = [["ring", "Ringkasan"], ["inbox", "Kotak masuk"], ["pmh", "Permohonan"], ["bk", "Booking"], ["an", "Analitik Chat"], ["bt", "Berita"], ["skm", "Rekap SKM"], ["kt", "Kata cari chatbot"], ["kam", "Keamanan & biro jasa"], ["lk", "Editor loket"], ["pk", "Asisten Piket"], ["kn", "Kanal WA & Telegram"], ["kb", "Data KBLI"], ["ak", "Akun admin"]].filter(function (t) { return admSup() || TAB_LOKET.indexOf(t[0]) > -1; }).map(function (t) {
     return '<button type="button" class="chip" data-at="' + t[0] + '" aria-pressed="' + (t[0] === AT) + '">' + t[1] + '</button>';
   }).join("");
   $("atabs").onclick = function (e) { var b = e.target.closest("[data-at]"); if (b) admTab(b.dataset.at); };
@@ -315,7 +317,7 @@ async function aX(t) {
   var el = $("a-x");
   el.innerHTML = '<div class="empty">Memuat&hellip;</div>';
   try {
-    if (t === "ring") await aRing(el); else if (t === "pmh") await aPmh(el); else if (t === "bk") await aBk(el); else if (t === "bt") await aBt(el); else if (t === "skm") await aSkm(el); else if (t === "kt") { await aKt(el); if (window.AN_KT) { var w = window.AN_KT; window.AN_KT = null; ktAdd(w); } } else if (t === "lk") await window.aLk(el); else if (t === "kb") await window.aKb(el); else if (t === "pk") await window.aPk(el); else if (t === "kn") await window.aKn(el); else if (t === "an") await aAn(el); else if (t === "ak") await window.aAk(el);
+    if (t === "kam") await window.aKam(el); else if (t === "ring") await aRing(el); else if (t === "pmh") await aPmh(el); else if (t === "bk") await aBk(el); else if (t === "bt") await aBt(el); else if (t === "skm") await aSkm(el); else if (t === "kt") { await aKt(el); if (window.AN_KT) { var w = window.AN_KT; window.AN_KT = null; ktAdd(w); } } else if (t === "lk") await window.aLk(el); else if (t === "kb") await window.aKb(el); else if (t === "pk") await window.aPk(el); else if (t === "kn") await window.aKn(el); else if (t === "an") await aAn(el); else if (t === "ak") await window.aAk(el);
   } catch (x) { el.innerHTML = '<div class="empty">' + esc(x.message) + '</div>'; }
 }
 function pkOpts() {

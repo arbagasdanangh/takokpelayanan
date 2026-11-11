@@ -938,3 +938,29 @@ body.dm-on .dm-go{display:none}
 .cp-pg{display:block;width:100%;margin:8px 0}
 .cp-bd{position:absolute;right:14px;bottom:128px;z-index:3;border:0;border-radius:99px;background:var(--acc,#1a46b5);color:#fff;padding:5px 12px;font-size:.8rem;box-shadow:0 2px 8px rgba(0,0,0,.25);cursor:pointer}.cp-bd[hidden]{display:none}
 .bhb #b-cp{font-size:.75rem}
+
+/* v44 keamanan */
+.bk-dek{display:flex;gap:8px;align-items:flex-start;font-size:.85rem;margin:8px 0;line-height:1.35}.bk-dek input{margin-top:3px;flex:none}
+.kam-r{margin:8px 0}.kam-h{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.kam-t{overflow-x:auto}.kam-t table{width:100%;border-collapse:collapse;font-size:.8rem}.kam-t th,.kam-t td{border-bottom:1px solid var(--line);padding:4px 6px;text-align:left;vertical-align:top;word-break:break-word}
+
+/* v45 zona */
+.zn-g{margin:8px 0}.zn-h{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:6px}.zn-n{flex:1 1 140px;max-width:220px;margin:0;font-weight:700}
+.zn-r{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:5px 0;border-top:1px solid var(--line)}.zn-r span{flex:1;min-width:0}.zn-sel{width:auto;min-width:130px;margin:0}
+/* v45 pusat fitur unggulan */
+.ug-fab{position:fixed;left:14px;bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:70;border:0;border-radius:99px;background:var(--acc);color:var(--onacc);padding:10px 16px;font:inherit;font-weight:700;font-size:.9rem;box-shadow:var(--shadow);cursor:pointer}
+.ug-ov{position:fixed;inset:0;z-index:95;background:rgba(5,15,40,.55);display:flex;align-items:flex-start;justify-content:center;padding:4vh 12px;overflow:auto}.ug-ov[hidden]{display:none}
+.ug-dlg{background:var(--surface);color:var(--ink);border-radius:18px;width:min(640px,100%);box-shadow:0 20px 60px rgba(0,0,0,.4);padding:14px 16px 18px}
+.ug-h{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px}.ug-tabs{display:flex;gap:6px;flex-wrap:wrap}.ug-x{border:0;background:none;color:var(--ink);font-size:1.6rem;line-height:1;cursor:pointer;padding:2px 8px}
+.ug-body .si{width:100%;margin:6px 0 10px}.ug-l{list-style:none;margin:0;padding:0;display:grid;gap:8px}.ug-r{border:1px solid var(--line);border-radius:12px;padding:10px 12px}.ug-rt{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.ug-v{font-size:.7rem;font-weight:700;border-radius:99px;padding:1px 8px;background:#dcfce7;color:#166534}.ug-w{background:#fef3c7;color:#92400e}.ug-n{background:var(--accsoft);color:var(--ink)}
+.ug-kk{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:12px}.ug-k{border:1px solid var(--line);border-radius:12px;padding:10px;text-align:center}.ug-k b{display:block;font-size:1.5rem;color:var(--acc)}.ug-k small{color:var(--mute)}
+.ug-b{margin:8px 0}.ug-bh{display:flex;justify-content:space-between;gap:8px;font-size:.85rem}.ug-bt{height:10px;border-radius:99px;background:var(--accsoft);overflow:hidden;margin-top:3px}.ug-bt i{display:block;height:100%;background:var(--acc);border-radius:99px}
+.ug-fs{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px}.ug-sw{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--line)}.ug-sw input{margin-top:5px;width:20px;height:20px;flex:none}.ug-sw span{display:grid}.ug-sw small{color:var(--mute)}
+body.ug-lock{overflow:hidden}
+html.ug-f1{font-size:112.5%}html.ug-f1 body{font-size:18px}html.ug-f2{font-size:125%}html.ug-f2 body{font-size:20px}
+html.ug-sp body{line-height:1.8;letter-spacing:.02em;word-spacing:.08em}
+html.ug-ul a{text-decoration:underline!important}
+html.ug-nm *,html.ug-nm *::before,html.ug-nm *::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+html.ug-hc.ug-hc:root{--bg:#fff;--bg2:#fff;--surface:#fff;--ink:#000;--mute:#1a1a1a;--line:#000;--acc:#0033aa;--accsoft:#e6ecff;--onacc:#fff}
+html.ug-hc .btn,html.ug-hc .chip,html.ug-hc .si,html.ug-hc .card{border-color:#000!important}
+@media (max-width:560px){.ug-fab{bottom:calc(76px + env(safe-area-inset-bottom,0px))}}
