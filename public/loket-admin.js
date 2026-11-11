@@ -14,7 +14,10 @@ function potong(u, n) { u = plain(u); return u.length > n ? u.slice(0, n) + "...
 function lokOf(id) { return LK.lokasi.filter(function (l) { return l.id === id; })[0]; }
 function loketDi(id) { return LK.loket.filter(function (e) { return e.lokasi === id; }); }
 function stat(id) { var L = loketDi(id), t = L.length, ok = L.filter(function (e) { return !kosong(e.uraian); }).length; return {t: t, ok: ok, p: t ? Math.round(ok * 100 / t) : 0}; }
-function statSy(id) { var r = {ada: 0, ver: 0, jenis: 0}; loketDi(id).forEach(function (e) { if (e.syarat && e.syarat.length) { r.ada++; if (e.syv) r.ver++; r.jenis += e.syarat.filter(function (x) { return /^#\s*/.test(x); }).length || 1; } }); return r; }
+function umur(e) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(e.syt || ""); return m ? Math.floor((Date.now() - Date.UTC(+m[1], +m[2] - 1, +m[3])) / 864e5) : (e.syv ? 9999 : -1); }
+function lawas(e) { return !!(e.syarat && e.syarat.length && e.syv && umur(e) > 180); }
+function tglId(s) { var d = new Date(String(s) + "T00:00:00"); return isNaN(d) ? "" : d.toLocaleDateString("id-ID", {day: "numeric", month: "short", year: "numeric"}); }
+function statSy(id) { var r = {ada: 0, ver: 0, jenis: 0, lawas: 0}; loketDi(id).forEach(function (e) { if (e.syarat && e.syarat.length) { r.ada++; if (e.syv) r.ver++; if (lawas(e)) r.lawas++; r.jenis += e.syarat.filter(function (x) { return /^#\s*/.test(x); }).length || 1; } }); return r; }
 function bar(p) { return '<div class="lk-bar" role="img" aria-label="' + p + ' persen terisi"><i style="width:' + p + '%"></i></div>'; }
 function pb(t, c) { return '<i class="pb" style="background:' + c + '">' + t + '</i> '; }
 function pv(v) { return window.fmtJawab ? fmtJawab(v) : "<p>" + esc(v) + "</p>"; }
@@ -24,7 +27,7 @@ async function refreshPublik() {
   try {
     var j = await api("/api/info");
     LOCS = j.lokasi.map(function (l) { return {id: l.id, nm: l.nama, ur: l.uraian || "", al: l.alamat || "", jam: l.jam || "", tl: l.telp || "", mp: l.maps || ""}; }); LD = {};
-    j.loket.forEach(function (r) { (LD[r[0]] = LD[r[0]] || []).push([r[1], r[2], r[3], r[4], r[5] || "", r[6] !== 0, r[7] !== 0, r[8] || "", r[9] || "", r[10] || [], r[11] ? 1 : 0]); });
+    j.loket.forEach(function (r) { (LD[r[0]] = LD[r[0]] || []).push([r[1], r[2], r[3], r[4], r[5] || "", r[6] !== 0, r[7] !== 0, r[8] || "", r[9] || "", r[10] || [], r[11] ? 1 : 0, r[12] || ""]); });
     for (var k in LD) LD[k].sort(function (a, b) { return a[0] - b[0]; });
     if (!LD[LOC] && LOCS.length) LOC = LOCS[0].id;
     if (window.lc) lc();
@@ -173,7 +176,7 @@ function formLoket(e) {
     '<label for="lf-n">Nama loket / instansi</label><input class="si" id="lf-n" maxlength="80" value="' + esc(e ? e.nama : "") + '">' +
     '<label for="lf-u">Uraian layanan <small class="sys" id="lf-c"></small></label>' + editorU("lf-u", e && !kosong(e.uraian) ? e.uraian : "", 2000, 8) +
     '<label>Persyaratan per jenis izin <small class="sys">(tiap loket bisa punya beberapa jenis izin, masing-masing dengan syarat sendiri)</small></label>' + syEditor(e && e.syarat) +
-    (e && e.syarat && e.syarat.length && !e.syv ? '<p class="sys">Isi awal bawaan aplikasi, <b>belum diverifikasi</b> loket. Periksa, ubah bila perlu, lalu Simpan: setelah itu tampil sebagai terverifikasi admin.</p>' : '<p class="sys">Tampil di Booking, Pendamping, dan Lembar Pengantar pemohon sesuai loket yang dituju. Maksimal 150 baris syarat per loket.</p>') +
+    (e && e.syarat && e.syarat.length && !e.syv ? '<p class="sys">Isi awal bawaan aplikasi, <b>belum diverifikasi</b> loket. Periksa, ubah bila perlu, lalu Simpan: setelah itu tampil sebagai terverifikasi admin.</p>' : '<p class="sys">' + (e && e.syv && e.syt ? 'Terakhir diverifikasi: <b>' + esc(tglId(e.syt)) + '</b>' + (lawas(e) ? ' (sudah lebih dari 6 bulan, mohon dicek ulang). ' : '. ') : '') + 'Tampil di Booking, Pendamping, dan Lembar Pengantar pemohon sesuai loket yang dituju. Maksimal 150 baris syarat per loket.</p>') +
     '<label for="lf-s">Sistem / cara layanan</label><input class="si" id="lf-s" maxlength="120" placeholder="mis. SSW / OSS atau Datang langsung" value="' + esc(e ? e.sistem : "") + '">' +
     '<div class="lk-2"><div><label for="lf-j">Jam layanan loket <small class="sys">(opsional)</small></label><input class="si" id="lf-j" maxlength="120" placeholder="mis. 08.00-14.00" value="' + esc(e ? e.jam || "" : "") + '"></div>' +
     '<div><label for="lf-z">Zona <small class="sys">(MPP, mis. Zona 2)</small></label><input class="si" id="lf-z" maxlength="20" value="' + esc(e ? e.zona || "" : "") + '"></div></div>' +
@@ -188,6 +191,7 @@ function daftarLoket() {
     if (FL === "diubah" && !e.diubah && e.asli) return false;
     if (FL === "sembunyi" && !e.sembunyi) return false;
     if (FL === "sybelum" && e.syarat && e.syarat.length) return false;
+    if (FL === "sylawas" && !lawas(e)) return false;
     if (FL === "syvbelum" && !(e.syarat && e.syarat.length && !e.syv)) return false;
     return !q || (e.nama + " " + e.uraian + " " + e.sistem + " " + (e.zona || "")).toLowerCase().indexOf(q) > -1;
   });
@@ -216,14 +220,14 @@ function viewImpor() {
 function viewLoket() {
   var L = daftarLoket(), s = stat(LL), sy = statSy(LL), kos = loketDi(LL).filter(function (e) { return kosong(e.uraian); }).length;
   return '<div class="hint" id="lk-lc" role="group" aria-label="Tempat pelayanan">' + LK.lokasi.map(function (l) { return '<button type="button" class="chip" data-lk="loc" data-l="' + esc(l.id) + '" aria-pressed="' + (l.id === LL) + '">' + esc(l.nama) + (l.sembunyi ? " (sembunyi)" : "") + '</button>'; }).join("") + '</div>' +
-    '<div class="card lk-sum"><div><b>' + esc((lokOf(LL) || {}).nama) + '</b><p class="sys" style="margin:2px 0 0">' + s.ok + ' dari ' + s.t + ' uraian terisi' + (kos ? ", " + kos + " belum" : " (lengkap)") + '</p><p class="sys" style="margin:2px 0 0">Persyaratan: ' + sy.ada + ' loket terisi (' + sy.jenis + ' jenis izin), ' + sy.ver + ' terverifikasi admin</p></div>' + bar(s.p) + '</div>' +
-    '<div class="hint" id="lk-fl" role="group" aria-label="Saring">' + [["semua", "Semua"], ["kosong", "Uraian belum diisi"], ["diubah", "Diubah admin"], ["sembunyi", "Disembunyikan"], ["sybelum", "Syarat belum diisi"], ["syvbelum", "Syarat belum diverifikasi"]].map(function (f) { return '<button type="button" class="chip" data-lk="fl" data-f="' + f[0] + '" aria-pressed="' + (FL === f[0]) + '">' + f[1] + '</button>'; }).join("") + '</div>' +
+    '<div class="card lk-sum"><div><b>' + esc((lokOf(LL) || {}).nama) + '</b><p class="sys" style="margin:2px 0 0">' + s.ok + ' dari ' + s.t + ' uraian terisi' + (kos ? ", " + kos + " belum" : " (lengkap)") + '</p><p class="sys" style="margin:2px 0 0">Persyaratan: ' + sy.ada + ' loket terisi (' + sy.jenis + ' jenis izin), ' + sy.ver + ' terverifikasi admin' + (sy.lawas ? ', <b>' + sy.lawas + ' perlu dicek ulang</b> (lebih dari 6 bulan)' : '') + '</p></div>' + bar(s.p) + '</div>' +
+    '<div class="hint" id="lk-fl" role="group" aria-label="Saring">' + [["semua", "Semua"], ["kosong", "Uraian belum diisi"], ["diubah", "Diubah admin"], ["sembunyi", "Disembunyikan"], ["sybelum", "Syarat belum diisi"], ["syvbelum", "Syarat belum diverifikasi"], ["sylawas", "Perlu dicek ulang (>6 bln)"]].map(function (f) { return '<button type="button" class="chip" data-lk="fl" data-f="' + f[0] + '" aria-pressed="' + (FL === f[0]) + '">' + f[1] + '</button>'; }).join("") + '</div>' +
     '<div class="hint"><input class="si" id="lk-q" type="search" placeholder="Cari loket atau isi uraian..." value="' + esc(LQ) + '" style="flex:1;min-width:160px"><button type="button" class="send" data-lk="new">+ Tambah loket</button><button type="button" class="btn" data-lk="impor">Isi massal uraian (Excel/CSV)</button><button type="button" class="btn" data-lk="impsy">Impor persyaratan (Excel/CSV)</button></div>' +
     (IM ? viewImpor() : "") + (ED === "new" ? formLoket(null) : "") +
     (L.length ? L.map(function (e) {
       return '<article class="card lkc' + (e.sembunyi ? " off" : "") + '" style="margin:0 0 8px"><b>' + e.no + '. ' + esc(e.nama) + '</b> ' + (e.sembunyi ? pb("Disembunyikan", "#64748b") : "") + (e.diubah ? pb("Diubah admin", "#d97706") : "") + (!e.asli ? pb("Baru", "#16a34a") : "") + (kosong(e.uraian) ? pb("Uraian kosong", "#dc2626") : "") +
         '<p class="sys" style="margin:4px 0">' + (kosong(e.uraian) ? '<i>Uraian belum diisi.</i>' : esc(potong(e.uraian, 180))) + '</p><small class="sys">Sistem: ' + esc(e.sistem || "-") + (e.zona ? " &middot; " + esc(e.zona) : "") + (e.jam ? " &middot; Jam: " + esc(e.jam) : "") + '</small>' +
-        '<div class="btns"><button type="button" class="btn" data-lk="edit" data-k="' + e.kunci + '">Ubah</button><button type="button" class="btn" data-lk="hide" data-k="' + e.kunci + '">' + (e.sembunyi ? "Tampilkan" : "Sembunyikan") + '</button>' + (e.asli && e.diubah ? '<button type="button" class="btn" data-lk="reset" data-k="' + e.kunci + '">Kembalikan bawaan</button>' : "") + '</div></article>' + (ED === e.kunci ? formLoket(e) : "");
+        '<div class="btns"><button type="button" class="btn" data-lk="edit" data-k="' + e.kunci + '">Ubah</button>' + (e.syarat && e.syarat.length && e.syv ? '<button type="button" class="btn" data-lk="sycek" data-k="' + e.kunci + '" title="Syarat masih berlaku, tidak ada perubahan">' + (lawas(e) ? '⚠ ' : '') + 'Tandai sudah dicek</button>' : '') + '<button type="button" class="btn" data-lk="hide" data-k="' + e.kunci + '">' + (e.sembunyi ? "Tampilkan" : "Sembunyikan") + '</button>' + (e.asli && e.diubah ? '<button type="button" class="btn" data-lk="reset" data-k="' + e.kunci + '">Kembalikan bawaan</button>' : "") + '</div></article>' + (ED === e.kunci ? formLoket(e) : "");
     }).join("") : '<div class="empty">' + (FL === "kosong" ? "Semua uraian di tempat ini sudah terisi." : "Tidak ada loket yang cocok.") + '</div>');
 }
 
@@ -383,6 +387,7 @@ window.aLk = async function (el) {
         refreshPublik(); toast("Loket tersimpan dan sudah tampil di beranda.");
       }
       else if (a === "hide") { BUSY = true; await api("/api/admin/loket/simpan", keLoket(e, {sembunyi: !e.sembunyi})); await load(el); refreshPublik(); toast(e.sembunyi ? "Loket ditampilkan." : "Loket disembunyikan."); }
+      else if (a === "sycek") { BUSY = true; await api("/api/admin/loket/simpan", keLoket(e, {syarat: e.syarat})); await load(el); refreshPublik(); toast("Persyaratan ditandai sudah dicek hari ini."); }
       else if (a === "reset") { if (!confirm("Kembalikan loket ini ke isi bawaan?")) return; BUSY = true; await api("/api/admin/loket/reset", {kunci: k}); await load(el); refreshPublik(); toast("Dikembalikan ke bawaan."); }
       /* isi massal */
       else if (a === "impor") { IM = "buka"; IMS = false; ED = null; draw(el); }

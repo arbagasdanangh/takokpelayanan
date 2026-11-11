@@ -274,7 +274,7 @@ LOKMETA = {}  # id -> {uraian, alamat, jam, telp, maps, sembunyi}
 BASE = {"%s_%s" % (e["lokasi"], e["no"]): dict(e) for e in SEED["loket"]}
 LOKET = {k: dict(v) for k, v in BASE.items()}
 _LX = {"t": 0.0, "raw": None, "rawl": None}
-LX_FIELD = ("nama", "uraian", "sistem", "zona", "diskusi", "sembunyi", "jam", "tautan", "syarat")
+LX_FIELD = ("nama", "uraian", "sistem", "zona", "diskusi", "sembunyi", "jam", "tautan", "syarat", "syt")
 
 
 def norm_syarat(v):
@@ -362,10 +362,12 @@ def refresh_loket(maks=10):
             new[k].update({f: o[f] for f in LX_FIELD if f in o})
         else:
             new[k] = {"lokasi": lok, "no": int(no), "nama": str(o.get("nama", ""))[:80], "uraian": str(o.get("uraian", ""))[:URAIAN_MAX], "sistem": str(o.get("sistem", ""))[:120],
-                      "zona": str(o.get("zona", ""))[:20], "diskusi": bool(o.get("diskusi", True)), "sembunyi": bool(o.get("sembunyi")), "baru": True}
+                      "zona": str(o.get("zona", ""))[:20], "diskusi": bool(o.get("diskusi", True)), "sembunyi": bool(o.get("sembunyi")), "baru": True,
+                      "syarat": o.get("syarat"), "syt": o.get("syt")}
         new[k]["jam"] = str(new[k].get("jam", "") or "")[:120]
         new[k]["tautan"] = aman_url(new[k].get("tautan"))
         new[k]["syarat"] = norm_syarat(new[k].get("syarat"))
+        new[k]["syt"] = re.sub(r"[^0-9-]", "", str(o.get("syt") or ""))[:10] if "syarat" in o else ""
         new[k]["syv"] = 1 if "syarat" in o else 0  # 1 = ditulis/dikonfirmasi admin; 0 = isi awal bawaan atau kosong
     LOKET.clear()
     LOKET.update(new)
@@ -1044,7 +1046,7 @@ class handler(BaseHTTPRequestHandler):
         kbv, kbm = db().pipe([["HGET", "kbli", "v"], ["HGET", "kbli", "m"]])
         kata = kata_baca()[0] if (not kv or self.q1("kata")) else []  # data lama / editor admin: sertakan; pengunjung biasa: ambil via /kata?v=
         self.json({"kata": kata, "kv": kv or "", "kata_max": KATA_MAX, "berita": bt, "balas_menit": balas, "mpp_roster": SKM_MPP, "kbv": kbv or "", "kbm": parse(kbm, {}) or {}, "lokasi": [lok_meta_publik(k) for k in LOKASI if not lok_sembunyi(k)],
-                   "loket": [[e["lokasi"], e["no"], e["nama"], e["uraian"], e["sistem"], e.get("zona", ""), 1 if e.get("diskusi", True) else 0, 1 if bisa_booking("%s_%s" % (e["lokasi"], e["no"])) else 0, e.get("jam", ""), e.get("tautan", ""), e.get("syarat", []), 1 if e.get("syv") else 0] for e in loket_urut()],
+                   "loket": [[e["lokasi"], e["no"], e["nama"], e["uraian"], e["sistem"], e.get("zona", ""), 1 if e.get("diskusi", True) else 0, 1 if bisa_booking("%s_%s" % (e["lokasi"], e["no"])) else 0, e.get("jam", ""), e.get("tautan", ""), e.get("syarat", []), 1 if e.get("syv") else 0, e.get("syt", "")] for e in loket_urut()],
                    "cfg": {k: c.get(k, "") for k in ("wa", "jam", "info", "kuota")}, "piket": piket_cfg()["mode"], "kanal": {"tg": re.sub(r"[^A-Za-z0-9_]", "", os.environ.get("TG_USER", ""))[:40], "wa": re.sub(r"\D", "", os.environ.get("WA_BOT_NUM", ""))[:15]}, "saya": who},
                   extra=self.refresh(ses) if ses and who else ())
 
@@ -1804,8 +1806,10 @@ class handler(BaseHTTPRequestHandler):
                  "jam": clean(b.get("jam", ""), 120), "tautan": aman_url(b.get("tautan"))}
             if "syarat" in b:
                 d["syarat"] = norm_syarat(b.get("syarat", []))
+                d["syt"] = time.strftime("%Y-%m-%d", wib())  # tanggal terakhir diverifikasi admin
             elif kunci and LOKET[kunci].get("syv"):  # tombol Sembunyikan/Tampilkan tidak mengirim syarat: jangan dihapus
                 d["syarat"] = LOKET[kunci].get("syarat", [])
+                d["syt"] = LOKET[kunci].get("syt", "")
             db().cmd("HSET", "loketx", kunci, json.dumps(d, ensure_ascii=False))
             _LX["t"] = 0.0
             refresh_loket(0)
@@ -1843,8 +1847,10 @@ class handler(BaseHTTPRequestHandler):
                      "sembunyi": bool(e.get("sembunyi")), "jam": e.get("jam", ""), "tautan": e.get("tautan", "")}
                 if e.get("syv"):  # jangan hilangkan persyaratan yang sudah dikonfirmasi admin
                     d["syarat"] = e.get("syarat", [])
+                    d["syt"] = e.get("syt", "")
                 if "syarat" in it:  # impor persyaratan: menggantikan seluruh syarat loket ini
                     d["syarat"] = norm_syarat(it["syarat"])
+                    d["syt"] = time.strftime("%Y-%m-%d", wib())
                 if "uraian" in it:
                     d["uraian"] = clean(it["uraian"], URAIAN_MAX)
                 if "sistem" in it and clean(it["sistem"], 120):

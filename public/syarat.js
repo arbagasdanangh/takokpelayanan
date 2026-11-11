@@ -18,6 +18,13 @@ function grup(k) {
   return G.filter(function (g) { return g.items.length; });
 }
 function ada(k) { return grup(k).length > 0; }
+function tglSy(k) { var e = ent(k); return (e && e[11]) || ""; }
+function umurSy(k) { var t = tglSy(k), m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(t); if (!m) return -1; return Math.floor((Date.now() - Date.UTC(+m[1], +m[2] - 1, +m[3])) / 864e5); }
+function labelV(k) {
+  if (!verif(k)) return "Panduan umum, belum diverifikasi loket. Pastikan ke loket sebelum berangkat.";
+  var u = umurSy(k), t = tglSy(k), tg = t ? new Date(t + "T00:00:00").toLocaleDateString("id-ID", {day: "numeric", month: "short", year: "numeric"}) : "";
+  return "✓ Terverifikasi admin loket" + (tg ? ", dicek " + tg : "") + (u > 180 ? ". Sudah lebih dari 6 bulan: pastikan lagi ke loket." : "");
+}
 function verif(k) { var e = ent(k); return !!(e && e[10]); }
 function ck() { try { return JSON.parse(localStorage.getItem("pk_sy") || "{}") || {}; } catch (x) { return {}; } }
 function simpan(o) { try { localStorage.setItem("pk_sy", JSON.stringify(o)); } catch (x) {} }
@@ -46,7 +53,7 @@ function html(k, o) {
       return '<label class="sy-i"><input type="checkbox" data-sy="ck:' + K + '" data-i="' + esc(gk(g, x)) + '"' + (c[gk(g, x)] ? " checked" : "") + '><span>' + esc(x) + '</span></label>';
     }).join("") + '</div>';
   };
-  return '<div class="sy" data-sy-k="' + K + '"><div class="sy-h"><small class="sy-v' + (verif(k) ? '' : ' sy-no') + '">' + (verif(k) ? "✓ Terverifikasi admin loket" : "Panduan umum, belum diverifikasi loket. Pastikan ke loket sebelum berangkat.") + '</small><small class="sy-n" data-sy-n="' + K + '">' + t.n + ' dari ' + t.m + ' siap</small></div>' +
+  return '<div class="sy" data-sy-k="' + K + '"><div class="sy-h"><small class="sy-v' + (verif(k) && umurSy(k) <= 180 ? '' : ' sy-no') + '">' + labelV(k) + '</small><small class="sy-n" data-sy-n="' + K + '">' + t.n + ' dari ' + t.m + ' siap</small></div>' +
     (G.length > 1 && !f.length ? '<div class="sy-tab" role="group" aria-label="Pilih jenis izin"><span class="sys">Pilih jenis izin:</span><button type="button" class="chip" aria-pressed="true" data-sy="tab:-1">Semua (' + G.length + ')</button>' + G.map(function (g, i) { return '<button type="button" class="chip" aria-pressed="false" data-sy="tab:' + i + '">' + esc(g.t || "Umum") + ' (' + g.items.length + ')</button>'; }).join("") + '</div>' : "") +
     utama.map(blok).join("") + (lain.length ? '<details class="sy-lain"><summary>Layanan lain di loket ini (' + lain.length + ')</summary>' + lain.map(blok).join("") + '</details>' : "") + '</div>';
 }
@@ -74,5 +81,5 @@ document.addEventListener("click", function (e) {
   var b = e.target.closest && e.target.closest('[data-sy^="tanya:"]'); if (!b) return;
   var k = b.dataset.sy.slice(6); if (window.BOTI && BOTI.closeB) { try { BOTI.closeB(); } catch (x) {} } if (window.openKey) openKey(k);
 });
-window.SY = {info: info, grup: grup, ada: ada, verif: verif, html: html, daftar: daftar, teks: teks, hitung: hitung};
+window.SY = {umur: umurSy, info: info, grup: grup, ada: ada, verif: verif, html: html, daftar: daftar, teks: teks, hitung: hitung};
 })();
