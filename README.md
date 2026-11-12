@@ -135,4 +135,5 @@ Melalui semangat *"Takonan Suroboyo"*, Takok Pelayanan menjadi sahabat digital y
 
 *Wes, gak perlu bingung maneh. Takok ae!*
 
+Sertifikat Inovboyo:
 https://brida.surabaya.go.id/inovboyov2/audisi/sertifikat/2026/TIM-152/8WBXC9397F/pdf
