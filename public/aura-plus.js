@@ -10,6 +10,8 @@ var LANG = ["Terjadwal", "Sudah tiba", "Dipanggil", "Selesai"], LL = ["Booking",
 
 /* ---------- 1. Kartu Saya ---------- */
 var KS = {d: null, t: 0, busy: false, ok: false};
+window.AuraKS = {tiket: function () { return KS.d; }, extra: null};
+function ex() { try { return window.AuraKS.extra ? window.AuraKS.extra() : ""; } catch (e) { return ""; } }
 function sisa(o) {
   var t = new Date(o.tanggal + "T" + o.jam + ":00+07:00").getTime(), m = Math.round((t - Date.now()) / 60000);
   if (isNaN(m)) return ""; if (m <= -60) return "Jam booking sudah lewat"; if (m <= 0) return "Sekarang"; if (m < 60) return m + " menit lagi";
@@ -18,6 +20,30 @@ function sisa(o) {
 function stp(st) {
   var i = Math.max(0, LANG.indexOf(st));
   return '<ol class="au-st" aria-label="Tahapan tiket">' + LL.map(function (l, n) { return '<li class="' + (n < i ? "ok" : n === i ? "now" : "") + '"><i>' + (n < i ? "&#10003;" : n + 1) + '</i><span>' + l + '</span></li>'; }).join("") + '</ol>';
+}
+var RK = "tk_ingat", RD = "tk_ingat_done";
+function ingat() { try { return localStorage.getItem(RK) || ""; } catch (e) { return ""; } }
+function mulaiWaktu(o) { return new Date(o.tanggal + "T" + o.jam + ":00+07:00").getTime(); }
+function ics(o) {
+  var p = function (n) { return String(n).padStart(2, "0"); }, t = new Date(mulaiWaktu(o)), e = new Date(t.getTime() + 30 * 6e4);
+  var f = function (d) { return d.getUTCFullYear() + p(d.getUTCMonth() + 1) + p(d.getUTCDate()) + "T" + p(d.getUTCHours()) + p(d.getUTCMinutes()) + "00Z"; };
+  var x = function (v) { return String(v).replace(/[\\,;]/g, function (m) { return "\\" + m; }).replace(/\n/g, " "); };
+  var lb = typeof label === "function" ? label(o.kunci) : (o.loket || "layanan");
+  var L = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Takok Pelayanan//ID", "CALSCALE:GREGORIAN", "BEGIN:VEVENT", "UID:" + x(o.kode) + "@takok", "DTSTAMP:" + f(new Date()), "DTSTART:" + f(t), "DTEND:" + f(e),
+    "SUMMARY:" + x("Kunjungan layanan: " + lb), "DESCRIPTION:" + x("Kode booking " + o.kode + ". Bawa KTP dan berkas asli."),
+    "BEGIN:VALARM", "TRIGGER:-P1D", "ACTION:DISPLAY", "DESCRIPTION:Besok ada kunjungan layanan", "END:VALARM", "BEGIN:VALARM", "TRIGGER:-PT1H", "ACTION:DISPLAY", "DESCRIPTION:Satu jam lagi kunjungan layanan", "END:VALARM", "END:VEVENT", "END:VCALENDAR"];
+  try { var u = URL.createObjectURL(new Blob([L.join("\r\n")], {type: "text/calendar;charset=utf-8"})), a = D.createElement("a"); a.href = u; a.download = "kunjungan-" + String(o.kode).replace(/[^A-Za-z0-9-]/g, "") + ".ics"; D.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(u); }, 4000); if (window.toast) toast("Berkas kalender diunduh. Buka untuk menambahkannya."); }
+  catch (z) { if (window.toast) toast("Perangkat ini tidak mengizinkan unduhan kalender."); }
+}
+function togelIngat(o) {
+  if (ingat() === o.kode) { try { localStorage.removeItem(RK); } catch (e) {} if (window.toast) toast("Pengingat dimatikan."); gambarKs(); return; }
+  var ok = function () { try { localStorage.setItem(RK, o.kode); localStorage.removeItem(RD); } catch (e) {} if (window.toast) toast("Pengingat aktif: 1 jam sebelum jadwal, selama Takok terbuka."); gambarKs(); };
+  try { if (window.Notification && Notification.permission === "default") { Notification.requestPermission().then(ok, ok); return; } } catch (e) {} ok();
+}
+function cekIngat() {
+  var k = ingat(); if (!k || !KS.d || KS.d.kode !== k) return; var m = (mulaiWaktu(KS.d) - Date.now()) / 60000, dn = ""; try { dn = localStorage.getItem(RD) || ""; } catch (e) {}
+  if (m <= 60 && m > -10 && dn !== k) { try { localStorage.setItem(RD, k); } catch (e) {} var b = "Jadwal " + KS.d.jam + " WIB" + (m > 1 ? ", sekitar " + Math.round(m) + " menit lagi" : ", sekarang") + ". Kode " + k + ".";
+    if (typeof notify === "function") notify("Pengingat kunjungan", b); else if (window.toast) toast("Pengingat kunjungan: " + b); }
 }
 function gambarKs() {
   var host = $("au-ks"), menu = D.querySelector("#v-cari .menu");
@@ -28,15 +54,17 @@ function gambarKs() {
       var b = e.target.closest("[data-ks]"); if (!b) return; var a = b.dataset.ks;
       if (a === "bk") { var t8 = $("t8"); if (t8) t8.click(); }
       else if (a === "bot") { var bf = $("bf"); if (bf) bf.click(); setTimeout(function () { if (window.BOTI && BOTI.ask) BOTI.ask("/tiket"); }, 200); }
+      else if (a === "ics") { if (KS.d) ics(KS.d); }
+      else if (a === "ing") { if (KS.d) togelIngat(KS.d); }
       else if (a === "jam") { var bf2 = $("bf"); if (bf2) bf2.click(); setTimeout(function () { if (window.BOTI && BOTI.ask) BOTI.ask("/berangkat"); }, 200); }
     };
   }
   var o = KS.d, nm = window.ME && ME.nama ? String(ME.nama).split(" ")[0] : "";
   if (!KS.ok) { host.innerHTML = '<div class="au-kh"><b>Kartu Saya</b></div><p class="au-kp">Memuat jadwal Anda&hellip;</p>'; return; }
-  if (!o) { host.innerHTML = '<div class="au-kh"><b>Kartu Saya</b><small>' + E(nm) + '</small></div><p class="au-kp">Belum ada kunjungan terjadwal. Pesan jam dulu supaya tidak antre lama.</p><div class="au-kb"><button type="button" class="send" data-ks="bk">Buat booking</button></div>'; return; }
+  if (!o) { host.innerHTML = '<div class="au-kh"><b>Kartu Saya</b><small>' + E(nm) + '</small></div><p class="au-kp">Belum ada kunjungan terjadwal. Pesan jam dulu supaya tidak antre lama.</p><div class="au-kb"><button type="button" class="send" data-ks="bk">Buat booking</button></div>' + ex(); return; }
   var lb = typeof label === "function" ? label(o.kunci) : (o.loket || ""), hi = typeof iso === "function" && o.tanggal === iso(wibDate(0));
   host.innerHTML = '<div class="au-kh"><b>Kunjungan berikutnya</b><span class="au-kc">' + E(o.kode) + '</span></div><div class="au-kt"><strong>' + E(sisa(o)) + '</strong><span>' + (hi ? "Hari ini" : E(o.tanggal)) + ' &middot; ' + E(o.jam) + ' WIB</span></div><p class="au-kp">' + E(lb) + '</p>' + stp(o.status) +
-    '<div class="au-kb"><button type="button" class="btn" data-ks="bot">Lihat tiket</button><button type="button" class="btn" data-ks="jam">Kapan berangkat?</button><button type="button" class="btn" data-ks="bk">Tambah booking</button></div>';
+    '<div class="au-kb"><button type="button" class="btn" data-ks="bot">Lihat tiket</button><button type="button" class="btn" data-ks="jam">Kapan berangkat?</button><button type="button" class="btn" data-ks="bk">Tambah booking</button></div><div class="au-kb"><button type="button" class="btn" data-ks="ics">Tambah ke kalender</button><button type="button" class="btn" data-ks="ing">' + (ingat() === o.kode ? "Pengingat aktif &#10003;" : "Ingatkan saya") + '</button></div><small class="sys">Pengingat berbunyi 1 jam sebelum jadwal selama Takok terbuka di perangkat ini.</small>' + ex();
 }
 function muatKs() {
   if (KS.busy || window.S !== "user" || D.hidden || Date.now() - KS.t < 90000 || typeof api !== "function") return; KS.busy = true;
@@ -97,5 +125,5 @@ function pasangKp() {
 }
 
 function jalan() { try { gambarKs(); muatKs(); pasangMic(); pasangKp(); } catch (e) {} }
-setInterval(jalan, 2000); setInterval(function () { if (window.S === "user" && KS.ok) gambarKs(); }, 30000); jalan();
+setInterval(jalan, 2000); setInterval(function () { if (window.S === "user" && KS.ok) { gambarKs(); cekIngat(); } }, 30000); jalan();
 })();

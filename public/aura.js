@@ -67,7 +67,7 @@ async function cmdTiket() {
       '<div class="ba">' + B.btn("Hitung jam berangkat", "q:/berangkat") + (window.SY && o.kunci && SY.ada(o.kunci) ? '<button type="button" data-v="sy:' + E(o.kunci) + '">Persyaratan</button>' : "") + '</div></div>';
   }).join(""));
 }
-var KAT = {
+var KAT0 = {
   usaha: ["Usaha dan izin", [["Bikin NIB", "mau bikin NIB"], ["Cari kode KBLI", "/kbli"], ["Izin usaha makanan", "izin usaha makanan"], ["Perpanjang izin parkir", "/izin perpanjang parkir"]]],
   duk: ["Kependudukan", [["KTP-el", "KTP elektronik"], ["Kartu Keluarga", "kartu keluarga"], ["Akta kelahiran", "akta kelahiran"], ["Pindah domisili", "pindah domisili"]]],
   bgn: ["Bangunan dan tanah", [["PBG rumah", "/izin pbg rumah"], ["Sertifikat laik fungsi", "sertifikat laik fungsi"], ["Izin reklame", "izin reklame"]]],
@@ -75,7 +75,9 @@ var KAT = {
   lantas: ["Kendaraan dan lalu lintas", [["SIM", "SIM"], ["Pajak kendaraan", "pajak kendaraan"], ["Dishub", "dishub"]]],
   hukum: ["Polisi dan hukum", [["SKCK", "SKCK"], ["Pengadilan", "pengadilan"], ["Pengaduan", "/pengaduan"]]]
 };
+function katAktif() { var d = window.DIN && DIN.mulai, o = {}, k; for (k in KAT0) o[k] = KAT0[k]; if (d && typeof d === "object") for (k in d) if (Array.isArray(d[k]) && d[k][1] && d[k][1].length) o[k] = d[k]; return o; }
 function cmdMulai(arg) {
+  var KAT = katAktif();
   var k = KAT[(arg || "").toLowerCase()];
   if (!k) return B.bot("Mau urus apa? Pilih bidangnya dulu, nanti saya tunjukkan pilihan layanannya.", '<div class="bch">' + Object.keys(KAT).map(function (x) { return B.btn(KAT[x][0], "q:/mulai " + x); }).join("") + '</div>');
   return B.bot(k[0] + ". Pilih yang paling dekat dengan kebutuhan Anda:", '<div class="bch">' + k[1].map(function (x) { return B.btn(x[0], "q:" + x[1]); }).join("") + B.btn("Bidang lain", "q:/mulai") + '</div>');
