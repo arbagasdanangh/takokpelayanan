@@ -481,3 +481,20 @@ Satu halaman berisi nama dan HP akun, keperluan singkat (opsional, NIK 16 digit 
 - **Pemeriksa pesan** (tidak memblokir pengiriman): cukup rinci, tanpa NIK 16 digit/OTP/PIN/kata sandi, tidak huruf kapital semua, permintaan jelas. Chip "Arti istilah" muncul bila pesan memuat istilah di kamus.
 - **Draf otomatis**: tulisan di kolom Tanya Admin tersimpan di perangkat (`tk_draf_*`), dipulihkan saat dibuka lagi, dihapus saat terkirim, lewat tombol "Hapus draf", dan otomatis saat keluar akun.
 - Perintah `/arti` ditambahkan ke menu `/` di `bot-pro.js`. Tanpa perubahan API/server. Diuji di Chromium dengan halaman tiruan; belum diuji dengan data produksi.
+
+### Versi 52 (penunjang): `public/penunjang.js` dan tambahan `aura-plus.js`
+- **Yang baru**: jendela sekali tampil setelah pembaruan (kunci `tk_baru` = 52), isi berbeda untuk warga dan admin, dengan tombol Coba (Aa, /arti, Arena Zona). Bisa dibuka lagi lewat tautan "Yang baru" di kaki halaman atau perintah `/baru`. Saat versi berikutnya dirilis, ubah `VER` dan daftar `WARGA`/`ADM` di file tersebut.
+- **Cek perangkat** (di dalam jendela Yang baru): koneksi, dukungan suara, izin notifikasi, penyimpanan, ukuran layar, untuk membantu pemecahan masalah.
+- **Banner koneksi**: pita merah saat perangkat offline, hijau singkat saat tersambung kembali.
+- **Kartu Saya**: tombol **Tambah ke kalender** (unduh `.ics`, jam WIB dikonversi ke UTC, alarm H-1 dan 1 jam sebelumnya) dan **Ingatkan saya** (notifikasi 1 jam sebelum jadwal; bekerja selama Takok terbuka di perangkat, bukan notifikasi dorong dari server). Kunci `tk_ingat`, `tk_ingat_done`.
+- Perintah `/baru` ditambahkan ke menu `/` di `bot-pro.js`. Tanpa perubahan API/server. Diuji di Chromium dengan halaman tiruan, termasuk isi berkas `.ics`; belum diuji dengan data produksi.
+
+### Versi 52 (dinamis): isi bisa diatur superadmin, tanpa menyentuh kode
+- **Server (`api/app.py`, satu-satunya perubahan server di v52)**: kunci `dinamis` di hash `cfg` (Redis yang sudah ada, tanpa tabel baru). Rute admin `POST /api/admin/dinamis` (body `{d: {...}}`), hanya superadmin (masuk `ADM_SUPER`). Fungsi `dinamis_bersih()` membersihkan dan membatasi isi: kamus maks. 60, kerangka 8, saran 8, bidang /mulai 8 x 8, Yang baru 10 + 10, total maks. 30 KB. Data ikut dikirim di `/api/init` sebagai `dinamis`, disimpan klien di `window.DIN` (baris init di `app.js`).
+- **Editor "Atur dinamis"** (tombol di bar admin, `public/dinamis.js`): pengumuman (teks, jenis info/penting, tampil sampai tanggal), kamus istilah tambahan, kerangka pertanyaan, saran cepat Asisten, bidang `/mulai`, versi dan isi "Yang baru" untuk warga dan admin. Format satu baris per butir dengan pemisah `|`; kolom kosong = kembali ke bawaan. Istilah/bidang berkunci sama menimpa bawaan.
+- **Pengumuman**: banner di atas halaman untuk semua pengguna, bisa ditutup (kembali muncul bila teks diubah), otomatis hilang setelah tanggal batas.
+- **Status layanan langsung** di Kartu Saya: buka/tutup dengan hitung mundur (jadwal umum Senin-Jumat 08.00-14.00 WIB; belum memperhitungkan hari libur, gunakan Pengumuman untuk itu).
+- **Saran Cerdas** `/saran` di Asisten: menyesuaikan jam buka/tutup, tiket aktif, status masuk, ditambah saran buatan admin.
+- **Tanya Admin**: meter Kelengkapan pesan (persen dari pemeriksaan) dan tombol **Sertakan tiket saya** (menyisipkan kode dan jadwal tiket aktif).
+- Modul lama kini membaca `window.DIN`: kamus dan kerangka (`tanya-pintar.js`), bidang `/mulai` (`aura.js`), Yang baru (`penunjang.js`).
+- Diuji: pembersih server diuji terpisah (pemotongan, kunci, tanggal tak valid); alur klien diuji di Chromium HP dengan API tiruan. Belum diuji dengan Redis dan akun superadmin sungguhan: coba simpan satu pengumuman setelah deploy.
