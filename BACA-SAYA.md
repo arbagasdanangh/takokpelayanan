@@ -457,3 +457,13 @@ Satu halaman berisi nama dan HP akun, keperluan singkat (opsional, NIK 16 digit 
   - **Mode Padat** (tombol di bar atas): daftar kotak masuk lebih rapat untuk antrean pesan banyak.
 - `keren.js` (lembar pintasan admin diperbarui), `index.html` (`?v=51`). Tanpa perubahan API/server.
 - Diuji di Chromium dengan API tiruan; belum diuji dengan data produksi.
+
+## Pembaruan versi 52 (Aura)
+- **Panel Kenyamanan** (tombol **Aa** di bilah atas, untuk warga dan admin): ukuran huruf Normal/Besar/Sangat besar, kontras tinggi, kurangi gerakan, teks lega. Tersimpan di perangkat. Fokus keyboard kini bercincin kuning di semua tombol.
+- **Asisten Takok**: `/tiket` menampilkan kartu tiket dengan tahapan Booking, Tiba, Dipanggil, Selesai beserta saran langkah berikutnya; `/mulai` memandu memilih layanan lewat 6 bidang (usaha, kependudukan, bangunan, kesehatan, kendaraan, hukum) lalu menjalankan pencarian.
+- **Takok Admin**: tombol **Fokus sekarang** di bar atas membuka 6 percakapan paling mendesak (berdasarkan skor prioritas dan lama menunggu); satu klik membuka percakapannya di Kotak masuk.
+- Poles tampilan: ubin menu terangkat saat disentuh, kartu chat lebih lembut.
+- **Arena Zona** (game ke-13 di Ruang Main, `public/arena.js`): gim ala MOBA tampak atas. Cak Takok memimpin Petugas Loket merebut tiga **Menara Zona** (Zona 2, 3, 4); setelah dua menara musuh jatuh, **Antrean Raksasa** (Nexus) bisa diserang. Joystick geser di layar, serangan otomatis, 3 skill (Stempel Kilat, Tameng Syarat, Jalur Cepat), toko item (Berkas Sakti, Sepatu Kilat, Zirah Stempel), level 1-8, minimap, Si Ruwet (AI musuh) yang mundur saat sekarat, dua tingkat kesulitan (Santai, Tantangan), batas 6 menit. Lencana baru **Penguasa Zona**, tantangan harian "Hancurkan 1 menara". Keyboard: WASD, 1-2-3 skill, 4-5-6 item. Perintah chat `/arena`.
+- **Admin**: tombol **Layar penuh** di bar atas (untuk dipajang di monitor pantau).
+- File baru: `public/aura.js`, `public/aura.css`, `public/arena.js`; diubah: `public/index.html` (`?v=52`), `public/bot-pro.js` (menu `/`), `public/main.js` (kartu game, lencana, tantangan), `api/app.py` (daftar game "arena" untuk hitungan permainan, satu kata).
+- Diuji: logika game disimulasikan tanpa tampilan (menang, kalah, kesulitan) dan dimainkan di Chromium HP 390 px tanpa galat JS. Belum diuji dengan data produksi atau perangkat sentuh sungguhan.
