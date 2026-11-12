@@ -101,7 +101,7 @@ ADM_MAX = 200
 # Rute admin yang hanya boleh dipakai superuser: pengaturan global, isi chatbot, editor loket, kanal, data seluruh instansi, dan akun.
 ADM_SUPER = frozenset([
     "akun", "akun/simpan", "akun/hapus", "keamanan", "bj/tandai",
-    "pengaturan", "kanal", "kanal/uji", "piket",
+    "pengaturan", "dinamis", "kanal", "kanal/uji", "piket",
     "loket", "loket/simpan", "loket/massal", "loket/reset", "loket/hapus", "lokasi/hapus", "lokasi/simpan", "lokasi/urutan", "lokasi/reset",
     "berita", "berita/hapus",
     "kata", "kata.xlsx", "kata-templat.xlsx", "kata/impor", "kstat", "kstat/reset", "miss", "miss/hapus",
@@ -454,6 +454,43 @@ def bj_status(pid):
 
 def cfg_all():
     return hall(db().cmd("HGETALL", "cfg"))
+
+
+def dinamis_bersih(d):
+    """Isi dinamis yang diatur superadmin (kamus, kerangka pertanyaan, saran, bidang /mulai, Yang baru, pengumuman). Semua dibersihkan dan dibatasi ukurannya."""
+    if not isinstance(d, dict):
+        return {}
+
+    def tx(v, n):
+        return clean(v, n) if isinstance(v, (str, int, float)) else ""
+
+    def baris(v, maks, lebar):
+        out = []
+        for r in (v if isinstance(v, list) else [])[:maks]:
+            if isinstance(r, (list, tuple)) and r:
+                t = [tx(x, lebar[i]) for i, x in enumerate(list(r)[:len(lebar)])]
+                t += [""] * (len(lebar) - len(t))
+                if t[0]:
+                    out.append(t)
+        return out
+    o = {"kamus": baris(d.get("kamus"), 60, [24, 60, 300, 100]), "kerangka": baris(d.get("kerangka"), 8, [24, 300]), "saran": baris(d.get("saran"), 8, [40, 120])}
+    mu = {}
+    src = d.get("mulai") if isinstance(d.get("mulai"), dict) else {}
+    for k, v in list(src.items())[:8]:
+        kk = re.sub(r"[^a-z0-9]", "", str(k).lower())[:12]
+        if kk and isinstance(v, (list, tuple)) and len(v) == 2:
+            it = baris(v[1], 8, [30, 100])
+            if tx(v[0], 40) and it:
+                mu[kk] = [tx(v[0], 40), it]
+    o["mulai"] = mu
+    bb = d.get("baru") if isinstance(d.get("baru"), dict) else {}
+    o["baru"] = {"v": tx(bb.get("v", ""), 12), "warga": baris(bb.get("warga"), 10, [50, 200]), "admin": baris(bb.get("admin"), 10, [50, 200])}
+    pg = d.get("pengumuman") if isinstance(d.get("pengumuman"), dict) else {}
+    sd = tx(pg.get("sampai", ""), 10)
+    o["pengumuman"] = {"teks": tx(pg.get("teks", ""), 240), "tipe": "penting" if pg.get("tipe") == "penting" else "info", "sampai": sd if re.match(r"^\d{4}-\d{2}-\d{2}$", sd) else ""}
+    if len(json.dumps(o, ensure_ascii=False)) > 30000:
+        raise HttpError(400, "Isi dinamis terlalu besar. Kurangi jumlah baris.")
+    return o
 
 
 def parse(s, d=None):
@@ -1093,7 +1130,7 @@ class handler(BaseHTTPRequestHandler):
         kata = kata_baca()[0] if (not kv or self.q1("kata")) else []  # data lama / editor admin: sertakan; pengunjung biasa: ambil via /kata?v=
         self.json({"kata": kata, "kv": kv or "", "kata_max": KATA_MAX, "berita": bt, "balas_menit": balas, "mpp_roster": SKM_MPP, "kbv": kbv or "", "kbm": parse(kbm, {}) or {}, "lokasi": [lok_meta_publik(k) for k in LOKASI if not lok_sembunyi(k)],
                    "loket": [[e["lokasi"], e["no"], e["nama"], e["uraian"], e["sistem"], e.get("zona", ""), 1 if e.get("diskusi", True) else 0, 1 if bisa_booking("%s_%s" % (e["lokasi"], e["no"])) else 0, e.get("jam", ""), e.get("tautan", ""), e.get("syarat", []), 1 if e.get("syv") else 0, e.get("syt", "")] for e in loket_urut()],
-                   "cfg": {k: c.get(k, "") for k in ("wa", "jam", "info", "kuota")}, "piket": piket_cfg()["mode"], "kanal": {"tg": re.sub(r"[^A-Za-z0-9_]", "", os.environ.get("TG_USER", ""))[:40], "wa": re.sub(r"\D", "", os.environ.get("WA_BOT_NUM", ""))[:15]}, "saya": who},
+                   "cfg": {k: c.get(k, "") for k in ("wa", "jam", "info", "kuota")}, "dinamis": parse(c.get("dinamis"), {}) or {}, "piket": piket_cfg()["mode"], "kanal": {"tg": re.sub(r"[^A-Za-z0-9_]", "", os.environ.get("TG_USER", ""))[:40], "wa": re.sub(r"\D", "", os.environ.get("WA_BOT_NUM", ""))[:15]}, "saya": who},
                   extra=self.refresh(ses) if ses and who else ())
 
     def daftar(self, b):
@@ -2296,6 +2333,10 @@ class handler(BaseHTTPRequestHandler):
                 cmds.append(["HSET", "cfg", "piket_info", clean(b.get("piket_info", ""), 200)])
             db().pipe(cmds)
             return self.json({"ok": True, "piket": piket_cfg()}, extra=ex)
+        if r == "dinamis":
+            d = dinamis_bersih(b.get("d"))
+            db().cmd("HSET", "cfg", "dinamis", json.dumps(d, ensure_ascii=False))
+            return self.json({"ok": True, "d": d}, extra=ex)
         if r == "kanal":
             env, hari = os.environ, time.strftime("%Y%m%d", wib())
             n = hall(db().cmd("HGETALL", "kn:n"))

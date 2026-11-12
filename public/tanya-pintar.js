@@ -9,7 +9,7 @@ var D = document, $ = function (i) { return D.getElementById(i); };
 var E = function (s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return {"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]; }); };
 
 /* ---------- Kamus Istilah ---------- */
-var K = [
+var K0 = [
   ["NIB", "Nomor Induk Berusaha", "Nomor identitas pelaku usaha yang diterbitkan lewat sistem OSS. Biasanya ini langkah pertama sebelum mengurus izin usaha lainnya.", "mau bikin NIB"],
   ["OSS", "Online Single Submission", "Sistem elektronik terintegrasi untuk perizinan berusaha. Pendaftaran NIB dan banyak izin usaha dilakukan lewat sistem ini.", "mau bikin NIB"],
   ["KBLI", "Klasifikasi Baku Lapangan Usaha Indonesia", "Daftar kode kegiatan usaha. Kode ini dipilih saat mendaftar NIB agar jenis usaha Anda tercatat dengan benar.", "/kbli"],
@@ -36,13 +36,23 @@ var K = [
   ["PIRT", "Pangan Industri Rumah Tangga", "Izin edar bagi makanan atau minuman olahan yang diproduksi di rumah.", "izin usaha makanan"],
   ["OTP", "One Time Password", "Kode sekali pakai yang dikirim ke ponsel Anda. Jangan pernah dibagikan kepada siapa pun, termasuk petugas.", ""]
 ];
-var KM = {}; K.forEach(function (x) { KM[x[0].replace(/[^A-Z]/gi, "").toUpperCase()] = x; });
+var K = K0.slice(), KM = {}, SIG = "";
+function nk(x) { return String(x).replace(/[^A-Z]/gi, "").toUpperCase(); }
+function sinkron() {
+  var D0 = window.DIN || {}, sg = JSON.stringify([D0.kamus, D0.kerangka]); if (sg === SIG && K.length) return; SIG = sg;
+  var map = {}, out = []; K0.forEach(function (x) { map[nk(x[0])] = x; });
+  (Array.isArray(D0.kamus) ? D0.kamus : []).forEach(function (r) { if (r && r[0]) map[nk(r[0])] = [r[0], r[1] || "", r[2] || "", r[3] || ""]; });
+  Object.keys(map).forEach(function (k) { out.push(map[k]); }); K = out; KM = {}; K.forEach(function (x) { KM[nk(x[0])] = x; });
+  KER = Array.isArray(D0.kerangka) && D0.kerangka.length ? D0.kerangka : KER0;
+}
 function cari(t) {
+  sinkron();
   var s = String(t || "").toUpperCase().replace(/[^A-Z0-9 ]/g, " ").replace(/\s+/g, " ").trim(); if (!s) return null;
   var w = s.split(" "), i; for (i = 0; i < w.length; i++) if (KM[w[i]]) return KM[w[i]]; var j = s.replace(/ /g, ""); if (KM[j]) return KM[j];
   for (i = 0; i < K.length; i++) if (K[i][1].toUpperCase().indexOf(s) > -1) return K[i]; return null;
 }
 function temukan(t) {
+  sinkron();
   var out = [], s = " " + String(t || "").toUpperCase().replace(/[^A-Z0-9-]/g, " ") + " ";
   K.forEach(function (x) { if (s.indexOf(" " + x[0].toUpperCase() + " ") > -1 || s.indexOf(" " + x[0].replace(/[^A-Z]/gi, "").toUpperCase() + " ") > -1) out.push(x); }); return out.slice(0, 4);
 }
@@ -51,6 +61,7 @@ function kartu(x) {
   return '<div class="bc2"><b>' + E(x[0]) + '</b> <span class="btag">' + E(x[1]) + '</span><p>' + E(x[2]) + '</p>' + (x[3] ? '<div class="ba">' + B.btn("Cari layanan terkait", "q:" + x[3]) + '</div>' : "") + '</div>';
 }
 function cmdArti(arg) {
+  sinkron();
   var B = window.BOTI, x = cari(arg);
   if (x) return B.bot("Arti istilah " + x[0] + ":", kartu(x) + '<div class="bch">' + B.btn("Istilah lain", "q:/arti") + '</div>');
   return B.bot(arg ? "Saya belum punya istilah \"" + arg + "\". Pilih dari daftar ini:" : "Istilah apa yang ingin dijelaskan? Pilih atau ketik, mis. /arti NIB.",
@@ -68,7 +79,8 @@ function pasangBot() {
 
 /* ---------- Tanya Admin: penyusun, pemeriksa, draf ---------- */
 var DK = "tk_draf_", PUR = false;
-var KER = [["Syarat", "Saya ingin mengurus ... (sebutkan layanan). Mohon info syarat dan berkas yang perlu dibawa."], ["Biaya dan lama", "Mohon info biaya dan lama proses untuk mengurus ... (sebutkan layanan)."], ["Status berkas", "Saya sudah mengajukan ... pada tanggal ... (nomor permohonan atau tiket: ...). Mohon info statusnya."], ["Kendala", "Saya mengalami kendala saat mengurus ... Kendalanya: ..."], ["Jadwal", "Saya ingin menanyakan jadwal dan kuota kunjungan untuk ... sekitar tanggal ..."]];
+var KER0 = [["Syarat", "Saya ingin mengurus ... (sebutkan layanan). Mohon info syarat dan berkas yang perlu dibawa."], ["Biaya dan lama", "Mohon info biaya dan lama proses untuk mengurus ... (sebutkan layanan)."], ["Status berkas", "Saya sudah mengajukan ... pada tanggal ... (nomor permohonan atau tiket: ...). Mohon info statusnya."], ["Kendala", "Saya mengalami kendala saat mengurus ... Kendalanya: ..."], ["Jadwal", "Saya ingin menanyakan jadwal dan kuota kunjungan untuk ... sekitar tanggal ..."]], KER = KER0;
+sinkron();
 function cek(t) {
   var r = [], p = t.trim();
   r.push([p.length >= 25, "Cukup rinci", "Tambahkan detail: layanan apa yang diurus?"]);
@@ -79,14 +91,19 @@ function cek(t) {
   return r;
 }
 function sisip(ta) { var b = ta.parentNode.querySelector(".tpi"); if (!b) { b = D.createElement("div"); b.className = "tpi"; ta.insertAdjacentElement("afterend", b); } return b; }
+function tiketChip(ta) {
+  var o = window.AuraKS && AuraKS.tiket && AuraKS.tiket(); if (!o || ta.value.indexOf(o.kode) > -1) return "";
+  return '<button type="button" class="chip" data-tpi="tk">Sertakan tiket saya</button>';
+}
 function gambar(ta) {
+  sinkron();
   var b = sisip(ta), t = ta.value, dm = ta.dataset.tpiDr === "1";
   if (!t.trim()) {
-    b.innerHTML = (dm ? "" : "") + '<small class="sys">Bingung mulai dari mana? Pilih kerangka lalu lengkapi:</small><div class="tpi-k">' + KER.map(function (k, i) { return '<button type="button" class="chip" data-tpi="k" data-i="' + i + '">' + k[0] + '</button>'; }).join("") + '</div>'; return;
+    b.innerHTML = (dm ? "" : "") + '<small class="sys">Bingung mulai dari mana? Pilih kerangka lalu lengkapi:</small><div class="tpi-k">' + KER.map(function (k, i) { return '<button type="button" class="chip" data-tpi="k" data-i="' + i + '">' + E(k[0]) + '</button>'; }).join("") + tiketChip(ta) + '</div>'; return;
   }
-  var r = cek(t), ist = temukan(t), open = ta.dataset.tpiAr || "";
+  var r = cek(t), ist = temukan(t), open = ta.dataset.tpiAr || "", np = Math.round(r.filter(function (x) { return x[0]; }).length / r.length * 100), tc = tiketChip(ta);
   b.innerHTML = (dm ? '<div class="tpi-d">Draf sebelumnya dipulihkan. <button type="button" data-tpi="hd">Hapus draf</button></div>' : "") +
-    '<ul class="tpi-c">' + r.map(function (x) { return '<li class="' + (x[0] ? "ok" : "no") + '"><i aria-hidden="true">' + (x[0] ? "&#10003;" : "!") + '</i>' + E(x[0] ? x[1] : x[2]) + '</li>'; }).join("") + '</ul>' +
+    '<div class="tpi-m" role="progressbar" aria-label="Kelengkapan pesan" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + np + '"><i style="width:' + np + '%" class="' + (np >= 75 ? "hi" : "") + '"></i></div><small class="sys">Kelengkapan pesan ' + np + '%</small>' + (tc ? '<div class="tpi-k">' + tc + '</div>' : "") + '<ul class="tpi-c">' + r.map(function (x) { return '<li class="' + (x[0] ? "ok" : "no") + '"><i aria-hidden="true">' + (x[0] ? "&#10003;" : "!") + '</i>' + E(x[0] ? x[1] : x[2]) + '</li>'; }).join("") + '</ul>' +
     (ist.length ? '<div class="tpi-k"><small class="sys">Arti istilah:</small>' + ist.map(function (x) { return '<button type="button" class="chip' + (open === x[0] ? " on" : "") + '" data-tpi="a" data-t="' + E(x[0]) + '">' + E(x[0]) + '</button>'; }).join("") + '</div>' + (open && KM[open.replace(/[^A-Z]/gi, "").toUpperCase()] ? '<div class="tpi-a"><b>' + E(KM[open.replace(/[^A-Z]/gi, "").toUpperCase()][1]) + '</b>: ' + E(KM[open.replace(/[^A-Z]/gi, "").toUpperCase()][2]) + '</div>' : "") : "");
 }
 function simpan(ta) { try { var k = DK + (ta.dataset.k || ""), v = ta.value; if (v.trim().length > 3) { localStorage.setItem(k, v); PUR = true; } else localStorage.removeItem(k); } catch (e) {} }
@@ -106,6 +123,7 @@ D.addEventListener("click", function (e) {
   if (x.dataset.act === "send") { setTimeout(function () { [].forEach.call(D.querySelectorAll('textarea[data-k^="q:"]'), function (ta) { if (!ta.value.trim()) { try { localStorage.removeItem(DK + (ta.dataset.k || "")); } catch (z) {} gambar(ta); } }); }, 1500); return; }
   var qf = x.closest(".qf") || x.parentNode, ta = qf.querySelector("textarea") || x.closest(".qf").querySelector("textarea"), a = x.dataset.tpi; if (!ta) return;
   if (a === "k") { var t = KER[+x.dataset.i][1], p = t.indexOf("..."); ta.value = t; ta.focus(); if (p > -1) ta.setSelectionRange(p, p + 3); ta.dispatchEvent(new Event("input", {bubbles: true})); }
+  else if (a === "tk") { var o = window.AuraKS && AuraKS.tiket && AuraKS.tiket(); if (o) { ta.value = (ta.value.trim() ? ta.value.replace(/\s+$/, "") + "\n" : "") + "(Tiket " + o.kode + ", " + o.tanggal + " " + o.jam + " WIB)"; ta.focus(); ta.dispatchEvent(new Event("input", {bubbles: true})); } }
   else if (a === "a") { ta.dataset.tpiAr = ta.dataset.tpiAr === x.dataset.t ? "" : x.dataset.t; gambar(ta); }
   else if (a === "hd") { ta.value = ""; ta.dataset.tpiDr = ""; try { localStorage.removeItem(DK + (ta.dataset.k || "")); } catch (z) {} ta.dispatchEvent(new Event("input", {bubbles: true})); gambar(ta); }
 });
