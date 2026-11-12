@@ -14,7 +14,7 @@ var $b = function (i) { return D.getElementById(i); };
 var E = function (s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return {"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]; }); };
 var RM = !!(window.matchMedia && matchMedia("(prefers-reduced-motion:reduce)").matches);
 var CTX = {k: null}, HIST = [], HI = -1, LASTQ = "";
-var CMD = [["/bantuan", "Lihat semua yang bisa saya lakukan"], ["/izin", "Cari izin atau layanan, mis. /izin perpanjang parkir"], ["/kbli", "Cari kode KBLI, mis. /kbli warung kopi"], ["/ringkas", "Ringkas percakapan untuk dikirim ke admin"], ["/tanya", "Tanya loket langsung dari sini"], ["/status", "Status permohonan saya"], ["/antre", "Tiket dan antrean saya"], ["/booking", "Booking kunjungan"], ["/pengaduan", "Buat pengaduan"], ["/bersih", "Bersihkan percakapan"], ["/unduh", "Unduh percakapan (.txt)"]];
+var CMD = [["/bantuan", "Lihat semua yang bisa saya lakukan"], ["/izin", "Cari izin atau layanan, mis. /izin perpanjang parkir"], ["/kbli", "Cari kode KBLI, mis. /kbli warung kopi"], ["/ringkas", "Ringkas percakapan untuk dikirim ke admin"], ["/tanya", "Tanya loket langsung dari sini"], ["/status", "Status permohonan saya"], ["/antre", "Tiket dan antrean saya"], ["/booking", "Booking kunjungan"], ["/pengaduan", "Buat pengaduan"], ["/bersih", "Bersihkan percakapan"], ["/unduh", "Unduh percakapan (.txt)"], ["/jam", "Jam booking dan status sekarang"], ["/berangkat", "Hitung jam berangkat ke kunjungan Anda, mis. /berangkat 45"], ["/main", "Buka Ruang Main"], ["/rush", "Langsung ke Suroboyo Rush"], ["/warna", "Ganti warna tampilan, mis. /warna hijau"], ["/tema", "Ganti tema terang atau gelap"], ["/pantun", "Pantun layanan publik dari Cak Takok"], ["/catatan", "Catatan jawaban yang Anda simpan"], ["/siapkan", "Persiapan untuk kunjungan terdekat"], ["/panduan", "Panduan kunjungan 5 langkah"]];
 var PERINTAH = {"/status": "status permohonan saya", "/antre": "tiket saya", "/booking": "booking kunjungan", "/pengaduan": "buat pengaduan"};
 
 /* ---------- data loket yang sedang dibahas ---------- */
@@ -218,7 +218,7 @@ function slTampil() {
   if (SLI >= l.length) SLI = 0;
   box.innerHTML = l.map(function (c, n) { return '<li role="option" data-c="' + E(c[0]) + '"' + (n === SLI ? ' class="on" aria-selected="true"' : "") + '><b>' + E(c[0]) + '</b><small>' + E(c[1]) + '</small></li>'; }).join(""); box.hidden = false;
 }
-function slPilih(c) { var i = $b("bi"), perlu = /izin|kbli/.test(c); i.value = c + (perlu ? " " : ""); $b("bsl").hidden = true; SLI = -1; i.focus(); if (!perlu) $b("b-s").click(); }
+function slPilih(c) { var i = $b("bi"), perlu = /izin|kbli|berangkat|warna/.test(c); i.value = c + (perlu ? " " : ""); $b("bsl").hidden = true; SLI = -1; i.focus(); if (!perlu) $b("b-s").click(); }
 
 /* ---------- tampilan: menu ⋯ dan mode lebar ---------- */
 function bangun() {

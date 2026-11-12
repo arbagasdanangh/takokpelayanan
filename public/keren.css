@@ -21,9 +21,9 @@ body.adm-on .kr-prog,body.adm-on .kr-up,body.adm-on .kr-tick{display:none}
 .kr-live.off i{background:#ffb800;animation:none}
 .kr-live b{font-variant-numeric:tabular-nums;font-weight:800;font-size:.98rem;letter-spacing:.02em}
 .kr-live em{font-style:normal;opacity:.75;font-size:.72rem;font-weight:700}
-.kr-live span{padding-left:8px;border-left:1px solid rgba(255,255,255,.28);opacity:.95}
+
 @keyframes krp{70%{box-shadow:0 0 0 9px rgba(88,224,139,0)}100%{box-shadow:0 0 0 0 rgba(88,224,139,0)}}
-@media (max-width:560px){.kr-live{max-width:100%;flex-wrap:wrap}.kr-live span{border-left:0;padding-left:0;flex-basis:100%}}
+@media (max-width:560px){.kr-live{max-width:100%;flex-wrap:wrap}}
 
 /* ---------- Pita info berjalan ---------- */
 .kr-tick{overflow:hidden;margin:0 0 16px;border:1px solid var(--line);border-radius:99px;background:var(--surface);box-shadow:var(--shadow);position:relative;-webkit-mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent);mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent)}

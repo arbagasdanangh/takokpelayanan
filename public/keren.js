@@ -35,11 +35,11 @@ window.addEventListener("scroll", onScroll, {passive: true}); window.addEventLis
 var hero = $(".hero");
 if (hero && window.Intl) {
   var live = D.createElement("div"); live.className = "kr-live"; live.setAttribute("role", "status");
-  live.innerHTML = '<i aria-hidden="true"></i><b id="kr-clk">--.--.--</b><em>WIB</em><span id="kr-st"></span>';
+  live.innerHTML = '<i aria-hidden="true"></i><b id="kr-clk">--.--.--</b><em>WIB</em>';
   var hb = $("#hb", hero) || $(".heroask", hero), anchor = $(".tag2", hero);
   if (hb && hb.parentNode) hb.parentNode.insertBefore(live, hb.nextSibling); else if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(live, anchor.nextSibling); else hero.appendChild(live);
   var fmt = new Intl.DateTimeFormat("en-GB", {timeZone: "Asia/Jakarta", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false, weekday: "short"});
-  var clk = $("#kr-clk"), st = $("#kr-st"), lastMin = -1, HARI = {Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7};
+  var clk = $("#kr-clk"), lastMin = -1, HARI = {Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7};
   function jam() {
     if (D.hidden) return;
     var p = {}; fmt.formatToParts(new Date()).forEach(function (x) { p[x.type] = x.value; });
@@ -47,8 +47,7 @@ if (hero && window.Intl) {
     clk.textContent = String(hh).padStart(2, "0") + "." + p.minute + "." + p.second;
     if (mm !== lastMin) {
       lastMin = mm; var buka = kerja && hh >= 8 && hh < 14; live.classList.toggle("off", !buka);
-      if (buka) st.textContent = "Jam booking berlangsung";
-      else { var kapan = kerja && hh < 8 ? "hari ini" : wd === 5 && hh >= 14 || wd === 6 ? "Senin" : wd === 7 ? "besok" : "besok"; st.textContent = "Booking tutup \u00b7 buka lagi " + kapan + " 08.00"; }
+      live.title = buka ? "Jam booking berlangsung (Sen\u2013Jum 08.00\u201314.00 WIB)" : "Di luar jam booking (Sen\u2013Jum 08.00\u201314.00 WIB)";
     }
   }
   jam(); setInterval(jam, 1000);
@@ -67,6 +66,7 @@ if (hero && window.Intl) {
 /* ---- Personalisasi: warna aksen + bagikan Takok ---- */
 var AK = [["biru", "Biru (bawaan)", "#1a46b5"], ["hijau", "Hijau", "#0f8a5f"], ["ungu", "Ungu", "#6d3fd6"], ["tosca", "Tosca", "#0b7f8f"], ["oranye", "Oranye", "#d9560b"], ["merah", "Merah", "#c8102e"]];
 function aksen(k) { if (k === "biru") D.documentElement.removeAttribute("data-aksen"); else D.documentElement.setAttribute("data-aksen", k); try { localStorage.setItem("tk_aksen", k); } catch (e) {} }
+window.TKAKSEN = {set: aksen, list: AK.map(function (a) { return a[0]; })};
 try { var ak0 = localStorage.getItem("tk_aksen"); if (ak0 && AK.some(function (a) { return a[0] === ak0; })) aksen(ak0); } catch (e) {}
 var tools = $(".tools");
 if (tools) {
@@ -137,6 +137,7 @@ function lembar() {
   if ($(".kr-ov")) return;
   var ov = D.createElement("div"); ov.className = "kr-ov"; ov.setAttribute("role", "dialog"); ov.setAttribute("aria-modal", "true"); ov.setAttribute("aria-label", "Pintasan keyboard");
   var it = [["Ctrl", "K", "Cari izin dan layanan"], ["Alt", "K", "Pencarian cepat"], ["G", "", "Buka Ruang Main"], ["?", "", "Lembar pintasan ini"], ["Esc", "", "Tutup jendela"], ["\u2190 \u2192", "", "Geser jalur di Suroboyo Rush"]];
+  if (D.body.classList.contains("adm-on") || window.S === "adm") it = [["Ctrl", "K", "Palet perintah admin"], ["J", "K", "Percakapan berikutnya / sebelumnya"], ["R", "", "Fokus kolom balas"], ["/", "", "Cari percakapan; di kolom balas = balasan cepat"], ["Shift", "N", "Panggil berikutnya (tab Booking)"], ["S", "", "Fokus kolom scan tiket (tab Booking)"], ["?", "", "Lembar pintasan ini"], ["Esc", "", "Tutup jendela"]];
   ov.innerHTML = '<div class="kr-card"><h2>Pintasan keyboard</h2><dl>' + it.map(function (r) { return "<dt><kbd>" + r[0] + "</kbd>" + (r[1] ? "<kbd>" + r[1] + "</kbd>" : "") + "</dt><dd>" + r[2] + "</dd>"; }).join("") + '</dl><div class="btns"><button type="button" class="send" id="kr-x">Tutup</button></div></div>';
   function x() { ov.remove(); D.removeEventListener("keydown", esc, true); }
   function esc(e) { if (e.key === "Escape") { e.stopPropagation(); x(); } }

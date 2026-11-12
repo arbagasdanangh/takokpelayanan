@@ -1,0 +1,49 @@
+/* v50: Asisten Takok Plus (bot-plus.js) dan Takok Admin Pro (admin-pro.js). */
+.bmsg .bsp{display:inline-block}
+.bsc{margin-left:12px}
+.bot .bch button.bon{background:var(--acc);color:var(--onacc)}
+.bsr{display:flex;gap:6px;padding:8px 12px;border-bottom:1px solid var(--line);background:var(--surface)}
+.bsr[hidden]{display:none}
+.bsr input{flex:1;min-width:0;border:1px solid var(--line);border-radius:12px;padding:8px 12px;font:inherit;background:var(--bg);color:var(--ink)}
+.bsr button{border:0;background:var(--accsoft);color:var(--acc);border-radius:12px;width:36px;font-size:1.2rem;cursor:pointer}
+.bmsg.bsr-h{display:none}
+.bdn{position:absolute;left:50%;transform:translateX(-50%);bottom:132px;z-index:5;border:0;border-radius:99px;padding:7px 16px;background:var(--acc);color:var(--onacc);font:inherit;font-size:.82rem;font-weight:800;box-shadow:0 6px 18px rgba(0,0,0,.28);cursor:pointer;animation:krpop .2s both}
+.bdn[hidden]{display:none}
+
+/* Admin: bar atas */
+.ap-bar{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 10px}
+.ap-bar kbd,.ap-ft kbd{font:700 .72rem system-ui;background:var(--accsoft);color:var(--acc);border:1px solid var(--line);border-bottom-width:2px;border-radius:6px;padding:1px 6px;margin-left:4px}
+/* Admin: palet perintah */
+.ap-ov{position:fixed;inset:0;z-index:1300;display:flex;justify-content:center;align-items:flex-start;padding:10vh 14px 14px;background:rgba(6,16,50,.55);backdrop-filter:blur(3px)}
+.ap-box{width:min(560px,100%);max-height:72vh;display:flex;flex-direction:column;background:var(--surface);color:var(--ink);border-radius:20px;box-shadow:0 24px 70px rgba(0,0,0,.45);overflow:hidden;animation:krpop .18s both}
+.ap-in{border:0;border-bottom:1px solid var(--line);padding:16px 18px;font:inherit;font-size:1.02rem;background:transparent;color:var(--ink);outline:none}
+.ap-ls{list-style:none;margin:0;padding:6px;overflow-y:auto;flex:1}
+.ap-g{padding:10px 12px 4px;font-size:.72rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--mute)}
+.ap-o{display:flex;flex-direction:column;gap:1px;padding:9px 12px;border-radius:12px;cursor:pointer}
+.ap-o small{color:var(--mute);font-size:.8rem}
+.ap-o.on,.ap-o:hover{background:var(--accsoft)}
+.ap-ft{display:flex;gap:14px;flex-wrap:wrap;padding:9px 16px;border-top:1px solid var(--line);font-size:.78rem;color:var(--mute)}
+/* Admin: tab Hari ini */
+.hr-bar{display:flex;height:14px;border-radius:99px;overflow:hidden;background:var(--line);margin:6px 0}
+.hr-bar i{display:block;height:100%;transition:width .5s}
+.hr-leg{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:.82rem;color:var(--mute)}
+.hr-leg i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+.hr-lk{margin:0 0 8px}
+.hr-jam{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;align-items:end;min-height:120px;text-align:center}
+.hr-jam div{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:2px}
+.hr-jam span{display:block;width:100%;max-width:34px;border-radius:8px 8px 3px 3px;background:var(--accsoft);border:1px solid var(--acc);transition:height .5s}
+.hr-jam .now span{background:var(--acc)}
+.hr-jam small{color:var(--mute)}.hr-jam b{font-size:.85rem}
+#hr-upd{font-weight:400;margin-left:8px}
+@media (prefers-reduced-motion:reduce){.hr-bar i,.hr-jam span{transition:none}.bdn,.ap-box{animation:none}}
+@media print{.ap-bar,.ap-ov,.bdn{display:none!important}}
+
+/* v51: menu "/" balasan cepat, mode padat */
+.ap-sl{display:grid;gap:4px;margin:0 0 8px;padding:8px;border:1px solid var(--acc);border-radius:14px;background:var(--surface);box-shadow:0 8px 24px rgba(0,0,0,.18)}
+.ap-si{padding:8px 10px;border-radius:10px;cursor:pointer;font-size:.9rem;line-height:1.35}
+.ap-si.on,.ap-si:hover{background:var(--accsoft)}
+body.ap-pd #al .tbd{display:none}
+body.ap-pd #al .ti{padding:6px 10px}
+body.ap-pd #al .ti span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.ap-pd #al .tiw{margin-bottom:2px}
+body.ap-pd #v-adm .card{padding:10px 12px}

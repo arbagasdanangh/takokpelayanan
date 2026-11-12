@@ -8,9 +8,10 @@ var P = {
   bk: "M5 5h14v15H5zM5 10h14M9 3v4M15 3v4", an: "M4 20h16M7 20v-7M12 20V5M17 20v-10", skm: "M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z", lap: "M7 3h7l5 5v13H7zM14 3v5h5M10 13h6M10 17h6",
   bt: "M4 5h13v14H6a2 2 0 01-2-2zM17 9h3v8a2 2 0 01-2 2M8 9h5M8 13h5", kt: "M4 5h16v11H9l-5 4zM8.5 10.5h7", pk: "M20 14.5A8 8 0 019.5 4 8 8 0 1020 14.5z", kn: "M4 12h5M15 6h5M15 18h5M9 12l6-6M9 12l6 6",
   kb: "M4 6h16M4 12h8M4 18h6M16 16a3 3 0 106 0 3 3 0 00-6 0zM21 21l-2-2", lk: "M12 21s-6-5.5-6-11a6 6 0 0112 0c0 5.5-6 11-6 11zM10 10a2 2 0 104 0 2 2 0 00-4 0", kam: "M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z",
+  hr: "M12 7v5l3 2M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
   pem: "M9 11a3 3 0 100-6 3 3 0 000 6zM3 20a6 6 0 0112 0M17 11a2.5 2.5 0 100-5M21 19a5 5 0 00-4-4.9", log: "M4 12a8 8 0 108-8M4 4v4h4M12 8v4l3 2", sh: "M3 12h4l2-6 4 12 2-6h6", ak: "M14 9a4 4 0 11-1 3l-9 6v-3h3v-3h3l1-1"
 };
-var GRUP = [["Layanan harian", ["ring", "inbox", "pmh", "bk"]], ["Wawasan", ["an", "skm", "lap"]], ["Konten dan chatbot", ["bt", "kt", "pk", "kn", "kb", "lk"]], ["Keamanan dan sistem", ["kam", "pem", "log", "sh", "ak"]]];
+var GRUP = [["Layanan harian", ["ring", "hr", "inbox", "pmh", "bk"]], ["Wawasan", ["an", "skm", "lap"]], ["Konten dan chatbot", ["bt", "kt", "pk", "kn", "kb", "lk"]], ["Keamanan dan sistem", ["kam", "pem", "log", "sh", "ak"]]];
 function ikon(d) { return '<svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><path d="' + d + '"/></svg>'; }
 
 /* ---------- navigasi admin ---------- */
