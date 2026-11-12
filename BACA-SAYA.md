@@ -428,3 +428,32 @@ Satu halaman berisi nama dan HP akun, keperluan singkat (opsional, NIK 16 digit 
 - **Peringkat lokal Suroboyo Rush**: 5 skor terbaik di perangkat tampil di menu game, dan hasil akhir menyebut peringkatnya.
 - File: `public/keren.js`, `public/keren.css`, `public/rush.js`, `public/index.html` (`?v=49`).
 - Diuji di Chromium desktop dan HP 390 px dengan API tiruan; belum diuji di produksi.
+
+## Pembaruan versi 50
+- **Chip jam di hero**: teks status ("Jam booking berlangsung") dihapus; kini hanya titik status (hijau = jam booking, kuning = di luar jam), jam WIB, dan tooltip jam booking.
+- **Asisten Takok Plus** (`public/bot-plus.js`, gaya di `public/pro.css`):
+  - Perintah baru di menu "/": `/jam` (status jam booking), `/berangkat 45` (hitung jam berangkat dari booking terdekat + lama perjalanan + cadangan 15 menit, ada tombol 15/30/45/60/90 menit), `/main`, `/rush` (langsung ke Suroboyo Rush), `/warna hijau`, `/tema`, `/pantun`.
+  - Di bawah tiap jawaban: **Salin** dan **WhatsApp** (bagikan jawaban) di samping Dengarkan.
+  - Menu ⋯ -> **Cari di percakapan**; tombol **Pesan terbaru** saat gulir ke atas; **draf ketikan** tersimpan sementara bila panel tertutup.
+- **Takok Admin Pro** (`public/admin-pro.js`):
+  - **Palet perintah** (Ctrl+K saat masuk admin): lompat ke tab, saring kotak masuk, cari percakapan (nama, HP, tiket), aksi cepat (muat ulang, layar antrean, unduh Excel, bunyi, tema, keluar). Tombol "Perintah" juga ada di bar atas.
+  - **Pintasan kotak masuk**: `J`/`K` pindah percakapan, `R` fokus kolom balas, `/` cari, `?` lembar pintasan.
+  - **Peringatan pesan baru**: bunyi dua nada dan judul tab berkedip saat jumlah "perlu dijawab" bertambah; bisa dimatikan (tersimpan).
+  - **Tab baru "Hari ini (live)"** (juga untuk admin loket): kartu menunggu/dipanggil/selesai/tingkat hadir, komposisi status, antrean per loket (berikutnya siapa), grafik jam sibuk, tekanan kotak masuk, dan **catatan serah-terima shift** (tersimpan di peramban). Memperbarui diri tiap 20 detik.
+- `fitur.js` (tab + router), `percantik.js` (sidebar + ikon), `bot-pro.js` (daftar perintah), `keren.js` (lembar pintasan kontekstual admin, `window.TKAKSEN`), `index.html` (`?v=50`).
+- Tanpa perubahan API/server. Diuji di Chromium dengan API tiruan; belum diuji dengan data produksi.
+
+## Pembaruan versi 51
+- **Asisten Takok** (`public/bot-plus.js`, daftar perintah di `bot-pro.js`):
+  - **Catatan saya**: tombol **Simpan** di bawah jawaban + perintah `/catatan` (salin, hapus, kosongkan). Maks. 30 catatan, tersimpan hanya di perangkat.
+  - **/siapkan**: persiapan kunjungan dari booking terdekat (daftar bawaan, tombol Persyaratan dan centang loket, hitung jam berangkat).
+  - **/panduan**: 5 langkah kunjungan pertama dengan tombol Sebelumnya/Berikutnya dan pintasan ke tiap aksi.
+  - **Pengingat berangkat**: tombol "Ingatkan saya saat waktunya" di kartu `/berangkat` (toast dan notifikasi peramban bila diizinkan). Hanya berlaku selama Takok terbuka di peramban.
+- **Takok Admin** (`public/admin-pro.js`, `public/pro.css`):
+  - **Menu "/" di kolom balas**: ketik `/` (atau `/terima`) untuk memilih balasan cepat; variabel {nama} dan {loket} terisi otomatis. Panah, Enter/Tab, Esc.
+  - **Palet perintah** (Ctrl+K) kini juga mencari **booking hari ini** (kode, nama, HP); memilihnya membuka tab Booking dan mengisi kolom scan (tanpa memanggil otomatis).
+  - **Tab Hari ini (live)**: **target harian** (bisa diubah, tersimpan) dengan bar progres, **hitung mundur jam tutup booking**, **perkiraan antrean habis** dari laju layanan hari ini, serta **laporan harian** siap **salin** atau **kirim ke WhatsApp** (termasuk catatan shift).
+  - **Pintasan tab Booking**: `Shift+N` panggil berikutnya, `S` fokus kolom scan tiket.
+  - **Mode Padat** (tombol di bar atas): daftar kotak masuk lebih rapat untuk antrean pesan banyak.
+- `keren.js` (lembar pintasan admin diperbarui), `index.html` (`?v=51`). Tanpa perubahan API/server.
+- Diuji di Chromium dengan API tiruan; belum diuji dengan data produksi.
