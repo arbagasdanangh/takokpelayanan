@@ -134,3 +134,5 @@ Melalui semangat *"Takonan Suroboyo"*, Takok Pelayanan menjadi sahabat digital y
 **Takok Pelayanan – Sahabat Digital Warga Surabaya.**
 
 *Wes, gak perlu bingung maneh. Takok ae!*
+
+https://brida.surabaya.go.id/inovboyov2/audisi/sertifikat/2026/TIM-152/8WBXC9397F/pdf
