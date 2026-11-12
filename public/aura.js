@@ -25,7 +25,7 @@ function gambarPan() {
     '<p class="au-t">Ukuran huruf</p><div class="au-seg" role="group" aria-label="Ukuran huruf">' + seg.map(function (s) { return '<button type="button" data-au="f" data-v="' + s[1] + '" aria-pressed="' + (ST.f === s[1]) + '">' + s[0] + '</button>'; }).join("") + '</div>' +
     [["k", "Kontras tinggi", "Warna lebih tegas dan garis lebih jelas"], ["g", "Kurangi gerakan", "Matikan animasi dan efek bergerak"], ["l", "Teks lega", "Jarak antarbaris dan antarhuruf lebih longgar"]].map(function (x) {
       return '<label class="au-sw"><span><b>' + x[1] + '</b><small>' + x[2] + '</small></span><input type="checkbox" data-au="' + x[0] + '"' + (ST[x[0]] ? " checked" : "") + '><i aria-hidden="true"></i></label>';
-    }).join("") + '<button type="button" class="au-rs" data-au="r">Kembalikan ke bawaan</button>';
+    }).join("") + '<button type="button" class="au-pre" data-au="p">Mode Lansia: huruf sangat besar, kontras, teks lega</button><button type="button" class="au-rs" data-au="r">Kembalikan ke bawaan</button>';
 }
 function bukaPan(btn) {
   if (pan) { tutupPan(); return; }
@@ -34,7 +34,7 @@ function bukaPan(btn) {
   pan.onclick = function (e) {
     var b = e.target.closest("[data-au]"); if (!b) return; var a = b.dataset.au;
     if (a === "x") { tutupPan(); return; }
-    if (a === "f") ST.f = +b.dataset.v; else if (a === "r") ST = {f: 0, k: 0, g: 0, l: 0};
+    if (a === "f") ST.f = +b.dataset.v; else if (a === "p") ST = {f: 2, k: 1, g: 0, l: 1}; else if (a === "r") ST = {f: 0, k: 0, g: 0, l: 0};
     else if (b.type === "checkbox") ST[a] = b.checked ? 1 : 0;
     simpan(); terap(); gambarPan();
   };
@@ -108,7 +108,7 @@ function bukaFk() {
     (ls.length ? '<p class="au-t">' + ls.length + ' percakapan perlu dijawab. Terlama menunggu ' + (typeof waitTxt === "function" ? waitTxt(tua) : "") + '. Berikut yang paling mendesak:</p><ul class="au-ls">' +
       ls.slice(0, 6).map(function (x, i) { var pl = typeof prLvl === "function" ? prLvl(x.skor || 0) : ["", "#64748b"]; return '<li><button type="button" data-f="' + i + '"><span class="au-pr" style="background:' + pl[1] + '">' + E(pl[0]) + '</span><span class="au-tx"><b>' + E(x.nama) + '</b><small>' + E(typeof label === "function" ? label(x.kunci) : x.kunci) + ' &middot; menunggu ' + E(typeof waitTxt === "function" ? waitTxt(now - x.lu) : "") + '</small><em>' + E(String(x.teks || "").slice(0, 90)) + '</em></span></button></li>'; }).join("") + '</ul>'
       : '<p class="au-ok">Semua percakapan sudah dijawab. Kerja bagus!</p>') + '</div>';
-  D.body.appendChild(fk);
+  D.body.appendChild(fk); var f1 = fk.querySelector("button[data-f]"); if (f1) f1.focus();
   fk.onclick = function (e) {
     if (e.target === fk) { tutupFk(); return; }
     var b = e.target.closest("[data-f]"); if (!b) return;

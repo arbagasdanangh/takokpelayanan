@@ -81,3 +81,44 @@ html.au-k .btn,html.au-k .tile,html.au-k .card,html.au-k input,html.au-k textare
 .ar-it button{padding:8px 4px;font-size:.72rem;border-color:var(--tick)}
 .ar-it button:disabled{opacity:.5}
 .ar-it em{font-style:normal;color:var(--acc)}
+/* Kartu Saya, suara, Peta Kepadatan */
+.au-ks{background:linear-gradient(145deg,var(--surface),var(--accsoft));border:1px solid var(--line);border-left:5px solid var(--tick);border-radius:20px;padding:14px 16px;margin:0 0 16px;box-shadow:var(--shadow)}
+.au-kh{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.au-kh b{font-size:.92rem;color:var(--mute);text-transform:uppercase;letter-spacing:.05em}
+.au-kc{font-weight:800;color:var(--acc);letter-spacing:.04em}
+.au-kt{display:flex;flex-direction:column;margin:6px 0 2px}
+.au-kt strong{font-size:1.5rem;line-height:1.15;color:var(--ink)}
+.au-kt span{color:var(--mute);font-size:.88rem}
+.au-kp{margin:4px 0 6px;color:var(--ink)}
+.au-kb{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.au-mic{flex:none;width:40px;height:40px;border:0;border-radius:50%;background:var(--accsoft);color:var(--acc);display:grid;place-items:center;cursor:pointer;margin-right:6px}
+.au-mic svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.au-mic.on{background:var(--warn);color:#fff;animation:aumic 1s infinite}
+@keyframes aumic{50%{box-shadow:0 0 0 8px rgba(214,52,44,.25)}}
+.kp-g{display:grid;grid-template-columns:86px repeat(var(--n),1fr) 34px;gap:4px;align-items:center;font-size:.8rem}
+.kp-g small{text-align:center;color:var(--mute);font-weight:700}
+.kp-h{border:0;background:transparent;color:var(--ink);font:inherit;font-weight:700;font-size:.8rem;text-align:left;padding:8px 2px;cursor:pointer;border-radius:8px}
+.kp-h:hover,.kp-h:focus-visible{background:var(--accsoft)}
+.kp-c{font-style:normal;text-align:center;border-radius:8px;padding:9px 0;font-weight:800;color:var(--ink);background:color-mix(in srgb,var(--acc) calc(var(--a)*80%),var(--accsoft))}
+.kp-c.hi{color:var(--onacc)}
+.kp-t{text-align:right;color:var(--mute)}
+.kp-top{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.kp-top li{display:flex;justify-content:space-between;gap:10px;padding:8px 12px;border:1px solid var(--line);border-radius:12px;background:var(--bg)}
+.au-pre{width:100%;margin-top:8px;border:2px dashed var(--acc);background:var(--accsoft);color:var(--acc);border-radius:12px;padding:10px;font:inherit;font-weight:800;font-size:.82rem;cursor:pointer}
+.ask .au-mic{background:var(--accsoft);color:var(--acc);width:40px;min-width:40px;height:40px;padding:0;border-radius:50%}
+.ask .au-mic.on{background:var(--warn);color:#fff}
+.au-kc{white-space:nowrap}
+.au-kh{flex-wrap:wrap}
+/* Tanya Pintar */
+.tpi{margin:6px 0 4px}
+.tpi-k{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0}
+.tpi-c{list-style:none;margin:0 0 6px;padding:0;display:flex;flex-wrap:wrap;gap:6px}
+.tpi-c li{display:flex;align-items:center;gap:6px;font-size:.8rem;padding:4px 10px 4px 6px;border-radius:99px;background:var(--accsoft);color:var(--ink)}
+.tpi-c li i{width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-weight:800;font-size:.7rem;background:#16a34a;color:#fff}
+.tpi-c li.no{background:#fff4d6;color:#4a3500}
+.tpi-c li.no i{background:#d97706}
+:root[data-theme="dark"] .tpi-c li.no{background:#3a3010;color:#ffe08a}
+.tpi-a{font-size:.86rem;padding:8px 12px;border-left:4px solid var(--acc);background:var(--accsoft);border-radius:10px;margin:4px 0}
+.tpi-d{font-size:.8rem;color:var(--mute);margin-bottom:4px}
+.tpi-d button{border:0;background:transparent;color:var(--acc);font:inherit;font-weight:800;cursor:pointer;text-decoration:underline}
+.tpi .chip.on{background:var(--acc);color:var(--onacc)}
