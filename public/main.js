@@ -81,6 +81,7 @@ var BD = [
   {id: "rajin", n: "Rajin Banget", d: "Main 3 hari berturut-turut", s: "segilima", ok: function () { return streak() >= 3; }},
   {id: "pahlawan", n: "Pahlawan Layanan", d: "Capai Level 5", s: "bulan", ok: function () { return lvl() >= 5; }},
   {id: "kata", n: "Jago Kata", d: "Menang Tebak Kata", s: "persegi", ok: function () { return (G.best.w || 0) >= 1; }},
+  {id: "penguasa", n: "Penguasa Zona", d: "Menang di Arena Zona", s: "segilima", ok: function () { return (G.best.ar || 0) >= 700; }},
   {id: "pelari", n: "Pelari Kota Pahlawan", d: "Skor 600 atau lebih di Suroboyo Rush", s: "bintang", ok: function () { return (G.best.rs || 0) >= 600; }},
   {id: "tangkas", n: "Tangkas", d: "Skor 300 atau lebih di Tangkap Berkas", s: "segitiga", ok: function () { return (G.best.t || 0) >= 300; }},
   {id: "arek", n: "Arek Suroboyo Asli", d: "Kuis Suroboyo 5 dari 5", s: "segilima", ok: function () { return (G.best.su || 0) >= 5; }},
@@ -134,7 +135,8 @@ function home() {
     ["kuis", ["segilima", "bintang", "lingkaran"], "Kuis Kilat Loket", "Tebak loket yang tepat untuk setiap layanan.", G.best.k !== undefined ? "Terbaik: " + G.best.k + " dari 5" : "Belum dimainkan"],
     ["tebak", ["bintang", "plus", "segilima"], "Tebak KBLI Harian", "5 soal harian dari 1.559 KBLI 2025. Bagikan skormu!", G.best.tb !== undefined ? "Terbaik: " + G.best.tb + " dari 5" : "Belum dimainkan", 1],
     ["zona", ["segilima", "bintang", "plus"], "Tebak Zona MPP", "Di zona berapa instansi MPP Surabaya? 5 soal harian.", G.best.tz !== undefined ? "Terbaik: " + G.best.tz + " dari 5" : "Belum dimainkan", 1],
-    ["rush", ["segitiga", "bintang", "hati"], "Suroboyo Rush", "Lari di jalan Surabaya, ambil berkas, hindari antrean panjang. Siang berganti malam.", G.best.rs ? "Rekor: " + G.best.rs + " poin" : "Belum dimainkan", 1]
+    ["rush", ["segitiga", "bintang", "hati"], "Suroboyo Rush", "Lari di jalan Surabaya, ambil berkas, hindari antrean panjang. Siang berganti malam.", G.best.rs ? "Rekor: " + G.best.rs + " poin" : "Belum dimainkan", 1],
+    ["arena", ["segilima", "segitiga", "bintang"], "Arena Zona", "Gim ala MOBA: rebut Menara Zona 2, 3, 4 lalu hancurkan Antrean Raksasa.", G.best.ar ? "Skor terbaik: " + G.best.ar : "Belum dimainkan", 1]
   ];
   view('<div class="gm-lv"><div class="gm-ring" style="--p:' + pr + '"><span>' + lv + '</span></div><div><small>Level ' + lv + '</small><b>' + t + '</b><small>' + G.pts + ' poin &middot; ' + (100 - pr) + ' poin lagi ke level ' + (lv + 1) + (st >= 2 ? ' &middot; &#128293; ' + st + ' hari beruntun' : '') + '</small></div></div>' +
     questHtml() +
@@ -334,6 +336,7 @@ var QP = [
   {id: "bintang", t: "Raih 2 bintang atau lebih", n: 1, v: function (p) { return p.s2 || 0; }},
   {id: "kata", t: "Mainkan Tebak Kata", n: 1, v: function (p) { return (p.kinds || {}).kata ? 1 : 0; }},
   {id: "tangkap", t: "Capai skor 150 di Tangkap Berkas", n: 150, v: function (p) { return p.tmax || 0; }},
+  {id: "arena", t: "Hancurkan 1 menara di Arena Zona", n: 1, v: function (p) { return p.arena || 0; }},
   {id: "rush", t: "Capai skor 300 di Suroboyo Rush", n: 300, v: function (p) { return p.rush || 0; }},
   {id: "suro", t: "Jawab 4 benar di Kuis Suroboyo", n: 4, v: function (p) { return p.suro || 0; }},
   {id: "roda", t: "Putar Roda Takok", n: 1, v: function (p) { return p.roda || 0; }},
