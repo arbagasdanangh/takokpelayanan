@@ -467,3 +467,17 @@ Satu halaman berisi nama dan HP akun, keperluan singkat (opsional, NIK 16 digit 
 - **Admin**: tombol **Layar penuh** di bar atas (untuk dipajang di monitor pantau).
 - File baru: `public/aura.js`, `public/aura.css`, `public/arena.js`; diubah: `public/index.html` (`?v=52`), `public/bot-pro.js` (menu `/`), `public/main.js` (kartu game, lencana, tantangan), `api/app.py` (daftar game "arena" untuk hitungan permainan, satu kata).
 - Diuji: logika game disimulasikan tanpa tampilan (menang, kalah, kesulitan) dan dimainkan di Chromium HP 390 px tanpa galat JS. Belum diuji dengan data produksi atau perangkat sentuh sungguhan.
+
+### Versi 52 (lanjutan): Aura Plus (file baru `public/aura-plus.js`)
+- **Kartu Saya** (beranda, setelah masuk): kunjungan berikutnya dengan hitung mundur (diperbarui tiap 30 detik, data dimuat tiap 90 detik), tahapan tiket (Booking, Tiba, Dipanggil, Selesai), dan tombol Lihat tiket, Kapan berangkat?, Tambah booking. Bila belum ada jadwal, tampil ajakan membuat booking.
+- **Cari dengan suara**: tombol mikrofon di kolom pencarian beranda (bahasa Indonesia; hanya muncul bila peramban mendukung pengenalan suara). Hasil ucapan langsung dicari.
+- **Peta Kepadatan** (admin, tombol **Kepadatan** di bar atas): peta panas booking 7 hari kerja ke depan (hari x jam) dengan total per hari, hari paling lengang, dan ketuk hari untuk melihat 5 loket terpadat. Admin loket hanya melihat datanya sendiri (dibatasi server).
+- **Mode Lansia** di Panel Kenyamanan: satu tombol untuk huruf sangat besar, kontras tinggi, dan teks lega. Jendela Fokus admin kini langsung memfokuskan tombol pertama (ramah keyboard).
+- Tanpa perubahan API/server. Diuji di Chromium HP 390 px dengan API tiruan; belum diuji dengan data produksi.
+
+### Versi 52 (lanjutan): Tanya Pintar (file baru `public/tanya-pintar.js`)
+- **Kamus Istilah** (24 istilah: NIB, OSS, KBLI, PBG, IMB, SLF, NPWP, NIK, KTP-el, KK, KIA, SKCK, PTSP, MPP, SKM, BPJS, SIP, SIUP, TDP, UMKM, AMDAL, UKL-UPL, SPPL, PIRT, OTP): perintah `/arti` di Asisten (mis. `/arti NIB`), juga bisa ditanya wajar ("apa itu KBLI?"). Kartu jawaban punya tombol "Cari layanan terkait". Isi kamus ada di larik `K` pada file tersebut; periksa ulang bila aturan berubah.
+- **Penyusun pertanyaan** di kolom Tanya Admin: 5 kerangka siap isi (Syarat, Biaya dan lama, Status berkas, Kendala, Jadwal); bagian "..." langsung terpilih untuk diisi.
+- **Pemeriksa pesan** (tidak memblokir pengiriman): cukup rinci, tanpa NIK 16 digit/OTP/PIN/kata sandi, tidak huruf kapital semua, permintaan jelas. Chip "Arti istilah" muncul bila pesan memuat istilah di kamus.
+- **Draf otomatis**: tulisan di kolom Tanya Admin tersimpan di perangkat (`tk_draf_*`), dipulihkan saat dibuka lagi, dihapus saat terkirim, lewat tombol "Hapus draf", dan otomatis saat keluar akun.
+- Perintah `/arti` ditambahkan ke menu `/` di `bot-pro.js`. Tanpa perubahan API/server. Diuji di Chromium dengan halaman tiruan; belum diuji dengan data produksi.
