@@ -498,3 +498,18 @@ Satu halaman berisi nama dan HP akun, keperluan singkat (opsional, NIK 16 digit 
 - **Tanya Admin**: meter Kelengkapan pesan (persen dari pemeriksaan) dan tombol **Sertakan tiket saya** (menyisipkan kode dan jadwal tiket aktif).
 - Modul lama kini membaca `window.DIN`: kamus dan kerangka (`tanya-pintar.js`), bidang `/mulai` (`aura.js`), Yang baru (`penunjang.js`).
 - Diuji: pembersih server diuji terpisah (pemotongan, kunci, tanggal tak valid); alur klien diuji di Chromium HP dengan API tiruan. Belum diuji dengan Redis dan akun superadmin sungguhan: coba simpan satu pengumuman setelah deploy.
+
+### Versi 52 (canggih): Perencana Kunjungan Cerdas dan Saran Balasan Cerdas
+- **Perencana Kunjungan** (`public/rencana.js`): untuk warga yang mengurus beberapa layanan sekaligus. Perintah `/rencana NIB dan kartu keluarga` di Asisten, tombol "Rencanakan beberapa layanan" di Kartu Saya, atau tombol Coba di Yang baru. Mesin pencari di perangkat (TF-IDF + kemiripan trigram + sinonim) tahan salah ketik dan mengenali banyak kebutuhan dalam satu kalimat. Urutan kunjungan otomatis: layanan yang menjadi syarat layanan lain diurus lebih dulu (urut topologis), loket satu zona dikelompokkan, bisa diatur manual. Jadwal per hari dengan batas tutup 14.00 WIB (otomatis pindah ke hari kerja berikutnya), dokumen gabungan tanpa duplikat dengan centang dan meter, salin, WhatsApp, unduh kalender. Waktu di loket hanya perkiraan kasar (bawaan 25 menit per layanan, atau angka menit dari kolom waktu syarat bila ada). Hari libur belum diperhitungkan.
+- **Saran Balasan Cerdas untuk admin** (`public/admin-cerdas.js`): di tampilan percakapan, mengenali maksud pesan (syarat, biaya, jam layanan, booking, status), menyusun draf jawaban dari data loket yang sudah ada (syarat, biaya, waktu, jam), dan menyarankan 2 balasan cepat yang paling mirip. Klik mengisi kolom jawaban; tetap bisa diedit sebelum dikirim.
+
+### Versi 52 (booking pro): perbaikan dan penyempurnaan Booking Kunjungan (`public/booking-pro.js`, dimuat setelah `booking-rapi.js`)
+Perbaikan fungsi (server tidak diubah; aturan server sudah benar, yang diperbaiki adalah sisi pengunjung):
+- Jam yang sudah lewat (server: harus lebih dari 30 menit dari sekarang) dinonaktifkan sejak awal, bukan baru ditolak setelah dikirim.
+- Bentrok dengan booking sendiri (jam yang sama atau loket yang sama pada tanggal itu) terdeteksi sebelum kirim, lengkap dengan kode booking.
+- Ganti tanggal saat rencana berisi kini meminta konfirmasi (sebelumnya mengosongkan diam-diam). Pembatalan booking meminta konfirmasi (sebelumnya langsung terkirim). Pendengarnya memakai fase capture agar berjalan sebelum pendengar asli.
+- Tombol "Saya sudah tiba" nonaktif sampai check-in dibuka (60 menit sebelum jam) dan menampilkan jam bukanya.
+- Permintaan slot yang balapan (ganti tanggal cepat) tidak lagi menimpa tampilan dengan data lama; ada status memuat dan tombol Coba lagi.
+- Tanggal rencana tampil mudah dibaca (bukan 2026-11-20); keperluan terisi otomatis dari tujuan.
+Tampilan baru: strip tanggal bergulir dengan titik ketersediaan (sepi, sedang, ramai, penuh; dimuat 3 permintaan paralel dan disimpan 40 detik), pencarian layanan lintas loket (memakai mesin Perencana), langkah 1-2-3, meter Booking aktif x/6, slot jam dengan batang sisa kuota dan penanda Terbaik, tombol Pilih jam ini, kartu keberhasilan (kalender dan Lihat tiket).
+- Diuji di Chromium HP dengan kode booking asli dari `fitur.js` dan server tiruan yang menerapkan aturan yang sama, jam dikunci ke Senin 10.20 WIB. Belum diuji dengan server dan data produksi.
