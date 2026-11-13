@@ -33,7 +33,7 @@ function status() {
     var h = n.wd >= 1 && n.wd <= 5 && n.h < 8 ? 0 : n.wd >= 1 && n.wd <= 4 ? 1 : n.wd === 5 ? 3 : n.wd === 6 ? 2 : 1;
     t = "Layanan tutup. Buka lagi " + (h === 0 ? "hari ini" : HARI[(n.wd + h) % 7]) + " 08.00 WIB" + (h === 0 ? " (" + mnt(Math.round((8 - n.h) * 60)) + " lagi)" : "");
   }
-  return '<p class="dn-st ' + (buka ? "buka" : "tutup") + '"><i aria-hidden="true"></i>' + E(t) + '</p>';
+  return '<p class="dn-st ' + (buka ? "buka" : "tutup") + '"><i aria-hidden="true"></i>' + E(t) + '</p><div class="au-kb"><button type="button" class="btn" data-rc="buka">Rencanakan beberapa layanan</button></div>';
 }
 window.AuraKS = window.AuraKS || {}; window.AuraKS.extra = status;
 
