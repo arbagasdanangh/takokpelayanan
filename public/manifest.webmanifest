@@ -1,0 +1,24 @@
+{
+  "name": "Takok Pelayanan Suroboyo",
+  "short_name": "Takok",
+  "description": "Tanya, cari, dan urus layanan publik Surabaya: booking kunjungan, antrean, dan Asisten Takok.",
+  "lang": "id",
+  "dir": "ltr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#eaf2ff",
+  "theme_color": "#1a46b5",
+  "categories": ["government", "utilities"],
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Booking Kunjungan", "short_name": "Booking", "url": "/#booking", "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }] },
+    { "name": "Tanya Asisten", "short_name": "Asisten", "url": "/#asisten", "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }] },
+    { "name": "Cari Layanan", "short_name": "Cari", "url": "/#cari", "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }] }
+  ]
+}

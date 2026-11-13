@@ -3,10 +3,11 @@
    tautan di kaki halaman atau perintah /baru di Asisten, lengkap tombol Coba. 2. Cek Perangkat (suara, notifikasi, penyimpanan, koneksi)
    untuk membantu pemecahan masalah. 3. Banner koneksi saat perangkat offline. Tanpa perubahan server. */
 (function () {
-var D = document, $ = function (i) { return D.getElementById(i); }, VER0 = "52c", KEY = "tk_baru";
+var D = document, $ = function (i) { return D.getElementById(i); }, VER0 = "52d", KEY = "tk_baru";
 var E = function (s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return {"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]; }); };
 var WARGA = [
   ["Aa: kenyamanan membaca", "Huruf lebih besar, kontras tinggi, dan Mode Lansia dalam satu ketukan.", "aa", "Coba"],
+  ["Tampilan ala aplikasi", "Bilah navigasi di bawah, Menu lengkap, pencarian cepat (Ctrl atau Cmd + K), dan bisa dipasang ke layar utama HP.", "cari", "Coba cari"],
   ["Booking lebih mudah", "Jam yang sudah lewat dan bentrok langsung ditandai, tanggal punya penanda ketersediaan, dan pembatalan kini minta konfirmasi.", "", ""],
   ["Perencana Kunjungan", "Urus beberapa layanan sekaligus: urutan loket, jadwal per hari, dan daftar dokumen gabungan disusun otomatis.", "rencana", "Coba"],
   ["Kartu Saya", "Di beranda: hitung mundur kunjungan, tahapan tiket, tambah ke kalender, dan pengingat 1 jam sebelumnya.", "", ""],
@@ -52,6 +53,7 @@ function buka(manual) {
     tutup();
     if (a === "aa") { var t = $("au-b"); if (t) t.click(); }
     else if (a === "arti") { var bf = $("bf"); if (bf) bf.click(); setTimeout(function () { if (window.BOTI && BOTI.ask) BOTI.ask("/arti"); }, 220); }
+    else if (a === "cari") { if (window.Shell) Shell.cari(); }
     else if (a === "rencana") { if (window.Rencana) Rencana.buka(); }
     else if (a === "arena") { var mg = $("mbgo"); if (mg) mg.click(); setTimeout(function () { if (window.ArenaZona) ArenaZona.menu(); }, 120); }
   };
