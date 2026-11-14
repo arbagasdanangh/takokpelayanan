@@ -597,3 +597,13 @@ Perkiraan perintah Redis: sekitar 25 per kunjungan baru, 6 per muat ulang halama
 - **Angka 0?** Yang tidak dihitung: admin yang sedang login (cookie admin), browser dengan Do Not Track/Global Privacy Control aktif (mis. Brave), bot. Uji dengan jendela penyamaran/HP lain tanpa login admin.
 - **Alamat IP per pengunjung:** panel admin > Pengunjung > "Alamat IP pengunjung" (IP teratas + 100 kunjungan terbaru, unduh CSV). Log terhapus otomatis setelah 45 hari. Matikan dengan variabel `VISITOR_IP=0`. Pertimbangkan memberi tahu warga di kebijakan privasi, karena IP termasuk data pribadi.
 - **Google Analytics 4:** isi `public/ga-config.js` dengan `G-XXXXXXXXXX`, deploy ulang. GA4 memberi online/harian/total, sumber, perangkat, dst., tetapi tidak menampilkan IP per pengunjung (Google melarangnya).
+
+## Versi 57: Paket Ramah (betah dan kembali lagi)
+Berkas baru `public/ramah.js` dan `ramah.css`; semua tersimpan di perangkat warga (kunci `tk_ramah`), tanpa perubahan server.
+- **Sapaan personal + Tips hari ini + rangkaian hari berturut-turut** (konfeti di hari ke-3, 7, 14, 30).
+- **Favorit** (bintang di tiap loket) dan **Terakhir dibuka**, tampil sebagai "Pintasan saya" di beranda.
+- **Pencarian suara** (ikon mikrofon di kolom cari, bahasa Indonesia).
+- **Bagikan layanan** ke WhatsApp / salin tautan. Tautan `/?layanan=pusat_3` langsung membuka loket itu.
+- **Bukti sosial:** "N warga sedang memakai Takok" / "N warga memakai Takok hari ini".
+- **Sambutan 3 langkah** untuk pengunjung baru (sekali saja); jendela "Yang baru" ditunda untuk mereka.
+Daftar tips ada di `ramah.js` (variabel `TIPS`), silakan ubah sesuai kebijakan setempat.

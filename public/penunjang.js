@@ -88,7 +88,7 @@ function jalan() {
     }
     if (!$("pn-lnk")) { var f = [].filter.call(D.querySelectorAll("small.sys"), function (n) { return /^Versi \d+/.test(n.textContent.trim()); })[0];
       if (f) { var a = D.createElement("button"); a.type = "button"; a.id = "pn-lnk"; a.className = "pn-lnk"; a.textContent = "Yang baru"; a.onclick = function () { buka(true); }; f.appendChild(D.createTextNode(" ")); f.appendChild(a); } }
-    if (!shown && window.S && !ov) { shown = true; var v = ""; try { v = localStorage.getItem(KEY) || ""; } catch (e) {} if (v !== ver()) setTimeout(function () { if (!D.querySelector(".ap-ov,.tg-ov:not([hidden])")) buka(false); }, 1800); }
+    if (!shown && window.S && !ov && window.Ramah) { shown = true; var v = ""; try { v = localStorage.getItem(KEY) || ""; } catch (e) {} if (v !== ver() && window.Ramah && Ramah.baruPertama()) { try { localStorage.setItem(KEY, ver()); } catch (e) {} } else if (v !== ver()) setTimeout(function () { if (!D.querySelector(".ap-ov,.rm-ov,.tg-ov:not([hidden])")) buka(false); }, 1800); }
   } catch (e) {}
 }
 setInterval(jalan, 1500); jalan();
