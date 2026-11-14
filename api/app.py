@@ -19,6 +19,7 @@ from _syarat import SYARAT_AWAL  # noqa: E402
 import _waspada as WS  # noqa: E402
 import _analisa as AN  # noqa: E402
 import _bot as BOT  # noqa: E402
+import _pengunjung as PG  # noqa: E402
 
 SECRET = (os.environ.get("SESSION_SECRET") or "").encode()
 SECURE = os.environ.get("COOKIE_SECURE", "1") != "0"
@@ -108,7 +109,7 @@ ADM_SUPER = frozenset([
     "berita", "berita/hapus",
     "kata", "kata.xlsx", "kata-templat.xlsx", "kata/impor", "kstat", "kstat/reset", "miss", "miss/hapus",
     "kbli/impor", "kbli/hapus", "izin", "izin/simpan", "izin/cek",
-    "data.xlsx", "audit", "kesehatan", "pemohon",
+    "data.xlsx", "audit", "kesehatan", "pemohon", "visitor",
 ])
 # Rute admin berupa aksi baca lewat POST atau pemeriksaan: tidak dicatat di Log aktivitas.
 AUDIT_ABAIKAN = frozenset(["kanal/uji", "piket", "kata/impor-cek", "izin/cek"])
@@ -991,6 +992,8 @@ class handler(BaseHTTPRequestHandler):
             self.json({"error": "Terjadi kesalahan pada server."}, 500)
 
     def route(self, method, path, q, b):
+        if path.startswith("/v/"):
+            return self.v_rute(method, path, b)
         refresh_loket()
         if path == "/info":
             return self.info(self.session())
@@ -1067,6 +1070,55 @@ class handler(BaseHTTPRequestHandler):
             self.adm = ses
             return self.admin(method, path[7:], q, b, ex)
         raise HttpError(403, "Tidak diizinkan.")
+
+    # ---------- Statistik pengunjung (anonim, ala Histats) ----------
+    def kuki_admin(self):
+        """True bila ada cookie sesi admin yang sah tanda tangannya (tanpa menyentuh Redis). Admin tidak dihitung."""
+        m = re.search(r"(?:^|;\s*)sid=([^;]+)", self.headers.get("Cookie", ""))
+        p = unsign(m.group(1)) if m else None
+        return bool(p and p.get("r") == "adm")
+
+    def v_rute(self, method, path, b):
+        hari, jam, now_s = time.strftime("%Y%m%d", wib()), time.strftime("%H", wib()), int(time.time())
+        if path == "/v/ringkas" and method == "GET":
+            return self.json(PG.ringkas(db(), now_s, hari), extra=[("Cache-Control", "public, max-age=30, s-maxage=60")])
+        if method != "POST" or path not in ("/v/hit", "/v/e", "/v/ping"):
+            raise HttpError(404, "Tidak ditemukan.")
+        if os.environ.get("VISITOR_OFF") == "1":  # sakelar darurat: berhenti mencatat tanpa menghapus kode
+            return self.json({"ok": True, "lewat": "mati"})
+        # Hormati Do Not Track / Global Privacy Control, dan jangan hitung admin yang sedang masuk.
+        if self.headers.get("DNT") == "1" or self.headers.get("Sec-GPC") == "1":
+            return self.json({"ok": True, "lewat": "dnt"})
+        if self.kuki_admin():
+            return self.json({"ok": True, "lewat": "admin"})
+        ip = self.ip()
+        if path == "/v/hit":
+            if limited("rl:vs:" + ip_hash(ip), 300, 3600):  # batas longgar: satu Wi-Fi kantor/MPP dipakai banyak orang
+                return self.json({"ok": True, "lewat": "batas"})
+            return self.json(PG.catat_kunjungan(db(), SECRET, self.headers, ip, b, hari, jam, now_s, self.headers.get("Host", "")))
+        if path == "/v/e":
+            return self.json(PG.catat_fitur(db(), SECRET, self.headers, ip, b, hari, now_s))
+        hid = PG.id_anon(SECRET, self.headers, ip, b, hari)
+        if hid:
+            if b.get("lanjut") in (1, True):  # kembali ke tab setelah lama: boleh mendaftar ulang sebagai online
+                if not limited("rl:vsl:" + ip_hash(ip), 120, 3600):
+                    db().cmd("ZADD", "vs:on", now_s, hid)
+            else:  # XX: hanya memperbarui yang sudah dikenal, jadi detak palsu tidak menambah data
+                db().cmd("ZADD", "vs:on", "XX", now_s, hid)
+        return self.json({"ok": True})
+
+    def admin_visitor(self, q, ex):
+        if (q.get("live") or [""])[0] == "1":
+            return self.json(PG.live(db(), int(time.time()), time.strftime("%Y%m%d", wib())), extra=ex)
+        try:
+            n = int((q.get("hari") or ["30"])[0])
+        except ValueError:
+            n = 30
+        n = max(2, min(PG.HARI_MAKS, n))
+        bln = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"]
+        daftar = [time.strftime("%Y%m%d", time.gmtime(time.time() + 7 * 3600 - i * 86400)) for i in range(n - 1, -1, -1)]
+        lbl = lambda k: "%d %s" % (int(k[6:]), bln[int(k[4:6]) - 1])
+        return self.json(PG.statistik(db(), int(time.time()), daftar, lbl), extra=ex)
 
     def bot_miss(self, b):
         """Catat pertanyaan warga yang tidak terjawab chatbot (anonim, tanpa IP/identitas)."""
@@ -1891,6 +1943,8 @@ class handler(BaseHTTPRequestHandler):
                 raise HttpError(404, "Nomor tiket tidak ditemukan.")
             p = parse(db().cmd("HGET", "pemohon", pid), {}) or {}
             return self.json({"pid": int(pid), "kunci": k, "nama": p.get("nama", ""), "hp": p.get("hp", ""), "email": p.get("email", ""), "tk": no}, extra=ex)
+        if r == "visitor" and method == "GET":
+            return self.admin_visitor(q, ex)
         if r == "analitik" and method == "GET":
             hari = int((q.get("hari") or ["30"])[0] or 30)
             return self.json(AN.statistik(muat_semua(ok=self.boleh), now_ms(), hari, label), extra=ex)

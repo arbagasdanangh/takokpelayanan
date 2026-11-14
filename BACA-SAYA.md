@@ -559,3 +559,29 @@ Pengunjung sering tidak tahu nama izinnya. Kartu baru di beranda (`public/situas
 - Cara kerja: klien memuat skrip Google hanya bila diaktifkan (`GET /api/app?p=/captcha`), mengirim token sebagai kolom `captcha`; server (`captcha_wajib` di `api/app.py`) memverifikasinya ke `siteverify` Google sebelum memproses login. Memanggil API langsung tanpa token ditolak (400). **Jika Google tidak bisa dihubungi, login ditolak (503) dengan pesan jelas**, jadi hapus variabel itu bila Anda butuh akses darurat.
 - **CSP diubah** di `vercel.json`: `script-src` dan `frame-src` kini juga mengizinkan `https://www.google.com/recaptcha/`, `https://www.gstatic.com/recaptcha/`, dan `https://recaptcha.google.com/recaptcha/` (hanya path itu). Sisanya tetap ketat. Pembatas percobaan (PIN 5x/15 menit, admin 15x/10 menit per IP) tetap berjalan.
 - Diuji di Chrome dengan skrip Google yang ditiru dan server verifikasi tiruan: kotak muncul di kartu Pemohon dan Admin, tanpa centang ditolak di klien, token palsu ditolak server, token sah masuk, token di-reset setelah dipakai, dan tanpa konfigurasi tidak ada yang berubah. **Belum diuji dengan widget reCAPTCHA asli dan kunci asli Anda** (jaringan keluar ke Google diblokir di lingkungan saya).
+
+
+## Statistik Pengunjung (ala Histats)
+Penghitung pengunjung bawaan, tanpa layanan pihak ketiga. Datanya disimpan di Upstash Redis yang sama dan hanya dibuka di tab admin **Pengunjung** (khusus superuser, grup "Wawasan").
+
+**Yang ditampilkan**
+- Publik: lencana kecil di kaki halaman: *online sekarang*, *pengunjung hari ini*, *total pengunjung*.
+- Admin: online sekarang (5 menit terakhir), pengunjung hari ini/kemarin/7-14-30-90 hari/total, grafik per hari, jam tersibuk (WIB), sumber kunjungan (Google, WhatsApp, Facebook, kampanye `?utm_source=`, dst), negara dan kota, perangkat, browser, sistem operasi, pengunjung baru vs kembali, fitur yang paling sering dibuka (menu utama, Ruang Main, maskot), daftar pengunjung terbaru yang menyegar sendiri tiap 20 detik, dan unduhan CSV.
+
+**Privasi**
+- Alamat IP tidak disimpan. ID acak di perangkat (localStorage) di-hash di server; angka unik memakai HyperLogLog yang tidak bisa dibalik menjadi ID.
+- Negara/kota berasal dari header Vercel (perkiraan dari jaringan). Hanya tersedia di Vercel, bukan saat dijalankan lokal.
+- Tidak dihitung: admin yang sedang masuk, bot/crawler, dan pengunjung dengan Do Not Track / Global Privacy Control aktif.
+- Disarankan menambahkan satu kalimat di kebijakan privasi instansi: "Situs ini menghitung kunjungan secara anonim untuk perbaikan layanan."
+
+**Kuota Redis (penting di paket gratis)**
+Perkiraan perintah Redis: sekitar 25 per kunjungan baru, 6 per muat ulang halaman, 1 per 2 menit untuk tab yang terbuka, dan lencana dibuat di-cache CDN 60 detik. Dasbor admin memuat penuh sekitar `2 x jumlah hari + 5` perintah dan hanya penyegaran ringan (4 perintah) tiap 20 detik. Bila kuota Upstash mepet, pilih rentang 7 hari, atau matikan pencatatan dengan menambah variabel lingkungan `VISITOR_OFF=1` lalu Redeploy (kode tetap, hanya berhenti mencatat).
+
+**Batasan**
+- "Pengunjung" = perangkat/browser unik, bukan orang. Satu orang dengan dua perangkat terhitung dua.
+- Sumber "Langsung" juga mencakup WhatsApp dan aplikasi lain yang tidak mengirim perujuk. Untuk membedakan, tambahkan `?utm_source=wa` pada tautan yang dibagikan.
+- Pencatatan memakai JavaScript, jadi pengunjung yang memblokirnya tidak terhitung. Angka bisa berbeda dari alat lain seperti Histats atau Google Analytics.
+- Statistik mulai terkumpul sejak fitur ini dipasang; data lama tidak ada. Data harian disimpan 400 hari.
+- Permintaan pencatatan bisa dipalsukan dari luar (tidak ada akun pada pengunjung). Dibatasi 300 kunjungan per jam per jaringan; anggaplah angkanya penuntun, bukan data audit.
+
+**File:** `api/_pengunjung.py` (logika), rute `/v/*` dan `/admin/visitor` di `api/app.py`, `public/visitor.js` (pelacak + lencana), `public/visitor-admin.js` (dasbor), `public/visitor.css`.

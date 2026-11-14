@@ -1,0 +1,34 @@
+/* Statistik pengunjung: lencana publik di kaki halaman dan dasbor admin. Memakai variabel tema yang sudah ada. */
+.vs-b{display:flex;flex-wrap:wrap;justify-content:center;gap:6px 8px;margin:14px auto 0;max-width:94%}
+.vs-b span{display:inline-flex;align-items:center;gap:5px;font-size:.78rem;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:4px 11px;box-shadow:var(--shadow)}
+.vs-b b{font-variant-numeric:tabular-nums}
+.vs-dot{width:8px;height:8px;border-radius:50%;background:var(--c4,#16a34a);display:inline-block;position:relative}
+.vs-dot::after{content:"";position:absolute;inset:-4px;border-radius:50%;border:2px solid var(--c4,#16a34a);opacity:0;animation:vsping 2s ease-out infinite}
+@keyframes vsping{0%{transform:scale(.4);opacity:.7}100%{transform:scale(1.5);opacity:0}}
+@media (prefers-reduced-motion:reduce){.vs-dot::after{animation:none}}
+
+.vs-hero{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:0 0 12px}
+.vs-on{display:flex;align-items:center;gap:12px;background:var(--accsoft);border:1px solid var(--line);border-radius:16px;padding:12px 18px}
+.vs-on .vs-dot{width:12px;height:12px}
+.vs-on strong{font-size:2rem;line-height:1;font-variant-numeric:tabular-nums;color:var(--acc)}
+.vs-on small{display:block;color:var(--mute)}
+.vs-ts{color:var(--mute);font-size:.78rem}
+.vs-g2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;margin-top:4px}
+.vs-g2>.card{margin:0;min-width:0}
+.vs-g2 h3{margin:0 0 8px;font-size:.95rem}
+.vs-chart{width:100%;height:auto;display:block}
+.vs-hour{width:100%;height:auto;display:block}
+.vs-feed{grid-template-columns:minmax(0,1fr)}
+.vs-feed .rc{align-items:flex-start;justify-content:flex-start;gap:10px;min-width:0}
+.vs-fl{font-size:1.3rem;line-height:1.2;flex:none}
+.vs-bd{flex:1;min-width:0;text-align:left;display:block}
+.vs-bd small{display:block;color:var(--mute);overflow-wrap:anywhere}
+.vs-rt{flex:none;text-align:right;white-space:nowrap;font-size:.78rem;color:var(--mute);line-height:1.5}
+.vs-pill{display:inline-block;font-size:.7rem;font-weight:700;border-radius:999px;padding:1px 8px;margin-left:4px;background:var(--accsoft);color:var(--acc)}
+.vs-pill.k{background:#fff4d1;color:#5c4300}
+:root[data-theme="dark"] .vs-pill.k{background:#3a3010;color:#ffc933}
+.vs-seg{display:flex;height:14px;border-radius:7px;overflow:hidden;background:var(--line)}
+.vs-seg i{display:block;height:100%}
+.vs-leg{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:8px;font-size:.8rem}
+.vs-leg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.vs-note{font-size:.78rem;color:var(--mute);margin:14px 0 0}
