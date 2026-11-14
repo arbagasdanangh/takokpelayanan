@@ -592,3 +592,8 @@ Perkiraan perintah Redis: sekitar 25 per kunjungan baru, 6 per muat ulang halama
 - **Gestur**: tarik-untuk-segarkan, geser dari tepi kiri untuk kembali (Android), tarik lembar Menu ke bawah untuk menutup.
 - **Fitur**: bilah offline/online, tombol ke atas, Bagikan Takok, warna bilah status ikut tema, pintasan ikon aplikasi baru (Status, Percakapan, Pengaduan, Ruang Main), pengaturan Animasi dan Getar di Menu.
 - Berkas baru: `apk-boot.js`, `apk.js`, `apk.css`, `nav.js`. Tidak ada perubahan server.
+
+## Pengunjung: log IP dan Google Analytics (v56b)
+- **Angka 0?** Yang tidak dihitung: admin yang sedang login (cookie admin), browser dengan Do Not Track/Global Privacy Control aktif (mis. Brave), bot. Uji dengan jendela penyamaran/HP lain tanpa login admin.
+- **Alamat IP per pengunjung:** panel admin > Pengunjung > "Alamat IP pengunjung" (IP teratas + 100 kunjungan terbaru, unduh CSV). Log terhapus otomatis setelah 45 hari. Matikan dengan variabel `VISITOR_IP=0`. Pertimbangkan memberi tahu warga di kebijakan privasi, karena IP termasuk data pribadi.
+- **Google Analytics 4:** isi `public/ga-config.js` dengan `G-XXXXXXXXXX`, deploy ulang. GA4 memberi online/harian/total, sumber, perangkat, dst., tetapi tidak menampilkan IP per pengunjung (Google melarangnya).

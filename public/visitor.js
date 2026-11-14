@@ -52,7 +52,7 @@
       n.textContent = x[1]; s.appendChild(n); s.appendChild(D.createTextNode(" " + x[2]));
       b.appendChild(s);
     });
-    b.title = "Tampilan halaman: " + angka(j.hari_ini) + " hari ini, " + angka(j.total) + " total. Statistik anonim, tanpa menyimpan alamat IP.";
+    b.title = "Tampilan halaman: " + angka(j.hari_ini) + " hari ini, " + angka(j.total) + " total. Statistik pengunjung. Tidak dihitung: admin yang sedang masuk dan browser dengan Do Not Track/GPC aktif.";
   }
   function muatLencana() {
     if (D.visibilityState === "hidden") return;

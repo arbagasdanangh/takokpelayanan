@@ -98,12 +98,27 @@ function render(el, j) {
     '<div class="card"><h3>Sistem operasi</h3>' + daftar(j.os, null, tot) + '</div>' +
     '<div class="card"><h3>Fitur yang dibuka</h3>' + daftar(j.fitur) + '<span class="sys">Jumlah ketukan pada menu utama, Ruang Main, dan maskot.</span></div></div>' +
     '<h2 class="sec">Pengunjung terbaru</h2><div class="card vs-feed" id="vs-feed" aria-live="off">' + umpan(j.terbaru) + '</div>' +
-    '<p class="vs-note">Statistik anonim: alamat IP tidak disimpan, ID pengunjung di-hash, admin yang sedang masuk dan bot tidak dihitung, dan pengunjung dengan Do Not Track aktif tidak dicatat. ' +
+    '<h2 class="sec">Alamat IP pengunjung</h2><div class="card" id="vs-ip"><span class="sys">Memuat&hellip;</span></div>' +
+    '<p class="vs-note">Alamat IP hanya tampil untuk admin dan terhapus otomatis setelah 45 hari (matikan dengan variabel VISITOR_IP=0). ID pengunjung di-hash, admin yang sedang masuk dan bot tidak dihitung, dan pengunjung dengan Do Not Track aktif tidak dicatat. ' +
     '"Pengunjung" adalah perangkat/browser unik (perkiraan HyperLogLog, selisih sekitar 1%); satu orang dengan dua perangkat terhitung dua. "Kunjungan" adalah sesi tab baru. ' +
     'Lokasi berasal dari jaringan (negara dan kota perkiraan). Sumber "Langsung" juga mencakup WhatsApp dan aplikasi lain yang tidak mengirim perujuk. Hari dihitung menurut WIB.</p></div>';
   $v("vs-ts").textContent = "Diperbarui " + new Date().toLocaleTimeString("id-ID");
 }
 
+function ipTabel(j) {
+  var el = $v("vs-ip"); if (!el) return;
+  if (!j || !j.aktif) { el.innerHTML = '<span class="sys">Pencatatan IP sedang dimatikan (VISITOR_IP=0).</span>'; return; }
+  if (!j.top.length) { el.innerHTML = '<span class="sys">Belum ada IP tercatat. IP mulai dicatat sejak versi ini dipasang.</span>'; return; }
+  var t = function (h, rows) { return '<div style="overflow:auto"><table class="vs-tb" style="width:100%;border-collapse:collapse;font-size:.85rem"><thead><tr>' + h.map(function (x) { return '<th style="text-align:left;padding:4px 8px">' + x + '</th>'; }).join("") + '</tr></thead><tbody>' + rows.map(function (r) { return '<tr>' + r.map(function (c) { return '<td style="padding:4px 8px;border-top:1px solid var(--line)">' + c + '</td>'; }).join("") + '</tr>'; }).join("") + '</tbody></table></div>'; };
+  el.innerHTML = '<p class="sys">' + N(j.unik_ip) + ' alamat IP berbeda dalam ' + H + ' hari terakhir (maks. 30). <button type="button" class="btn" id="vs-ipc">Unduh CSV IP</button></p>' +
+    '<h3>IP teratas</h3>' + t(["IP", "Tampilan halaman"], j.top.slice(0, 15).map(function (x) { return [E(x.ip), N(x.n)]; })) +
+    '<h3 style="margin-top:12px">Kunjungan terbaru (dengan IP)</h3>' + t(["Waktu", "IP", "Lokasi", "Perangkat", "Sumber"], j.terbaru.slice(0, 40).map(function (x) { return [E(lalu(x.t)), E(x.ip), E(bendera(x.c) + " " + (x.k || negara(x.c))), E(x.b + " / " + x.o), E(namaSumber(x.r || "Langsung"))]; }));
+  var c = $v("vs-ipc"); if (c) c.onclick = function () {
+    var rows = [["Waktu", "IP", "Negara", "Kota", "Browser", "OS", "Perangkat", "Sumber"]].concat(j.terbaru.map(function (x) { return [new Date(x.t * 1000).toISOString(), x.ip, x.c, x.k, x.b, x.o, x.v, x.r]; }));
+    var a = D.createElement("a"); a.href = URL.createObjectURL(new Blob(["\uFEFF" + rows.map(function (r) { return r.map(csvCel).join(","); }).join("\r\n")], {type: "text/csv;charset=utf-8"})); a.download = "ip-pengunjung.csv"; D.body.appendChild(a); a.click(); a.remove();
+  };
+}
+function muatIp() { api("/api/admin/visitor?ip=1&hari=" + Math.min(H, 30)).then(ipTabel).catch(function () { var el = $v("vs-ip"); if (el) el.innerHTML = '<span class="sys">Gagal memuat daftar IP.</span>'; }); }
 function tempel(l) {
   if (!$v("vs-root") || !l) return;
   $v("vs-on").textContent = N(l.online);
@@ -129,7 +144,7 @@ function unduh() {
 
 window.aVs = async function (el) {
   DATA = await api("/api/admin/visitor?hari=" + H);
-  render(el, DATA);
+  render(el, DATA); muatIp();
   el.onclick = function (e) {
     var b = e.target.closest && e.target.closest("[data-vsh],#vs-r,#vs-c"); if (!b) return;
     if (b.id === "vs-c") return unduh();

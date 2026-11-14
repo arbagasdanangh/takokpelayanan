@@ -1108,6 +1108,13 @@ class handler(BaseHTTPRequestHandler):
         return self.json({"ok": True})
 
     def admin_visitor(self, q, ex):
+        if (q.get("ip") or [""])[0] == "1":
+            try:
+                n = int((q.get("hari") or ["7"])[0])
+            except ValueError:
+                n = 7
+            n = max(1, min(30, n))
+            return self.json(PG.ip_daftar(db(), [time.strftime("%Y%m%d", time.gmtime(time.time() + 7 * 3600 - i * 86400)) for i in range(n)]), extra=ex)
         if (q.get("live") or [""])[0] == "1":
             return self.json(PG.live(db(), int(time.time()), time.strftime("%Y%m%d", wib())), extra=ex)
         try:

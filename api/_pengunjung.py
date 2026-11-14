@@ -1,4 +1,4 @@
-"""Statistik pengunjung ala Histats untuk Takok (anonim, tanpa cookie pelacak, tanpa menyimpan alamat IP).
+"""Statistik pengunjung ala Histats untuk Takok (tanpa cookie pelacak). Alamat IP hanya dicatat di log khusus admin (vs:ip:*, vs:ipl) selama 45 hari; matikan dengan VISITOR_IP=0.
 
 Penyimpanan (Upstash Redis), semua kedaluwarsa sendiri:
   vs:d:YYYYMMDD  hash harian (WIB): pv, vis, new, ret, h00..h23, c:<negara>, t:<negara>|<kota>, b:<browser>,
@@ -9,10 +9,11 @@ Penyimpanan (Upstash Redis), semua kedaluwarsa sendiri:
   vs:tot         hash total: pv, vis, sejak
 ID pengunjung dari browser di-hash (HMAC) sebelum disimpan; HyperLogLog tidak bisa dibaca balik menjadi ID.
 """
-import hashlib, hmac, json, re
+import hashlib, hmac, json, os, re
 from urllib.parse import unquote, urlparse
 
 TTL = 400 * 86400
+IP_TTL = 45 * 86400  # log IP disimpan 45 hari lalu terhapus sendiri
 ONLINE = 300          # detik: dianggap online bila terlihat dalam 5 menit terakhir
 HARI_MAKS = 90
 
@@ -169,8 +170,35 @@ def catat_kunjungan(r, secret, hdr, ip, b, hari, jam, now_s, host):
                  ["LTRIM", "vs:last", 0, 49]]
         if kota:
             cmds.append(["HINCRBY", d, "t:%s|%s" % (cc, kota), 1])
+    if os.environ.get("VISITOR_IP", "1") != "0":  # Log alamat IP untuk admin. Matikan dengan VISITOR_IP=0.
+        ipb = (ip or "")[:45]
+        if re.match(r"^[0-9A-Fa-f:.]{3,45}$", ipb):
+            cmds += [["HINCRBY", "vs:ip:" + hari, ipb, 1], ["EXPIRE", "vs:ip:" + hari, IP_TTL]]
+            if nw:
+                cc2, kota2 = _tampung_geo(hdr)
+                br2, os2, dv2 = klasifikasi_ua(ua)
+                cmds += [["LPUSH", "vs:ipl", json.dumps({"t": now_s, "ip": ipb, "c": cc2, "k": kota2, "b": br2, "o": os2, "v": dv2,
+                                                          "r": sumber_kunjungan(b.get("ref") if isinstance(b.get("ref"), str) else "", "", host)}, ensure_ascii=False)],
+                         ["LTRIM", "vs:ipl", 0, 499], ["EXPIRE", "vs:ipl", IP_TTL]]
     r.pipe(cmds)
     return {"ok": True}
+
+
+def ip_daftar(r, daftar_hari):
+    """Untuk admin: IP teratas selama periode dan 100 kunjungan terbaru lengkap dengan IP."""
+    res = r.pipe([["HGETALL", "vs:ip:" + h] for h in daftar_hari] + [["LRANGE", "vs:ipl", 0, 99]])
+    tot = {}
+    for x in res[:-1]:
+        for ip, n in _hall(x).items():
+            tot[ip] = tot.get(ip, 0) + int(n)
+    baru = []
+    for x in res[-1] or []:
+        try:
+            baru.append(json.loads(x))
+        except Exception:
+            pass
+    return {"top": [{"ip": k, "n": v} for k, v in sorted(tot.items(), key=lambda x: (-x[1], x[0]))[:50]], "terbaru": baru,
+            "aktif": os.environ.get("VISITOR_IP", "1") != "0", "unik_ip": len(tot)}
 
 
 def catat_fitur(r, secret, hdr, ip, b, hari, now_s):
