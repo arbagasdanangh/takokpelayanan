@@ -537,3 +537,25 @@ Tampilan baru: strip tanggal bergulir dengan titik ketersediaan (sepi, sedang, r
 ### Versi 53b: perbaikan tombol melayang dan Pengingat Izin Berakhir
 - **Perbaikan tampilan HP**: tombol melayang "Cari izin" dan "Tur Demo" menutupi bilah navigasi bawah dan ubin menu. Saat bilah bawah aktif (`html.sh-on`), keduanya disembunyikan (`shell.css`). Aksinya tetap ada di **Cari cepat** (entri baru "Tur Demo" dan "Perizinan Resmi") dan tombol "Cari izin" di bilah atas.
 - **Pengingat Izin Berakhir** (`public/izin-ingat.js`): kartu di beranda bila ada izin di Dompet Izin yang berakhir dalam 30 hari atau sudah lewat; tombol "Lihat Dompet Izin" dan "Ingatkan besok". Hanya membaca data di perangkat.
+- **Menu bilah bawah (HP)**: dua tombol besar **Cari izin** dan **Tur Demo** di atas daftar Fitur, menggantikan tombol melayang yang dulu menutupi layar.
+
+## Versi 54: "Mau urus apa?" (layanan menurut situasi)
+Pengunjung sering tidak tahu nama izinnya. Kartu baru di beranda (`public/situasi.js`) berisi 10 situasi: memulai usaha, buka kafe/rumah makan, bangun atau renovasi, KTP/KK/pindah, anak lahir, menikah, kendaraan dan transportasi, kesehatan dan praktik, acara dan keramaian, dokumen hilang atau rusak. Memilih satu situasi membuka daftar layanan yang cocok, dikelompokkan per topik, dengan loket, zona, biaya dan proses (bila ada), serta status "Terverifikasi / Panduan umum".
+- **Data tidak dikarang**: yang ada di kode hanya kata kunci pencarian per situasi. Layanan yang tampil sepenuhnya dari data loket di aplikasi. Kecocokan sengaja ketat: kata kunci harus ada di nama layanan, nama loket, atau uraian (isi daftar syarat tidak dihitung, karena "KTP pemohon" ada di syarat hampir semua izin). Topik tanpa hasil disembunyikan; bila tak ada hasil sama sekali, layar mengatakannya terus terang. Artinya hasil sebaik data loket Anda: makin lengkap nama layanan dan uraian di Admin > Loket, makin tepat hasilnya.
+- Layanan bisa dicentang (maks. 6) lalu **Susun jadwal kunjungan** membuka Perencana Kunjungan dengan pilihan itu; ada tombol **Lihat loket & syarat** dan **Booking Kunjungan**. Situasi yang terakhir dipakai tampil paling depan (disimpan di perangkat).
+- Tanpa perubahan server. Mengubah daftar situasi atau kata kuncinya: array `S` di `situasi.js` (pisahkan alternatif kata kunci dengan `|`).
+- Cache dinaikkan ke `?v=54` dan `sw.js` `takok-v54`; "Yang baru" berisi v54.
+- Diuji di Chrome (HP 412 px) dengan data demo: kartu beranda, semua situasi, centang, Perencana, dan keadaan tanpa hasil. Belum diuji dengan data loket asli Anda.
+
+## Versi 55: halaman masuk lebih aman dan nyaman
+**Penguat halaman masuk** (`public/loginplus.js`, `public/login.css`), berlaku untuk Masuk, Daftar, dan Masuk admin, serta semua kolom sandi lain (mis. membuat akun admin):
+- **Tampilkan/Sembunyikan** sandi dan PIN. Otomatis tersembunyi lagi setelah 20 detik atau saat tombol masuk ditekan.
+- **Peringatan Caps Lock aktif**; **peringatan lunak PIN mudah ditebak** saat daftar (111111, 123456, dll.; hanya saran, tidak memblokir).
+- **Enter** untuk masuk/daftar; **Ingat nomor HP di perangkat ini** (pilihan sendiri, disimpan hanya di perangkat; matikan tombolnya untuk menghapus).
+- **reCAPTCHA v2 (kotak centang)** untuk Masuk, Daftar, dan Masuk admin. **Opsional**: aktif hanya bila dua variabel lingkungan diisi di Vercel, kalau tidak, tampilan dan perilaku sama seperti sebelumnya.
+  1. Buat kunci di https://www.google.com/recaptcha/admin (pilih **reCAPTCHA v2**, jenis "Kotak centang 'Saya bukan robot'"), tambahkan domain situs Anda.
+  2. Di Vercel > Settings > Environment Variables isi `RECAPTCHA_SITE_KEY` (kunci situs, publik) dan `RECAPTCHA_SECRET` (kunci rahasia), lalu **Redeploy**.
+  3. Untuk mematikan: hapus kedua variabel itu lalu Redeploy.
+- Cara kerja: klien memuat skrip Google hanya bila diaktifkan (`GET /api/app?p=/captcha`), mengirim token sebagai kolom `captcha`; server (`captcha_wajib` di `api/app.py`) memverifikasinya ke `siteverify` Google sebelum memproses login. Memanggil API langsung tanpa token ditolak (400). **Jika Google tidak bisa dihubungi, login ditolak (503) dengan pesan jelas**, jadi hapus variabel itu bila Anda butuh akses darurat.
+- **CSP diubah** di `vercel.json`: `script-src` dan `frame-src` kini juga mengizinkan `https://www.google.com/recaptcha/`, `https://www.gstatic.com/recaptcha/`, dan `https://recaptcha.google.com/recaptcha/` (hanya path itu). Sisanya tetap ketat. Pembatas percobaan (PIN 5x/15 menit, admin 15x/10 menit per IP) tetap berjalan.
+- Diuji di Chrome dengan skrip Google yang ditiru dan server verifikasi tiruan: kotak muncul di kartu Pemohon dan Admin, tanpa centang ditolak di klien, token palsu ditolak server, token sah masuk, token di-reset setelah dipakai, dan tanpa konfigurasi tidak ada yang berubah. **Belum diuji dengan widget reCAPTCHA asli dan kunci asli Anda** (jaringan keluar ke Google diblokir di lingkungan saya).

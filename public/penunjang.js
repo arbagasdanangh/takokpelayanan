@@ -3,9 +3,10 @@
    tautan di kaki halaman atau perintah /baru di Asisten, lengkap tombol Coba. 2. Cek Perangkat (suara, notifikasi, penyimpanan, koneksi)
    untuk membantu pemecahan masalah. 3. Banner koneksi saat perangkat offline. Tanpa perubahan server. */
 (function () {
-var D = document, $ = function (i) { return D.getElementById(i); }, VER0 = "53", KEY = "tk_baru";
+var D = document, $ = function (i) { return D.getElementById(i); }, VER0 = "54", KEY = "tk_baru";
 var E = function (s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return {"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]; }); };
 var WARGA = [
+  ["Mau urus apa hari ini?", "Pilih situasi (buka usaha, anak lahir, menikah, bangun rumah, dll.) dan Takok mencarikan layanan yang cocok dari data loket, lengkap dengan syarat dan jadwal kunjungan.", "situasi", "Coba"],
   ["Perizinan Resmi", "Dua pintu perizinan dalam satu tempat: 21 bidang SSW Alfa Surabaya, pencarian KBLI 2025 yang tersambung ke OSS, rute izin usaha, dan tautan resmi.", "izin", "Buka"],
   ["Catatan izin pribadi", "Catat nomor permohonan SSW Alfa dan masa berlaku izin Anda. Pengingat kalender 30 dan 7 hari sebelum izin berakhir. Tersimpan hanya di perangkat.", "", ""],
   ["6 game baru di Ruang Main", "Susun Alur Izin, Cocok Bidang SSW, Menara Berkas, Gabung Stempel, Benar atau Mitos, dan Sandi Izin.", "alur", "Main"],
@@ -58,6 +59,7 @@ function buka(manual) {
     if (a === "aa") { var t = $("au-b"); if (t) t.click(); }
     else if (a === "arti") { var bf = $("bf"); if (bf) bf.click(); setTimeout(function () { if (window.BOTI && BOTI.ask) BOTI.ask("/arti"); }, 220); }
     else if (a === "cari") { if (window.Shell) Shell.cari(); }
+    else if (a === "situasi") { var st = document.getElementById("sit"); if (st) st.scrollIntoView({behavior: "smooth", block: "center"}); }
     else if (a === "izin") { if (window.Izin) Izin.buka(); }
     else if (a === "alur") { var mg2 = $("mbgo"); if (mg2) mg2.click(); setTimeout(function () { if (window.GameIzin) GameIzin.alur(); }, 120); }
     else if (a === "rencana") { if (window.Rencana) Rencana.buka(); }

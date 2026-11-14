@@ -69,6 +69,7 @@ function daftarAksi() {
   if (window.ArenaZona) a.push({id: "arena", t: "Arena Zona (gim MOBA)", fn: function () { klik("mbgo"); setTimeout(function () { ArenaZona.menu(); }, 120); }, g: "Fitur", k: "main game"});
   a.push({id: "aa", t: "Kenyamanan membaca (Aa)", fn: function () { klik("au-b"); }, g: "Pengaturan", k: "huruf besar kontras lansia"});
   a.push({id: "tema", t: "Ganti tema terang atau gelap", fn: function () { klik("th"); }, g: "Pengaturan", k: "gelap malam"});
+  a.push({id: "demo", t: "Tur Demo (jalan-jalan otomatis)", fn: function () { var b = D.getElementById("dmgo"); if (b) b.click(); }, g: "Pengaturan", k: "tur demo panduan pengenalan"});
   if (window.TakokBaru) a.push({id: "baru", t: "Yang baru di Takok", fn: function () { TakokBaru.buka(); }, g: "Pengaturan", k: "fitur terbaru cek perangkat"});
   if (!standalone() && pasang()) a.push({id: "pasang", t: "Pasang aplikasi di layar utama", fn: pasangApp, g: "Pengaturan", k: "install pwa"});
   return a;
@@ -83,13 +84,15 @@ function bukaMenu() {
   var a = daftarAksi(), fit = a.filter(function (x) { return x.g === "Fitur"; }), set = a.filter(function (x) { return x.g === "Pengaturan"; }), iosTip = !DEF && /iphone|ipad|ipod/i.test(navigator.userAgent) && !standalone();
   var o = lembar("Menu", '<div class="sh-gr"></div><div class="sh-h"><b>Menu</b><button type="button" class="au-x" data-m="x" aria-label="Tutup">&times;</button></div>' +
     '<button type="button" class="sh-cr" data-m="cari">' + svg("cari") + '<span>Cari fitur, perintah, atau layanan</span><kbd>Ctrl K</kbd></button>' +
+    '<div class="sh-q2"><button type="button" data-m="izincari">&#128269; Cari izin</button><button type="button" data-m="demo">&#9654; Tur Demo</button></div>' +
     '<p class="sh-lb">Fitur</p><div class="sh-g">' + fit.map(function (x) { return '<button type="button" data-m="a:' + x.id + '">' + E(x.t) + '</button>'; }).join("") + '</div>' +
     '<p class="sh-lb">Pengaturan</p><div class="sh-g">' + set.map(function (x) { return '<button type="button" data-m="a:' + x.id + '">' + E(x.t) + '</button>'; }).join("") + '</div>' +
     (iosTip ? '<p class="sh-tip">Di iPhone: ketuk ikon Bagikan, lalu <b>Tambah ke Layar Utama</b> untuk memasang Takok.</p>' : "") +
-    '<small class="sys">Takok Pelayanan Suroboyo &middot; Versi 52</small>', "sh-menu");
+    '<small class="sys">Takok Pelayanan Suroboyo &middot; Versi 53</small>', "sh-menu");
   o.addEventListener("click", function (e) {
     var b = e.target.closest("[data-m]"); if (!b) return; var m = b.dataset.m; if (m === "x") { tutupOv(); return; }
     if (m === "cari") { tutupOv(); bukaCari(); return; }
+    if (m === "izincari" || m === "demo") { tutupOv(); setTimeout(function () { var t = D.querySelector(m === "demo" ? ".dm-go, #dmgo" : ".ug-fab"); if (t) t.click(); else if (window.toast) toast("Fitur ini belum siap, coba lagi sebentar."); }, 80); return; }
     if (m.indexOf("a:") === 0) { var x = a.filter(function (z) { return z.id === m.slice(2); })[0]; tutupOv(); if (x) setTimeout(function () { ujung(x.fn); }, 60); }
   });
 }

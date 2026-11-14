@@ -1,0 +1,5 @@
+/* v55: penguat halaman masuk (loginplus.js) */
+#lg .lp-tg,.card .lp-tg,.lp-tg{width:fit-content!important;max-width:100%!important;flex:none!important;display:inline-flex;align-items:center;gap:6px;margin:2px 6px 6px 0;padding:6px 14px;font-weight:600}
+.lp-w{display:block;color:#b45309;margin:0 0 6px}.lp-w:empty{display:none}
+.lp-rc{margin:8px 0;min-height:78px;max-width:100%;overflow-x:auto}
+@media(max-width:340px){.lp-rc{transform:scale(.88);transform-origin:0 0}}

@@ -88,3 +88,12 @@
 .sd-h.on{border-color:#16a34a;background:#dcfce7;color:#14532d}.sd-h.no{border-color:#dc2626;background:#fee2e2;color:#7f1d1d}
 .sd-k{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin:10px 0}.sd-b{padding:10px 0!important;min-width:0;text-align:center;justify-content:center}
 @media(min-width:520px){.sd-k{grid-template-columns:repeat(9,1fr)}}
+
+/* v54: Mau urus apa? (situasi.js) */
+#sit{margin:0 0 14px}.sit-h{display:flex;flex-direction:column;gap:2px;margin-bottom:8px}.sit-h small{color:var(--mute,#5b6b85)}
+.sit-bar{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 8px;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch}
+.sit-chip{flex:0 0 auto;scroll-snap-align:start;display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line,#d6e0f5);background:var(--surface,#fff);color:var(--ink,#0f2557);border-radius:999px;padding:10px 14px;font:inherit;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(15,37,87,.08)}
+.sit-chip span{font-size:1.15rem}.sit-chip:hover,.sit-chip:focus-visible{border-color:var(--acc,#1d4ed8)}
+.sit-box{max-height:90vh;overflow:auto}.sit-t{font-size:1rem;margin:14px 0 6px}.sit-r{border:1px solid var(--line,#d6e0f5);border-radius:12px;padding:10px 12px;list-style:none}
+.sit-pl{display:inline-flex;align-items:center;gap:6px;font-size:.9rem;cursor:pointer}.sit-pl input{width:20px;height:20px}
+.sit-ft{position:sticky;bottom:0;background:var(--surface,#fff);padding:10px 0 2px;margin-top:10px;border-top:1px solid var(--line,#d6e0f5)}.sit-ft .send:disabled{opacity:.55}

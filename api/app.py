@@ -8,6 +8,7 @@ import base64, collections, csv, hashlib, hmac, io, json, os, re, secrets, sys, 
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import parse_qs, urlparse
 import urllib.request
+import urllib.parse
 import urllib.error
 from html import escape as hesc
 from html.parser import HTMLParser
@@ -761,6 +762,40 @@ def izin_uji():
     return out
 
 
+# ---------------- reCAPTCHA (opsional): aktif hanya bila RECAPTCHA_SITE_KEY dan RECAPTCHA_SECRET diisi di Vercel ----------------
+RC_SITE = (os.environ.get("RECAPTCHA_SITE_KEY") or "").strip()
+RC_SECRET = (os.environ.get("RECAPTCHA_SECRET") or "").strip()
+
+
+def captcha_aktif():
+    return bool(RC_SITE and RC_SECRET)
+
+
+def captcha_google(token, ip):
+    """Tanya Google apakah token reCAPTCHA v2 sah. Hanya mengirim secret, token, dan IP; hasil tidak disimpan."""
+    data = urllib.parse.urlencode({"secret": RC_SECRET, "response": token, "remoteip": ip}).encode()
+    req = urllib.request.Request("https://www.google.com/recaptcha/api/siteverify", data=data, headers={"Content-Type": "application/x-www-form-urlencoded"})
+    with urllib.request.urlopen(req, timeout=4) as r:
+        return bool((json.loads(r.read(20000).decode("utf-8", "ignore")) or {}).get("success"))
+
+
+def captcha_wajib(b, ip):
+    """Dipanggil di awal masuk, daftar, dan masuk admin. Bila reCAPTCHA belum dikonfigurasi, tidak melakukan apa pun."""
+    if not captcha_aktif():
+        return
+    if limited("rl:rc:" + ip, 60, 600):
+        raise HttpError(429, "Terlalu banyak percobaan. Coba lagi beberapa menit lagi.")
+    tok = str(b.get("captcha", ""))[:4096]
+    if len(tok) < 20:
+        raise HttpError(400, "Centang kotak reCAPTCHA dulu.")
+    try:
+        ok = captcha_google(tok, ip)
+    except Exception:
+        raise HttpError(503, "reCAPTCHA belum bisa diverifikasi sekarang. Coba lagi sebentar.")
+    if not ok:
+        raise HttpError(400, "Verifikasi reCAPTCHA gagal atau kedaluwarsa. Centang lagi lalu coba kembali.")
+
+
 def kata_peta_loket():
     by_label, by_nama = {}, {}
     for k in LOKET:
@@ -966,6 +1001,8 @@ class handler(BaseHTTPRequestHandler):
         if path == "/izin" and method == "GET":
             d = izin_muat()
             return self.json({"rows": d["rows"], "tgl": d["tgl"], "sumber": d["sumber"]}, extra=[("Cache-Control", "public, max-age=60, s-maxage=300")])
+        if path == "/captcha" and method == "GET":
+            return self.json({"aktif": captcha_aktif(), "site": RC_SITE if captcha_aktif() else ""}, extra=[("Cache-Control", "no-store")])
         if path == "/daftar" and method == "POST":
             return self.daftar(b)
         if path == "/masuk" and method == "POST":
@@ -1208,6 +1245,7 @@ class handler(BaseHTTPRequestHandler):
 
     def daftar(self, b):
         ip = self.ip()
+        captcha_wajib(b, ip)
         if limited("rl:daftar:" + ip, 10, 3600):
             raise HttpError(429, "Terlalu banyak pendaftaran. Coba lagi nanti.")
         nama, hp, em, pin = clean(b.get("nama", ""), 60), norm_hp(b.get("hp", "")), ok_email(b.get("email", "")), str(b.get("pin", ""))
@@ -1230,6 +1268,7 @@ class handler(BaseHTTPRequestHandler):
 
     def masuk(self, b):
         hp, pin, ip = norm_hp(b.get("hp", "")), str(b.get("pin", "")), self.ip()
+        captcha_wajib(b, ip)
         if not hp or not re.match(r"^\d{6}$", pin):
             raise HttpError(400, "Nomor HP atau PIN tidak valid.")
         if limited("rl:pin:" + hp, 5, 900) or limited("rl:pinip:" + ip, 30, 900):
@@ -1246,6 +1285,7 @@ class handler(BaseHTTPRequestHandler):
         """Superuser: kosongkan nama pengguna (atau tulis superuser) dan isi kata sandi utama.
         Akun lain (admin loket atau superuser tambahan): nama pengguna + kata sandi yang dibuat superuser."""
         ip, pw = self.ip(), str(b.get("password", ""))
+        captcha_wajib(b, ip)
         u = clean(b.get("user", ""), 30).lower()
         if u == ADM_SUPER_NAMA:
             u = ""
