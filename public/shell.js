@@ -61,7 +61,7 @@ function tutupOv() { if (ov) { ov.remove(); ov = null; D.removeEventListener("ke
 function escOv(e) { if (e.key === "Escape") { e.stopPropagation(); tutupOv(); } }
 function pasang() { return !!DEF || /iphone|ipad|ipod/i.test(navigator.userAgent); }
 function standalone() { return (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true; }
-var FITUR = [["t1", "Layanan Publik"], ["t2", "Informasi Pelayanan"], ["t3", "Lokasi Pelayanan"], ["t4", "Percakapan Saya"], ["t5", "Tanya Admin"], ["t6", "Pengaduan"], ["t7", "Status Permohonan"], ["t8", "Booking Kunjungan"], ["t9", "Survei Kepuasan"], ["t10", "Pandu KBLI"], ["t11", "Pandu Zona"]];
+var FITUR = [["t1", "Layanan Publik"], ["t2", "Informasi Pelayanan"], ["t3", "Lokasi Pelayanan"], ["t4", "Percakapan Saya"], ["t5", "Tanya Admin"], ["t6", "Pengaduan"], ["t7", "Status Permohonan"], ["t8", "Booking Kunjungan"], ["t9", "Survei Kepuasan"], ["t10", "Pandu KBLI"], ["t11", "Pandu Zona"], ["t12", "Perizinan Resmi"]];
 function daftarAksi() {
   var a = FITUR.map(function (f) { var b = $(f[0]); return {id: f[0], t: b ? b.textContent.trim() : f[1], fn: function () { klik(f[0]); }, g: "Fitur"}; }).filter(function (x) { return $(x.id); });
   a.push({id: "main", t: "Ruang Main (permainan)", fn: function () { klik("mbgo"); }, g: "Fitur", k: "game arena rush tebak"});

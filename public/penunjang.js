@@ -3,9 +3,12 @@
    tautan di kaki halaman atau perintah /baru di Asisten, lengkap tombol Coba. 2. Cek Perangkat (suara, notifikasi, penyimpanan, koneksi)
    untuk membantu pemecahan masalah. 3. Banner koneksi saat perangkat offline. Tanpa perubahan server. */
 (function () {
-var D = document, $ = function (i) { return D.getElementById(i); }, VER0 = "52d", KEY = "tk_baru";
+var D = document, $ = function (i) { return D.getElementById(i); }, VER0 = "53", KEY = "tk_baru";
 var E = function (s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return {"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]; }); };
 var WARGA = [
+  ["Perizinan Resmi", "Dua pintu perizinan dalam satu tempat: 21 bidang SSW Alfa Surabaya, pencarian KBLI 2025 yang tersambung ke OSS, rute izin usaha, dan tautan resmi.", "izin", "Buka"],
+  ["Catatan izin pribadi", "Catat nomor permohonan SSW Alfa dan masa berlaku izin Anda. Pengingat kalender 30 dan 7 hari sebelum izin berakhir. Tersimpan hanya di perangkat.", "", ""],
+  ["6 game baru di Ruang Main", "Susun Alur Izin, Cocok Bidang SSW, Menara Berkas, Gabung Stempel, Benar atau Mitos, dan Sandi Izin.", "alur", "Main"],
   ["Aa: kenyamanan membaca", "Huruf lebih besar, kontras tinggi, dan Mode Lansia dalam satu ketukan.", "aa", "Coba"],
   ["Tampilan ala aplikasi", "Bilah navigasi di bawah, Menu lengkap, pencarian cepat (Ctrl atau Cmd + K), dan bisa dipasang ke layar utama HP.", "cari", "Coba cari"],
   ["Booking lebih mudah", "Jam yang sudah lewat dan bentrok langsung ditandai, tanggal punya penanda ketersediaan, dan pembatalan kini minta konfirmasi.", "", ""],
@@ -17,6 +20,7 @@ var WARGA = [
   ["Arena Zona", "Gim ala MOBA di Ruang Main: rebut tiga Menara Zona dan kalahkan Si Ruwet.", "arena", "Main"]
 ];
 var ADM = [
+  ["Katalog Perizinan", "Tab baru untuk superuser: tempel daftar izin dari SSW Alfa atau OSS (Excel/CSV), periksa, simpan. Ada tombol uji koneksi server ke kedua situs.", "", ""],
   ["Saran Balasan Cerdas", "Di percakapan, Takok menyusun draf jawaban dari data loket (syarat, biaya, jam) dan menyarankan balasan cepat yang mirip.", "", ""],
   ["Fokus sekarang", "Tombol di bar atas: 6 percakapan paling mendesak, sekali klik langsung dibuka.", "", ""],
   ["Peta Kepadatan", "Peta panas booking 7 hari kerja ke depan, lengkap loket terpadat per hari.", "", ""],
@@ -54,6 +58,8 @@ function buka(manual) {
     if (a === "aa") { var t = $("au-b"); if (t) t.click(); }
     else if (a === "arti") { var bf = $("bf"); if (bf) bf.click(); setTimeout(function () { if (window.BOTI && BOTI.ask) BOTI.ask("/arti"); }, 220); }
     else if (a === "cari") { if (window.Shell) Shell.cari(); }
+    else if (a === "izin") { if (window.Izin) Izin.buka(); }
+    else if (a === "alur") { var mg2 = $("mbgo"); if (mg2) mg2.click(); setTimeout(function () { if (window.GameIzin) GameIzin.alur(); }, 120); }
     else if (a === "rencana") { if (window.Rencana) Rencana.buka(); }
     else if (a === "arena") { var mg = $("mbgo"); if (mg) mg.click(); setTimeout(function () { if (window.ArenaZona) ArenaZona.menu(); }, 120); }
   };

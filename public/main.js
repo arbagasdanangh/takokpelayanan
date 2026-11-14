@@ -88,9 +88,14 @@ var BD = [
   {id: "hoki", n: "Si Hoki", d: "Putar Roda Takok", s: "bintang", ok: function () { return (G.gp.roda || 0) >= 1; }},
   {id: "misi", n: "Misi Tuntas", d: "Selesaikan 3 tantangan dalam sehari", s: "plus", ok: function () { return Object.keys(G.qdone || {}).length >= 3; }},
   {id: "sepuluh", n: "Sepuluh Kali", d: "Main 10 kali", s: "segienam", ok: function () { return G.plays >= 10; }},
-  {id: "maniak", n: "Maniak Main", d: "Coba semua 9 permainan", s: "belah", ok: function () { return ["cocok", "susun", "urut", "kuis", "kata", "tangkap", "suro", "roda", "usaha"].every(function (g) { return G.gp[g] > 0; }); }},
+  {id: "maniak", n: "Maniak Main", d: "Coba 9 permainan pertama", s: "belah", ok: function () { return ["cocok", "susun", "urut", "kuis", "kata", "tangkap", "suro", "roda", "usaha"].every(function (g) { return G.gp[g] > 0; }); }},
   {id: "juragan", n: "Juragan Muda", d: "Bangun usaha 3D tanpa salah (3 bintang)", s: "hati", ok: function () { return Object.keys(G.ub || {}).some(function (k) { return G.ub[k] >= 3; }); }},
-  {id: "wirausaha", n: "Calon Wirausaha", d: "Bangun 3 usaha berbeda di Bangun Usaha 3D", s: "plus", ok: function () { return Object.keys(G.ub || {}).length >= 3; }}
+  {id: "wirausaha", n: "Calon Wirausaha", d: "Bangun 3 usaha berbeda di Bangun Usaha 3D", s: "plus", ok: function () { return Object.keys(G.ub || {}).length >= 3; }},
+  {id: "ahlialur", n: "Ahli Alur Izin", d: "Susun Alur Izin dengan 3 bintang", s: "segilima", ok: function () { return (G.best.al || 0) >= 1 && Object.keys(G.al || {}).some(function (k) { return G.al[k] >= 3; }); }},
+  {id: "antihoaks", n: "Antihoaks", d: "Benar atau Mitos 8 dari 8", s: "hati", ok: function () { return (G.best.bm || 0) >= 8; }},
+  {id: "menarakokoh", n: "Menara Kokoh", d: "Menara Berkas 10 lantai atau lebih", s: "segitiga", ok: function () { return (G.best.mn || 0) >= 10; }},
+  {id: "stempelemas", n: "Stempel Emas", d: "Capai ubin 512 di Gabung Stempel", s: "bintang", ok: function () { return (G.best.gb || 0) >= 512; }},
+  {id: "pemecahsandi", n: "Pemecah Sandi", d: "Tebak 3 dari 3 kata di Sandi Izin", s: "belah", ok: function () { return (G.best.sd || 0) >= 3; }}
 ];
 
 /* ---------- Overlay ---------- */
@@ -136,7 +141,13 @@ function home() {
     ["tebak", ["bintang", "plus", "segilima"], "Tebak KBLI Harian", "5 soal harian dari 1.559 KBLI 2025. Bagikan skormu!", G.best.tb !== undefined ? "Terbaik: " + G.best.tb + " dari 5" : "Belum dimainkan", 1],
     ["zona", ["segilima", "bintang", "plus"], "Tebak Zona MPP", "Di zona berapa instansi MPP Surabaya? 5 soal harian.", G.best.tz !== undefined ? "Terbaik: " + G.best.tz + " dari 5" : "Belum dimainkan", 1],
     ["rush", ["segitiga", "bintang", "hati"], "Suroboyo Rush", "Lari di jalan Surabaya, ambil berkas, hindari antrean panjang. Siang berganti malam.", G.best.rs ? "Rekor: " + G.best.rs + " poin" : "Belum dimainkan", 1],
-    ["arena", ["segilima", "segitiga", "bintang"], "Arena Zona", "Gim ala MOBA: rebut Menara Zona 2, 3, 4 lalu hancurkan Antrean Raksasa.", G.best.ar ? "Skor terbaik: " + G.best.ar : "Belum dimainkan", 1]
+    ["arena", ["segilima", "segitiga", "bintang"], "Arena Zona", "Gim ala MOBA: rebut Menara Zona 2, 3, 4 lalu hancurkan Antrean Raksasa.", G.best.ar ? "Skor terbaik: " + G.best.ar : "Belum dimainkan", 1],
+    ["alur", ["segilima", "plus", "bintang"], "Susun Alur Izin", "Urutkan langkah mengurus izin: OSS, SSW Alfa, loket, dan konversi KBLI.", G.best.al ? "Terbaik: " + G.best.al + " poin" : "Belum dimainkan", 1],
+    ["bidang", ["bintang", "segitiga", "persegi"], "Cocok Bidang SSW", "5 soal harian: layanan ini masuk bidang apa di SSW Alfa Surabaya?", G.best.bd !== undefined ? "Terbaik: " + G.best.bd + " dari 5" : "Belum dimainkan", 1],
+    ["menara", ["persegi", "segitiga", "bintang"], "Menara Berkas", "Satu ketukan, tumpuk berkas setinggi mungkin. Tepat di tengah = kombo.", G.best.mn ? "Rekor: " + G.best.mn + " lantai" : "Belum dimainkan", 1],
+    ["gabung", ["persegi", "segienam", "plus"], "Gabung Stempel", "Geser dan gabungkan stempel kembar sampai jadi NIB, sertifikat, hingga Juara.", G.best.gb ? "Tertinggi: " + G.best.gb : "Belum dimainkan", 1],
+    ["benar", ["segilima", "hati", "bintang"], "Benar atau Mitos", "8 pernyataan seputar perizinan dan keamanan berkas. Jawab cepat!", G.best.bm !== undefined ? "Terbaik: " + G.best.bm + " dari 8" : "Belum dimainkan", 1],
+    ["sandi", ["persegi", "belah", "bulan"], "Sandi Izin", "Tebak istilah perizinan huruf demi huruf, 3 kata per ronde.", G.best.sd !== undefined ? "Terbaik: " + G.best.sd + " dari 3" : "Belum dimainkan", 1]
   ];
   view('<div class="gm-lv"><div class="gm-ring" style="--p:' + pr + '"><span>' + lv + '</span></div><div><small>Level ' + lv + '</small><b>' + t + '</b><small>' + G.pts + ' poin &middot; ' + (100 - pr) + ' poin lagi ke level ' + (lv + 1) + (st >= 2 ? ' &middot; &#128293; ' + st + ' hari beruntun' : '') + '</small></div></div>' +
     questHtml() +
@@ -341,7 +352,11 @@ var QP = [
   {id: "suro", t: "Jawab 4 benar di Kuis Suroboyo", n: 4, v: function (p) { return p.suro || 0; }},
   {id: "roda", t: "Putar Roda Takok", n: 1, v: function (p) { return p.roda || 0; }},
   {id: "urut", t: "Ingat 5 urutan di Ingat Urutan", n: 5, v: function (p) { return p.urut || 0; }},
-  {id: "usaha", t: "Bangun satu usaha di Bangun Usaha 3D", n: 1, v: function (p) { return (p.kinds || {}).usaha ? 1 : 0; }}
+  {id: "usaha", t: "Bangun satu usaha di Bangun Usaha 3D", n: 1, v: function (p) { return (p.kinds || {}).usaha ? 1 : 0; }},
+  {id: "alur", t: "Selesaikan Susun Alur Izin", n: 1, v: function (p) { return (p.kinds || {}).alur ? 1 : 0; }},
+  {id: "benar", t: "Jawab 6 benar di Benar atau Mitos", n: 6, v: function (p) { return p.benar || 0; }},
+  {id: "menara", t: "Tumpuk 8 lantai di Menara Berkas", n: 8, v: function (p) { return p.menara || 0; }},
+  {id: "sandi", t: "Tebak 2 kata di Sandi Izin", n: 2, v: function (p) { return p.sandi || 0; }}
 ];
 function hariIni() {
   var d = today(); if (G.qd !== d) { G.qd = d; G.qp = {}; G.qdone = {}; save(); }

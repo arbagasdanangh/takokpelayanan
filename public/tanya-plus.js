@@ -22,7 +22,7 @@ function home() {
   d.innerHTML = '<b>' + (POP.length ? "🔥 Ramai ditanyakan minggu ini" : "💬 Sering ditanyakan") + '</b>' + chipsHtml(it, "home") + '<button type="button" class="chip" data-tp="kbli">🔎 Cari kode KBLI</button>';
 }
 function load() {
-  fetch("/api/populer", {credentials: "same-origin"}).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) { if (j && j.populer) POP = j.populer; }).catch(function () {}).then(function () {
+  fetch("/api/app?p=%2Fpopuler", {credentials: "same-origin"}).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) { if (j && j.populer) POP = j.populer; }).catch(function () {}).then(function () {
     var n = 0, t = setInterval(function () { n++; if ((window.KATA && window.KATA.length) || n > 40) { clearInterval(t); home(); } }, 500);
   });
 }
