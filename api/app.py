@@ -8,6 +8,7 @@ import base64, collections, csv, hashlib, hmac, io, json, os, re, secrets, sys, 
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import parse_qs, urlparse
 import urllib.request
+import urllib.error
 from html import escape as hesc
 from html.parser import HTMLParser
 
@@ -105,11 +106,11 @@ ADM_SUPER = frozenset([
     "loket", "loket/simpan", "loket/massal", "loket/reset", "loket/hapus", "lokasi/hapus", "lokasi/simpan", "lokasi/urutan", "lokasi/reset",
     "berita", "berita/hapus",
     "kata", "kata.xlsx", "kata-templat.xlsx", "kata/impor", "kstat", "kstat/reset", "miss", "miss/hapus",
-    "kbli/impor", "kbli/hapus",
+    "kbli/impor", "kbli/hapus", "izin", "izin/simpan", "izin/cek",
     "data.xlsx", "audit", "kesehatan", "pemohon",
 ])
 # Rute admin berupa aksi baca lewat POST atau pemeriksaan: tidak dicatat di Log aktivitas.
-AUDIT_ABAIKAN = frozenset(["kanal/uji", "piket", "kata/impor-cek"])
+AUDIT_ABAIKAN = frozenset(["kanal/uji", "piket", "kata/impor-cek", "izin/cek"])
 
 
 # ---------------- Util ----------------
@@ -691,6 +692,75 @@ def kbli_baris(x):
     return [kode, judul, g(2, 500), g(3, 40), g(4, 120), g(5, 80)]
 
 
+# ---------------- Katalog Perizinan (diisi superuser; tampil di "Perizinan Resmi") ----------------
+IZIN_MAX = 800
+_IZ = {"v": None, "rows": [], "tgl": 0, "sumber": "", "t": 0}
+
+
+def izin_baris(x):
+    """Rapikan satu baris katalog: [nama, bidang, instansi, syarat, biaya, waktu, tautan, terverifikasi]."""
+    if not isinstance(x, (list, tuple)) or len(x) < 1:
+        return None
+    g = lambda i, n: clean(x[i], n) if len(x) > i and x[i] is not None else ""
+    nama = g(0, 120)
+    if len(nama) < 3:
+        return None
+    tautan = g(6, 300)
+    if tautan and not re.match(r"^https?://[^\s<>\"']+$", tautan):
+        tautan = ""
+    ver = 1 if len(x) > 7 and str(x[7]).strip().lower() in ("1", "true", "ya", "y") else 0
+    return [nama, g(1, 80), g(2, 80), g(3, 700), g(4, 100), g(5, 80), tautan, ver]
+
+
+def izin_baca():
+    """Baca katalog dari Redis (hash izin: v, tgl, sumber, p0..pN berisi 100 baris)."""
+    h = hall(db().cmd("HGETALL", "izin"))
+    rows = []
+    for k in sorted([k for k in h if re.match(r"^p\d+$", k)], key=lambda k: int(k[1:])):
+        d = parse(h[k], [])
+        if isinstance(d, list):
+            rows += [r for r in d if isinstance(r, list)]
+    return rows, h.get("v", ""), int(h.get("tgl", 0) or 0), h.get("sumber", "")
+
+
+def izin_muat():
+    """Cache per instance maksimal 60 detik agar hemat pembacaan Redis."""
+    if time.time() - _IZ["t"] > 60:
+        v = db().cmd("HGET", "izin", "v") or ""
+        if v != _IZ["v"]:
+            rows, v2, tgl, sumber = izin_baca()
+            _IZ.update(v=v2, rows=rows, tgl=tgl, sumber=sumber)
+        _IZ["t"] = time.time()
+    return _IZ
+
+
+IZIN_SITUS = {"oss": "https://oss.go.id/id/kbli", "ssw": "https://sswalfa.surabaya.go.id/info/daftar-perizinan"}
+
+
+def izin_uji():
+    """Uji apakah SERVER ini bisa menjangkau OSS dan SSW Alfa. Hanya alamat tetap (bukan masukan pengguna). Isi halaman tidak disimpan."""
+    out = []
+    for n, u in IZIN_SITUS.items():
+        t0 = time.time()
+        o = {"n": n, "ok": False, "kode": 0, "ms": 0, "jenis": "", "dinamis": False}
+        try:
+            req = urllib.request.Request(u, headers={"User-Agent": "Mozilla/5.0 (compatible; TakokCek/1.0)", "Accept": "text/html"})
+            with urllib.request.urlopen(req, timeout=4) as r:
+                o["kode"] = r.status
+                o["jenis"] = (r.headers.get("Content-Type") or "").split(";")[0][:40]
+                body = r.read(120000).decode("utf-8", "ignore")
+                o["ok"] = 200 <= r.status < 400
+                o["dinamis"] = "sedang memuat data" in body.lower()
+        except urllib.error.HTTPError as e:
+            o["kode"] = e.code
+            o["galat"] = "Ditolak situs (HTTP %d)" % e.code
+        except Exception as e:
+            o["galat"] = type(e).__name__
+        o["ms"] = int((time.time() - t0) * 1000)
+        out.append(o)
+    return out
+
+
 def kata_peta_loket():
     by_label, by_nama = {}, {}
     for k in LOKET:
@@ -871,7 +941,7 @@ class handler(BaseHTTPRequestHandler):
                     except Exception:
                         raise HttpError(400, "Data tidak valid.")
                     return self.route(method, path, q, body)
-                if n > {"/admin/kata": 700000, "/admin/kata/impor": 4200000, "/admin/loket/massal": 1500000, "/admin/kbli/impor": 1500000}.get(path, 10000):
+                if n > {"/admin/kata": 700000, "/admin/kata/impor": 4200000, "/admin/loket/massal": 1500000, "/admin/kbli/impor": 1500000, "/admin/izin/simpan": 1200000}.get(path, 10000):
                     raise HttpError(413, "Permintaan terlalu besar.")
                 try:
                     body = json.loads(self.rfile.read(n) or b"{}")
@@ -893,6 +963,9 @@ class handler(BaseHTTPRequestHandler):
             return self.kata_publik()
         if path == "/kbli" and method == "GET":
             return self.kbli_publik()
+        if path == "/izin" and method == "GET":
+            d = izin_muat()
+            return self.json({"rows": d["rows"], "tgl": d["tgl"], "sumber": d["sumber"]}, extra=[("Cache-Control", "public, max-age=60, s-maxage=300")])
         if path == "/daftar" and method == "POST":
             return self.daftar(b)
         if path == "/masuk" and method == "POST":
@@ -972,7 +1045,7 @@ class handler(BaseHTTPRequestHandler):
         db().pipe([["HINCRBY", "miss", t, 1], ["HSET", "missw", t, now_ms()], ["HINCRBY", "kmd", time.strftime("%Y%m%d", wib()), 1]])
         return self.json({"ok": True})
 
-    GAMES = ("cocok", "susun", "urut", "kuis", "kata", "tangkap", "suro", "roda", "usaha", "tebak", "zona", "rush", "arena")
+    GAMES = ("cocok", "susun", "urut", "kuis", "kata", "tangkap", "suro", "roda", "usaha", "tebak", "zona", "rush", "arena", "alur", "bidang", "menara", "gabung", "benar", "sandi")
 
     def game_main(self, b):
         """Hitung pemakaian Ruang Main secara anonim (tanpa IP/identitas): total per permainan dan per hari."""
@@ -1620,6 +1693,34 @@ class handler(BaseHTTPRequestHandler):
             raise HttpError(403, "Fitur ini hanya untuk superuser.")
         if method == "POST" and r not in AUDIT_ABAIKAN:
             self.audit_catat(r, b)
+        if r == "izin" and method == "GET":
+            rows, v, tgl, sumber = izin_baca()
+            return self.json({"rows": rows, "tgl": tgl, "sumber": sumber}, extra=ex)
+        if r == "izin/simpan" and method == "POST":
+            rows = b.get("rows")
+            if not isinstance(rows, list) or len(rows) > IZIN_MAX:
+                raise HttpError(400, "Data tidak valid. Maksimal %d izin." % IZIN_MAX)
+            out, seen = [], set()
+            for y in rows:
+                z = izin_baris(y)
+                if z and (z[0].lower(), z[1].lower()) not in seen:
+                    seen.add((z[0].lower(), z[1].lower()))
+                    out.append(z)
+            if sum(len(json.dumps(z, ensure_ascii=False)) for z in out) > 900000:
+                raise HttpError(400, "Katalog terlalu besar untuk disimpan sekaligus. Persingkat kolom Syarat atau kurangi jumlah izin.")
+            tgl = now_ms()
+            cmds = [["DEL", "izinn"]]
+            for i in range(0, len(out), 100):
+                cmds.append(["HSET", "izinn", "p%d" % (i // 100), json.dumps(out[i:i + 100], ensure_ascii=False)])
+            cmds += [["HSET", "izinn", "v", str(tgl)], ["HSET", "izinn", "tgl", str(tgl)], ["HSET", "izinn", "sumber", clean(b.get("sumber", ""), 120)]]
+            cmds.append(["RENAME", "izinn", "izin"] if out else ["DEL", "izin"])
+            db().pipe(cmds)
+            _IZ["t"] = 0
+            return self.json({"ok": True, "n": len(out), "tgl": tgl}, extra=ex)
+        if r == "izin/cek" and method == "POST":
+            if limited("rl:izcek", 6, 600):
+                raise HttpError(429, "Terlalu sering. Coba beberapa menit lagi.")
+            return self.json({"hasil": izin_uji()}, extra=ex)
         if r == "audit" and method == "GET":
             return self.json({"daftar": [x for x in (parse(v, None) for v in db().cmd("LRANGE", "audit", 0, 299) or []) if isinstance(x, dict)]}, extra=ex)
         if r == "kesehatan" and method == "GET":
