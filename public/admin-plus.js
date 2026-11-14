@@ -72,7 +72,7 @@ window.aPem = async function (el) {
 /* ---------- Log aktivitas ---------- */
 var LABEL = {"pengaturan": "Mengubah pengaturan", "password": "Mengganti kata sandi", "balas": "Membalas pemohon", "selesai": "Menandai selesai", "hapus": "Menghapus percakapan", "catatan": "Menyimpan catatan", "templat": "Menyimpan templat jawaban",
   "akun/simpan": "Menyimpan akun admin", "akun/hapus": "Menghapus akun admin", "loket/simpan": "Menyimpan loket", "loket/massal": "Impor/ubah loket massal", "loket/reset": "Mengatur ulang loket", "loket/hapus": "Menghapus loket", "lokasi/simpan": "Menyimpan lokasi", "lokasi/hapus": "Menghapus lokasi", "lokasi/urutan": "Mengubah urutan lokasi",
-  "kata": "Menyimpan aturan Kata cari", "kata/impor": "Impor aturan Kata cari", "kbli/impor": "Impor data KBLI", "kbli/hapus": "Menghapus data KBLI", "berita": "Menyimpan berita", "berita/hapus": "Menghapus berita", "bj/tandai": "Menandai pemohon (keamanan)", "permohonan": "Mencatat permohonan", "permohonan/ubah": "Memperbarui permohonan", "permohonan/hapus": "Menghapus permohonan", "booking/ubah": "Mengubah booking"};
+  "kata": "Menyimpan aturan Kata cari", "kata/impor": "Impor aturan Kata cari", "kbli/impor": "Impor data KBLI", "kbli/hapus": "Menghapus data KBLI", "izin/simpan": "Menyimpan Katalog Perizinan", "berita": "Menyimpan berita", "berita/hapus": "Menghapus berita", "bj/tandai": "Menandai pemohon (keamanan)", "permohonan": "Mencatat permohonan", "permohonan/ubah": "Memperbarui permohonan", "permohonan/hapus": "Menghapus permohonan", "booking/ubah": "Mengubah booking"};
 var LOGF = "";
 window.aLog = async function (el) {
   var j = await api("/api/admin/audit"), D = j.daftar;

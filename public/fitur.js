@@ -299,7 +299,7 @@ async function pnClick(e) {
 function admSup() { return !(ME && ME.level === "loket"); }
 var TAB_LOKET = ["ring", "hr", "inbox", "pmh", "bk", "an", "skm"];
 function admTabs() {
-  $("atabs").innerHTML = [["ring", "Ringkasan"], ["hr", "Hari ini (live)"], ["inbox", "Kotak masuk"], ["pmh", "Permohonan"], ["bk", "Booking"], ["an", "Analitik Chat"], ["bt", "Berita"], ["skm", "Rekap SKM"], ["kt", "Kata cari chatbot"], ["kam", "Keamanan & biro jasa"], ["lk", "Editor loket"], ["pk", "Asisten Piket"], ["kn", "Kanal WA & Telegram"], ["kb", "Data KBLI"], ["lap", "Laporan"], ["pem", "Direktori pemohon"], ["log", "Log aktivitas"], ["sh", "Kesehatan sistem"], ["ak", "Akun admin"]].filter(function (t) { return admSup() || TAB_LOKET.indexOf(t[0]) > -1; }).map(function (t) {
+  $("atabs").innerHTML = [["ring", "Ringkasan"], ["hr", "Hari ini (live)"], ["inbox", "Kotak masuk"], ["pmh", "Permohonan"], ["bk", "Booking"], ["an", "Analitik Chat"], ["bt", "Berita"], ["skm", "Rekap SKM"], ["kt", "Kata cari chatbot"], ["kam", "Keamanan & biro jasa"], ["lk", "Editor loket"], ["pk", "Asisten Piket"], ["kn", "Kanal WA & Telegram"], ["kb", "Data KBLI"], ["iz", "Katalog Perizinan"], ["lap", "Laporan"], ["pem", "Direktori pemohon"], ["log", "Log aktivitas"], ["sh", "Kesehatan sistem"], ["ak", "Akun admin"]].filter(function (t) { return admSup() || TAB_LOKET.indexOf(t[0]) > -1; }).map(function (t) {
     return '<button type="button" class="chip" data-at="' + t[0] + '" aria-pressed="' + (t[0] === AT) + '">' + t[1] + '</button>';
   }).join("");
   $("atabs").onclick = function (e) { var b = e.target.closest("[data-at]"); if (b) admTab(b.dataset.at); };
@@ -317,7 +317,7 @@ async function aX(t) {
   var el = $("a-x");
   el.innerHTML = '<div class="empty">Memuat&hellip;</div>';
   try {
-    if (t === "kam") await window.aKam(el); else if (t === "ring") await aRing(el); else if (t === "pmh") await aPmh(el); else if (t === "bk") await aBk(el); else if (t === "bt") await aBt(el); else if (t === "skm") await aSkm(el); else if (t === "kt") { await aKt(el); if (window.AN_KT) { var w = window.AN_KT; window.AN_KT = null; ktAdd(w); } } else if (t === "lk") await window.aLk(el); else if (t === "kb") await window.aKb(el); else if (t === "pk") await window.aPk(el); else if (t === "kn") await window.aKn(el); else if (t === "an") await aAn(el); else if (t === "ak") await window.aAk(el); else if (t === "lap") await window.aLap(el); else if (t === "pem") await window.aPem(el); else if (t === "log") await window.aLog(el); else if (t === "sh") await window.aSh(el); else if (t === "hr") await window.aHr(el);
+    if (t === "kam") await window.aKam(el); else if (t === "ring") await aRing(el); else if (t === "pmh") await aPmh(el); else if (t === "bk") await aBk(el); else if (t === "bt") await aBt(el); else if (t === "skm") await aSkm(el); else if (t === "kt") { await aKt(el); if (window.AN_KT) { var w = window.AN_KT; window.AN_KT = null; ktAdd(w); } } else if (t === "lk") await window.aLk(el); else if (t === "kb") await window.aKb(el); else if (t === "iz") await window.aIz(el); else if (t === "pk") await window.aPk(el); else if (t === "kn") await window.aKn(el); else if (t === "an") await aAn(el); else if (t === "ak") await window.aAk(el); else if (t === "lap") await window.aLap(el); else if (t === "pem") await window.aPem(el); else if (t === "log") await window.aLog(el); else if (t === "sh") await window.aSh(el); else if (t === "hr") await window.aHr(el);
   } catch (x) { el.innerHTML = '<div class="empty">' + esc(x.message) + '</div>'; }
 }
 function pkOpts() {
@@ -353,7 +353,7 @@ async function aRing(el) {
     aGame(j.game) +
     '<h2 class="sec">Layar antrean</h2><div class="card"><p class="sys" style="margin:0">Tampilkan nomor yang dipanggil di TV atau layar ruang tunggu. Layar mengumumkan dengan suara bila diaktifkan.</p><div class="btns"><a class="btn" href="/?layar=1" target="_blank" rel="noopener">Buka layar antrean</a></div></div>';
 }
-var GNAMA = {cocok: "Cocok Bentuk", susun: "Susun Bentuk", urut: "Ingat Urutan", kuis: "Kuis Kilat Loket", kata: "Tebak Kata", tangkap: "Tangkap Berkas", suro: "Kuis Suroboyo", roda: "Roda Takok", tebak: "Tebak KBLI Harian", zona: "Tebak Zona MPP", usaha: "Bangun Usaha 3D"};
+var GNAMA = {cocok: "Cocok Bentuk", susun: "Susun Bentuk", urut: "Ingat Urutan", kuis: "Kuis Kilat Loket", kata: "Tebak Kata", tangkap: "Tangkap Berkas", suro: "Kuis Suroboyo", roda: "Roda Takok", tebak: "Tebak KBLI Harian", zona: "Tebak Zona MPP", usaha: "Bangun Usaha 3D", rush: "Suroboyo Rush", arena: "Arena Zona", alur: "Susun Alur Izin", bidang: "Cocok Bidang SSW", menara: "Menara Berkas", gabung: "Gabung Stempel", benar: "Benar atau Mitos", sandi: "Sandi Izin"};
 function aGame(g) {
   if (!g) return "";
   var ks = Object.keys(g.per), tot = ks.reduce(function (a, k) { return a + g.per[k]; }, 0), mx = Math.max.apply(null, ks.map(function (k) { return g.per[k]; }).concat([1])), mh = Math.max.apply(null, g.hari.map(function (x) { return x.n; }).concat([1]));
