@@ -69,8 +69,6 @@ function daftarAksi() {
   if (window.ArenaZona) a.push({id: "arena", t: "Arena Zona (gim MOBA)", fn: function () { klik("mbgo"); setTimeout(function () { ArenaZona.menu(); }, 120); }, g: "Fitur", k: "main game"});
   a.push({id: "aa", t: "Kenyamanan membaca (Aa)", fn: function () { klik("au-b"); }, g: "Pengaturan", k: "huruf besar kontras lansia"});
   a.push({id: "tema", t: "Ganti tema terang atau gelap", fn: function () { klik("th"); }, g: "Pengaturan", k: "gelap malam"});
-  a.push({id: "demo", t: "Tur Demo (jalan-jalan otomatis)", fn: function () { var b = D.getElementById("dmgo"); if (b) b.click(); }, g: "Pengaturan", k: "tur demo panduan pengenalan"});
-  a.push({id: "perizinan", t: "Perizinan Resmi (OSS & SSW Alfa)", fn: function () { if (window.Izin) Izin.buka(); }, g: "Fitur", k: "izin oss ssw alfa kbli nib perizinan"});
   if (window.TakokBaru) a.push({id: "baru", t: "Yang baru di Takok", fn: function () { TakokBaru.buka(); }, g: "Pengaturan", k: "fitur terbaru cek perangkat"});
   if (!standalone() && pasang()) a.push({id: "pasang", t: "Pasang aplikasi di layar utama", fn: pasangApp, g: "Pengaturan", k: "install pwa"});
   return a;

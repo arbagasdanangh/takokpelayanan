@@ -48,6 +48,3 @@ html:not(.sh-on) .sh-ban{bottom:16px}
 @media (prefers-reduced-motion:reduce){.sh-sheet,.sh-ov,.sh-in,.sh-ban{animation:none!important}}
 @media print{.sh-bar,.sh-ban,.sh-ov{display:none!important}}
 @media (hover:none){.sh-cr kbd,.sh-ft{display:none}}
-
-/* v53b: tombol melayang tidak boleh menutup bilah navigasi bawah; Cari izin dan Tur Demo tetap bisa dibuka dari Cari cepat (Ctrl/Cmd+K) */
-html.sh-on .ug-fab,html.sh-on .dm-go{display:none!important}
