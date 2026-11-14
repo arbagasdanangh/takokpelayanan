@@ -2,7 +2,7 @@
 /* Versi 57: Paket Ramah, supaya warga betah dan kembali lagi. Semua di sisi peramban (tersimpan di perangkat), tanpa perubahan server.
    1. Sapaan personal + Tips hari ini + rangkaian hari berturut-turut (streak) dengan kejutan konfeti.
    2. Favorit layanan (bintang di tiap loket) dan Terakhir dibuka, tampil sebagai "Pintasan saya" di beranda.
-   3. Pencarian suara (mikrofon) di kolom cari.
+   3. (Pencarian suara: sudah ada di aura-plus.js.)
    4. Bagikan layanan ke WhatsApp / salin tautan; tautan ?layanan=KUNCI langsung membuka loket itu.
    5. Bukti sosial: "N warga online / memakai Takok hari ini".
    6. Sambutan 3 langkah untuk pengunjung baru (sekali saja). */
@@ -136,31 +136,14 @@ function gambarPintasan() {
     pint = D.createElement("section"); pint.id = "rm-pt"; pint.className = "rm-pt"; pint.setAttribute("aria-label", "Pintasan saya"); h.parentNode.insertBefore(pint, h);
   }
   var fav = st.fav.filter(function (k) { return nama(k) !== k; }).slice(0, 8), rec = st.rec.filter(function (k) { return fav.indexOf(k) < 0 && nama(k) !== k; }).slice(0, 5);
-  var s = fav.join(",") + "|" + rec.join(","); if (s === sigP) return; sigP = s;
+  var s = fav.concat(["|"], rec).map(function (k) { return k === "|" ? k : nama(k); }).join(","); if (s === sigP) return; sigP = s;
   if (!fav.length && !rec.length) { pint.hidden = true; pint.innerHTML = ""; return; }
   var ch = function (k) { return '<button type="button" class="chip" data-rmk="' + E(k) + '">' + E(nama(k)) + '</button>'; };
   pint.hidden = false;
   pint.innerHTML = '<h2 class="sec">Pintasan saya</h2>' + (fav.length ? '<p class="rm-lb">&#9733; Favorit</p><div class="rm-ch">' + fav.map(ch).join("") + '</div>' : '') + (rec.length ? '<p class="rm-lb">Terakhir dibuka</p><div class="rm-ch">' + rec.map(ch).join("") + '</div>' : '');
 }
 
-/* ---------- 4. Pencarian suara ---------- */
-function pasangSuara() {
-  var go = $("go"), q = $("q"); if (!go || !q || $("rm-mic")) return;
-  var SR = W.SpeechRecognition || W.webkitSpeechRecognition; if (!SR) return;
-  var b = D.createElement("button"); b.type = "button"; b.id = "rm-mic"; b.className = "rm-mic"; b.setAttribute("aria-label", "Cari dengan suara");
-  b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3"/></svg>';
-  go.parentNode.insertBefore(b, go); var r = null;
-  b.addEventListener("click", function () {
-    if (r) { try { r.stop(); } catch (e) {} return; }
-    try {
-      r = new SR(); r.lang = "id-ID"; r.interimResults = false; r.maxAlternatives = 1; b.classList.add("on"); toast("Silakan bicara, misalnya \"bikin NIB\"");
-      r.onresult = function (ev) { var t = ev.results[0] && ev.results[0][0] ? ev.results[0][0].transcript : ""; if (t) { q.value = t; q.dispatchEvent(new Event("input", {bubbles: true})); go.click(); } };
-      r.onerror = function (ev) { toast(ev.error === "not-allowed" ? "Izin mikrofon ditolak. Aktifkan di pengaturan peramban." : "Suara tidak terdengar, coba lagi."); };
-      r.onend = function () { r = null; b.classList.remove("on"); };
-      r.start();
-    } catch (e) { r = null; b.classList.remove("on"); toast("Pencarian suara tidak tersedia di peramban ini."); }
-  });
-}
+/* Pencarian suara sudah disediakan aura-plus.js (tombol mikrofon di kolom cari). */
 
 /* ---------- 5. Tautan ?layanan=KUNCI ---------- */
 (function () {
@@ -198,7 +181,7 @@ function milestone() {
   if (m) setTimeout(function () { konfeti(); toast("Hebat! Anda memakai Takok " + m + "."); }, 3600);
 }
 
-function jalan() { ujung(bangunKartu); ujung(gambarKartu); ujung(hiasList); ujung(gambarPintasan); ujung(pasangSuara); }
+function jalan() { ujung(bangunKartu); ujung(gambarKartu); ujung(hiasList); ujung(gambarPintasan); }
 jalan(); setInterval(jalan, 1500);
 if (W.MutationObserver && $("list")) new MutationObserver(function () { ujung(hiasList); }).observe($("list"), {childList: true});
 setTimeout(bukti, 2500); setInterval(bukti, 90000);

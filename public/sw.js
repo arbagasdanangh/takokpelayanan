@@ -2,7 +2,7 @@
    - Tidak pernah mengintersep /api/ atau permintaan lintas-origin, dan tidak menyentuh metode selain GET.
    - Jaringan lebih dulu: pengguna selalu mendapat versi terbaru; cache hanya dipakai bila jaringan gagal (offline).
    - Saat offline dan membuka halaman, tampil cangkang terakhir yang tersimpan atau /offline.html. */
-const V = "takok-v57";
+const V = "takok-v58";
 self.addEventListener("install", function (e) {
   self.skipWaiting();
   e.waitUntil(caches.open(V).then(function (c) { return c.addAll(["/offline.html"]); }).catch(function () {}));

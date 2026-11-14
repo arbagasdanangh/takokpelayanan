@@ -602,7 +602,7 @@ Perkiraan perintah Redis: sekitar 25 per kunjungan baru, 6 per muat ulang halama
 Berkas baru `public/ramah.js` dan `ramah.css`; semua tersimpan di perangkat warga (kunci `tk_ramah`), tanpa perubahan server.
 - **Sapaan personal + Tips hari ini + rangkaian hari berturut-turut** (konfeti di hari ke-3, 7, 14, 30).
 - **Favorit** (bintang di tiap loket) dan **Terakhir dibuka**, tampil sebagai "Pintasan saya" di beranda.
-- **Pencarian suara** (ikon mikrofon di kolom cari, bahasa Indonesia).
+- (Pencarian suara sudah ada sejak sebelumnya di `aura-plus.js`.)
 - **Bagikan layanan** ke WhatsApp / salin tautan. Tautan `/?layanan=pusat_3` langsung membuka loket itu.
 - **Bukti sosial:** "N warga sedang memakai Takok" / "N warga memakai Takok hari ini".
 - **Sambutan 3 langkah** untuk pengunjung baru (sekali saja); jendela "Yang baru" ditunda untuk mereka.

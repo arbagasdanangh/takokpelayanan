@@ -16,9 +16,6 @@
 .rm-fav{flex:none;border:0;background:transparent;color:var(--mute);font-size:1.35rem;line-height:1;padding:4px 8px;margin-left:auto;cursor:pointer;border-radius:10px;transition:transform .2s cubic-bezier(.2,1.6,.4,1),color .15s}
 .rm-fav[aria-pressed="true"]{color:#f5a700;animation:rmStar .45s cubic-bezier(.2,1.6,.4,1)}.rm-fav:active{transform:scale(.8)}
 .rm-share{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
-.rm-mic{flex:none;width:40px;height:40px;border-radius:50%;border:0;background:var(--accsoft);color:var(--acc);display:grid;place-items:center;cursor:pointer;margin-right:4px}
-.rm-mic svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.rm-mic.on{background:var(--warn);color:#fff;animation:rmPulse2 1.1s infinite}
 .rm-sheet{text-align:center;padding-bottom:calc(20px + env(safe-area-inset-bottom,0px))}
 .rm-slide{animation:rmSlide .35s cubic-bezier(.2,.8,.2,1) both;padding:6px 6px 0}
 .rm-ico{font-size:4rem;line-height:1.1;display:inline-block;animation:rmBob 2.2s ease-in-out infinite}
@@ -35,5 +32,5 @@
 @keyframes rmBob{50%{transform:translateY(-8px)}}
 @keyframes rmSlide{from{opacity:0;transform:translateX(26px)}to{opacity:1;transform:none}}
 html.apk-noanim .rm-card,html.apk-noanim .rm-slide,html.apk-noanim .rm-ico,html.apk-noanim .rm-dot,html.apk-noanim .rm-fav{animation:none!important}
-@media (prefers-reduced-motion:reduce){.rm-card,.rm-slide,.rm-ico,.rm-dot,.rm-cf i,.rm-mic.on{animation:none!important}}
-@media print{.rm-card,.rm-pt,.rm-cf,.rm-mic{display:none!important}}
+@media (prefers-reduced-motion:reduce){.rm-card,.rm-slide,.rm-ico,.rm-dot,.rm-cf i{animation:none!important}}
+@media print{.rm-card,.rm-pt,.rm-cf{display:none!important}}
