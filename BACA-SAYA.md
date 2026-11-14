@@ -585,3 +585,10 @@ Perkiraan perintah Redis: sekitar 25 per kunjungan baru, 6 per muat ulang halama
 - Permintaan pencatatan bisa dipalsukan dari luar (tidak ada akun pada pengunjung). Dibatasi 300 kunjungan per jam per jaringan; anggaplah angkanya penuntun, bukan data audit.
 
 **File:** `api/_pengunjung.py` (logika), rute `/v/*` dan `/admin/visitor` di `api/app.py`, `public/visitor.js` (pelacak + lencana), `public/visitor-admin.js` (dasbor), `public/visitor.css`.
+
+## Versi 56: rasa aplikasi mobile
+- **Tombol Back diperbaiki** (`public/nav.js`): setiap layar/lembar (Booking, Status, Percakapan Saya, Asisten, Ruang Main, Menu, dialog) punya entri riwayat. Back menutup lapisan paling atas; di beranda Back pertama menampilkan "Tekan sekali lagi untuk keluar".
+- **Splash ikon beranimasi** saat aplikasi dibuka (sekali per sesi), animasi "buka ikon" saat menu diketuk, transisi geser maju/mundur, ikon bilah bawah memantul, getar halus.
+- **Gestur**: tarik-untuk-segarkan, geser dari tepi kiri untuk kembali (Android), tarik lembar Menu ke bawah untuk menutup.
+- **Fitur**: bilah offline/online, tombol ke atas, Bagikan Takok, warna bilah status ikut tema, pintasan ikon aplikasi baru (Status, Percakapan, Pengaduan, Ruang Main), pengaturan Animasi dan Getar di Menu.
+- Berkas baru: `apk-boot.js`, `apk.js`, `apk.css`, `nav.js`. Tidak ada perubahan server.

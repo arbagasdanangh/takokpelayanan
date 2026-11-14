@@ -10,15 +10,107 @@
   "orientation": "portrait",
   "background_color": "#eaf2ff",
   "theme_color": "#1a46b5",
-  "categories": ["government", "utilities"],
+  "categories": [
+    "government",
+    "utilities"
+  ],
   "icons": [
-    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
   ],
   "shortcuts": [
-    { "name": "Booking Kunjungan", "short_name": "Booking", "url": "/#booking", "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }] },
-    { "name": "Tanya Asisten", "short_name": "Asisten", "url": "/#asisten", "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }] },
-    { "name": "Cari Layanan", "short_name": "Cari", "url": "/#cari", "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }] }
+    {
+      "name": "Booking Kunjungan",
+      "short_name": "Booking",
+      "url": "/#booking",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Tanya Asisten",
+      "short_name": "Asisten",
+      "url": "/#asisten",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Status Permohonan",
+      "short_name": "Status",
+      "url": "/#status",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Percakapan Saya",
+      "short_name": "Tanya",
+      "url": "/#tanya",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Pengaduan",
+      "short_name": "Aduan",
+      "url": "/#pengaduan",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Ruang Main",
+      "short_name": "Main",
+      "url": "/#main",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ],
+  "id": "/",
+  "display_override": [
+    "standalone",
+    "minimal-ui"
   ]
 }

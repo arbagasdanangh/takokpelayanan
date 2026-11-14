@@ -1,0 +1,96 @@
+/* v56: rasa aplikasi mobile (splash, animasi buka ikon, gestur, bilah offline, dll). */
+html{-webkit-tap-highlight-color:transparent;touch-action:manipulation;overscroll-behavior-y:contain}
+body{overscroll-behavior-y:contain}
+.tile,.brand,.sh-bar,.sh-i,.hero,.top .btn,button,.menu{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+img,svg{-webkit-user-drag:none}
+input,textarea,[contenteditable]{-webkit-user-select:text;user-select:text}
+html.apk-app body{-webkit-font-smoothing:antialiased}
+
+/* ---- Splash ---- */
+#apk-splash{display:none}
+html.apk-splash #apk-splash{position:fixed;inset:0;z-index:10000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:#fff;overflow:hidden;
+  background:radial-gradient(120% 90% at 50% 30%,#2a62e6 0%,#1a46b5 45%,#0a2272 100%);animation:spAuto .01s 3.6s forwards}
+html.apk-splash #apk-splash.out{animation:spOut .5s cubic-bezier(.5,0,.8,.4) forwards}
+.sp-glow{position:absolute;width:140vmax;height:140vmax;left:50%;top:38%;margin:-70vmax 0 0 -70vmax;background:conic-gradient(from 0deg,transparent 0 70%,rgba(255,184,0,.18) 80%,transparent 90%);animation:spSpin 6s linear infinite}
+.sp-mark{position:relative;width:132px;height:132px;display:grid;place-items:center;margin-bottom:14px}
+.sp-r{position:absolute;inset:0;border-radius:50%;border:2px solid rgba(255,255,255,.55);opacity:0;animation:spRing 1.6s .35s cubic-bezier(.2,.6,.3,1) infinite}
+.sp-r.r2{animation-delay:.95s}
+.sp-logo{position:relative;width:104px;height:104px;filter:drop-shadow(0 14px 26px rgba(0,10,60,.5));animation:spPop .8s cubic-bezier(.2,1.3,.4,1) both}
+.sp-b{fill:#fff}.sp-m{fill:#1a46b5;transform-origin:24px 30px;animation:spRise .6s .5s cubic-bezier(.2,.9,.3,1) both}
+.sp-t{font-size:2rem;font-weight:800;letter-spacing:.02em;animation:spUp .55s .7s both}
+.sp-s{font-size:.95rem;font-weight:600;opacity:.9;letter-spacing:.14em;text-transform:uppercase;color:#ffd35c;animation:spUp .55s .85s both}
+.sp-bar{position:absolute;left:50%;bottom:calc(64px + env(safe-area-inset-bottom,0px));width:120px;height:4px;margin-left:-60px;border-radius:9px;background:rgba(255,255,255,.22);overflow:hidden;animation:spUp .4s 1s both}
+.sp-bar i{display:block;height:100%;width:40%;border-radius:9px;background:#ffb800;animation:spBar 1.1s 1s ease-in-out infinite}
+@keyframes spPop{0%{transform:scale(.2) rotate(-14deg);opacity:0}60%{transform:scale(1.12) rotate(3deg);opacity:1}100%{transform:none;opacity:1}}
+@keyframes spRise{from{transform:translateY(14px) scale(.6);opacity:0}to{transform:none;opacity:1}}
+@keyframes spUp{from{transform:translateY(16px);opacity:0}to{transform:none;opacity:1}}
+@keyframes spRing{0%{transform:scale(.7);opacity:.7}100%{transform:scale(1.9);opacity:0}}
+@keyframes spSpin{to{transform:rotate(360deg)}}
+@keyframes spBar{0%{transform:translateX(-110%)}100%{transform:translateX(300%)}}
+@keyframes spOut{0%{transform:none;opacity:1}100%{transform:scale(1.35);opacity:0;visibility:hidden}}
+@keyframes spAuto{to{opacity:0;visibility:hidden}}
+html.apk-splash .menu .tile:nth-child(1){animation-delay:1.20s}
+html.apk-splash .menu .tile:nth-child(2){animation-delay:1.25s}
+html.apk-splash .menu .tile:nth-child(3){animation-delay:1.30s}
+html.apk-splash .menu .tile:nth-child(4){animation-delay:1.35s}
+html.apk-splash .menu .tile:nth-child(5){animation-delay:1.40s}
+html.apk-splash .menu .tile:nth-child(6){animation-delay:1.45s}
+html.apk-splash .menu .tile:nth-child(7){animation-delay:1.50s}
+html.apk-splash .menu .tile:nth-child(8){animation-delay:1.55s}
+html.apk-splash .menu .tile:nth-child(9){animation-delay:1.60s}
+html.apk-splash .menu .tile:nth-child(10){animation-delay:1.65s}
+html.apk-splash .menu .tile:nth-child(11){animation-delay:1.70s}
+html.apk-splash .menu .tile:nth-child(12){animation-delay:1.75s}
+
+/* ---- Animasi buka ikon ---- */
+.apk-launch{position:fixed;border-radius:50%;background:var(--acc);pointer-events:none;z-index:1700;transform:scale(.03);opacity:0;animation:apkLaunch .62s cubic-bezier(.25,.7,.2,1) both}
+.apk-launch.y{background:var(--tick)}
+@keyframes apkLaunch{0%{transform:scale(.03);opacity:.85}65%{opacity:.4}100%{transform:scale(1);opacity:0}}
+.apk-pop{animation:apkPop .5s cubic-bezier(.2,1.4,.4,1)}
+@keyframes apkPop{0%{transform:scale(1)}30%{transform:scale(.78) rotate(-8deg)}65%{transform:scale(1.22) rotate(5deg)}100%{transform:scale(1)}}
+
+/* ---- Transisi arah (maju geser dari kanan, kembali dari kiri) ---- */
+html[data-navdir="fwd"] .sh-in{animation:apkInR .34s cubic-bezier(.2,.8,.2,1) both}
+html[data-navdir="back"] .sh-in{animation:apkInL .34s cubic-bezier(.2,.8,.2,1) both}
+@keyframes apkInR{from{opacity:0;transform:translateX(38px)}to{opacity:1;transform:none}}
+@keyframes apkInL{from{opacity:0;transform:translateX(-38px)}to{opacity:1;transform:none}}
+.pn-ov .pn-box,.ap-ov .ap-box,.ug-dlg,.kr-card{animation:apkBox .26s cubic-bezier(.2,1.1,.3,1) both}
+@keyframes apkBox{from{opacity:0;transform:translateY(22px) scale(.95)}to{opacity:1;transform:none}}
+.pn-ov,.ap-ov,.ug-ov,.kr-ov{animation:shfade .18s both}
+
+/* ---- Bilah bawah: ikon memantul saat aktif ---- */
+.sh-i.on .sh-ic svg{animation:apkBounce .5s cubic-bezier(.2,1.4,.4,1)}
+@keyframes apkBounce{0%{transform:translateY(0) scale(1)}35%{transform:translateY(-6px) scale(1.2)}70%{transform:translateY(1px) scale(.95)}100%{transform:none}}
+.sh-i.on::after{content:"";position:absolute;top:0;left:50%;width:18px;height:3px;margin-left:-9px;border-radius:0 0 4px 4px;background:var(--acc);animation:apkBar .3s both}
+.sh-c.on::after{display:none}
+@keyframes apkBar{from{transform:scaleX(0)}to{transform:none}}
+.sh-gr{box-sizing:content-box;height:5px;padding:8px 60px;margin:-4px auto 2px;background-clip:content-box;touch-action:none;cursor:grab}
+.sh-sheet{overscroll-behavior:contain}
+
+/* ---- Tarik untuk segarkan ---- */
+.apk-ptr{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 6px);width:40px;height:40px;border-radius:50%;background:var(--surface);color:var(--acc);box-shadow:0 6px 18px rgba(10,34,114,.3);display:grid;place-items:center;z-index:1600;pointer-events:none;opacity:0;transform:translate(-50%,-60px);transition:opacity .15s}
+.apk-ptr.on{opacity:1}.apk-ptr svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.apk-ptr.go{background:var(--acc);color:var(--onacc)}
+.apk-ptr.spin svg{animation:apkSpin .7s linear infinite}
+@keyframes apkSpin{to{transform:rotate(360deg)}}
+
+/* ---- Geser dari tepi kiri ---- */
+.apk-edge{position:fixed;left:0;top:50%;width:44px;height:44px;border-radius:50%;background:var(--ink);color:var(--bg);display:grid;place-items:center;z-index:1600;pointer-events:none;opacity:0;transform:translate(-44px,-50%);box-shadow:0 6px 18px rgba(0,0,0,.35)}
+.apk-edge.on{opacity:.9}.apk-edge.go{background:var(--acc);color:var(--onacc);opacity:1}
+.apk-edge svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+
+/* ---- Bilah offline ---- */
+.apk-off{position:fixed;left:0;right:0;top:0;z-index:9000;padding:calc(env(safe-area-inset-top,0px) + 8px) 14px 8px;text-align:center;font-size:.84rem;font-weight:700;color:#fff;background:#16794c;transform:translateY(-110%);transition:transform .3s cubic-bezier(.2,.8,.2,1);pointer-events:none}
+.apk-off.bad{background:#b42318}.apk-off.on{transform:none}
+
+/* ---- Tombol ke atas ---- */
+.apk-up{position:fixed;right:14px;bottom:calc(96px + env(safe-area-inset-bottom,0px));width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--acc);display:grid;place-items:center;z-index:60;box-shadow:0 8px 22px rgba(10,34,114,.25);opacity:0;transform:translateY(16px) scale(.7);pointer-events:none;transition:opacity .2s,transform .25s cubic-bezier(.2,1.3,.4,1);cursor:pointer}
+.apk-up.on{opacity:1;transform:none;pointer-events:auto}
+.apk-up svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+html:not(.sh-on) .apk-up{bottom:calc(88px + env(safe-area-inset-bottom,0px))}
+
+/* ---- Hemat gerak / dimatikan pengguna ---- */
+html.apk-noanim .apk-launch,html.apk-noanim .apk-ptr,html.apk-noanim #apk-splash{display:none!important}
+html.apk-noanim .apk-pop,html.apk-noanim .sh-i.on .sh-ic svg,html.apk-noanim .sh-i.on::after,html.apk-noanim .pn-box,html.apk-noanim .ap-box,html.apk-noanim .ug-dlg,html.apk-noanim .kr-card,html.apk-noanim .sh-in{animation:none!important}
+@media (prefers-reduced-motion:reduce){.apk-launch,#apk-splash,.apk-pop,.sh-i.on .sh-ic svg,.pn-box,.ap-box,.ug-dlg{animation:none!important}.apk-launch,#apk-splash{display:none!important}}
+@media print{.apk-ptr,.apk-edge,.apk-off,.apk-up,#apk-splash{display:none!important}}

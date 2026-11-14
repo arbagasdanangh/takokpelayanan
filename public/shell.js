@@ -71,6 +71,12 @@ function daftarAksi() {
   a.push({id: "tema", t: "Ganti tema terang atau gelap", fn: function () { klik("th"); }, g: "Pengaturan", k: "gelap malam"});
   a.push({id: "demo", t: "Tur Demo (jalan-jalan otomatis)", fn: function () { var b = D.getElementById("dmgo"); if (b) b.click(); }, g: "Pengaturan", k: "tur demo panduan pengenalan"});
   if (window.TakokBaru) a.push({id: "baru", t: "Yang baru di Takok", fn: function () { TakokBaru.buka(); }, g: "Pengaturan", k: "fitur terbaru cek perangkat"});
+  if (window.Apk) {
+    a.push({id: "bagikan", t: "Bagikan Takok ke teman", fn: Apk.bagikan, g: "Pengaturan", k: "share kirim undang"});
+    a.push({id: "anim", t: "Animasi aplikasi: " + (Apk.anim() ? "nyala" : "mati"), fn: Apk.toggleAnim, g: "Pengaturan", k: "gerak efek"});
+    a.push({id: "hap", t: "Getar saat ketuk: " + (Apk.hap() ? "nyala" : "mati"), fn: Apk.toggleHap, g: "Pengaturan", k: "haptic vibrasi"});
+    a.push({id: "segar", t: "Muat ulang aplikasi", fn: Apk.segarkan, g: "Pengaturan", k: "refresh segarkan"});
+  }
   if (!standalone() && pasang()) a.push({id: "pasang", t: "Pasang aplikasi di layar utama", fn: pasangApp, g: "Pengaturan", k: "install pwa"});
   return a;
 }
@@ -88,7 +94,7 @@ function bukaMenu() {
     '<p class="sh-lb">Fitur</p><div class="sh-g">' + fit.map(function (x) { return '<button type="button" data-m="a:' + x.id + '">' + E(x.t) + '</button>'; }).join("") + '</div>' +
     '<p class="sh-lb">Pengaturan</p><div class="sh-g">' + set.map(function (x) { return '<button type="button" data-m="a:' + x.id + '">' + E(x.t) + '</button>'; }).join("") + '</div>' +
     (iosTip ? '<p class="sh-tip">Di iPhone: ketuk ikon Bagikan, lalu <b>Tambah ke Layar Utama</b> untuk memasang Takok.</p>' : "") +
-    '<small class="sys">Takok Pelayanan Suroboyo &middot; Versi 53</small>', "sh-menu");
+    '<small class="sys">Takok Pelayanan Suroboyo &middot; Versi 56</small>', "sh-menu");
   o.addEventListener("click", function (e) {
     var b = e.target.closest("[data-m]"); if (!b) return; var m = b.dataset.m; if (m === "x") { tutupOv(); return; }
     if (m === "cari") { tutupOv(); bukaCari(); return; }
@@ -157,8 +163,8 @@ window.addEventListener("beforeinstallprompt", function (e) { e.preventDefault()
 window.addEventListener("appinstalled", function () { DEF = null; banner(false); if (window.toast) toast("Takok terpasang di layar utama."); });
 function daftarSW() { try { if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) navigator.serviceWorker.register("/sw.js").catch(function () {}); } catch (e) {} }
 function pintasan() {
-  var h = (location.hash || "").toLowerCase(); if (!/^#(booking|asisten|cari)$/.test(h)) return; var n = 0, t = setInterval(function () {
-    n++; var r = $("role"); if ((r && r.textContent !== "Memuat\u2026") || n > 20) { clearInterval(t); try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {} if (h === "#booking") klik("t8"); else if (h === "#asisten") bukaBot(); else { var q = $("q"); if (q) { q.scrollIntoView({block: "center"}); q.focus(); } } }
+  var h = (location.hash || "").toLowerCase(); if (!/^#(booking|asisten|cari|status|main|tanya|pengaduan)$/.test(h)) return; var n = 0, t = setInterval(function () {
+    n++; var r = $("role"); if ((r && r.textContent !== "Memuat\u2026") || n > 20) { clearInterval(t); try { history.replaceState(history.state, "", location.pathname + location.search); } catch (e) {} if (h === "#booking") klik("t8"); else if (h === "#status") klik("t7"); else if (h === "#main") klik("mbgo"); else if (h === "#tanya") klik("t4"); else if (h === "#pengaduan") klik("t6"); else if (h === "#asisten") bukaBot(); else { var q = $("q"); if (q) { q.scrollIntoView({block: "center"}); q.focus(); } } }
   }, 400);
 }
 

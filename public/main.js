@@ -111,15 +111,13 @@ function top() { $g("gmp").textContent = "Lv " + lvl() + " · " + G.pts + " poin
 function ping(g) { try { api("/api/game/main", {g: g}).catch(function () {}); } catch (e) {} }
 function openGM() {
   opener = document.activeElement; root.hidden = false; document.body.style.overflow = "hidden"; home(); $g("gmx").focus();
-  if (!hist) { try { history.pushState({gm: 1}, ""); hist = true; } catch (e) {} }
 }
 function closeGM(fromPop) {
   if (root.hidden) return;
   stopAll(); root.hidden = true; document.body.style.overflow = "";
-  if (hist && !fromPop) { hist = false; try { history.back(); } catch (e) {} } else hist = false;
   top(); if (opener && opener.focus) { try { opener.focus(); } catch (e) {} }
 }
-window.addEventListener("popstate", function () { if (!root.hidden) closeGM(true); });
+/* riwayat Back kini dikelola nav.js */
 document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !root.hidden) closeGM(); });
 $g("gmx").onclick = function () { closeGM(); };
 $g("gms").onclick = function () { G.sound = G.sound ? 0 : 1; save(); top(); if (G.sound) beep(660, 0.12); };
