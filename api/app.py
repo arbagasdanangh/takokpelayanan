@@ -164,7 +164,32 @@ def clean(s, n):
 
 
 OK_TAG = {"p", "br", "b", "strong", "i", "em", "u", "ul", "ol", "li", "h3", "h4", "blockquote", "a", "hr"}
-KAT_BERITA = ["Berita", "Pengumuman", "Tips Layanan"]
+KAT_BERITA = ["Berita", "Pengumuman", "Tips Layanan", "Gangguan", "Libur", "Layanan Baru"]
+TINGKAT_BERITA = ("info", "penting", "darurat")
+
+
+def tgl_wib_ms(v):
+    """'2026-11-20T08:30' (WIB) -> epoch ms; kosong/tidak valid -> 0."""
+    m = re.match(r"^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?$", str(v or "").strip())
+    if not m:
+        return 0
+    try:
+        import calendar
+        y, mo, d, h, mi = int(m.group(1)), int(m.group(2)), int(m.group(3)), int(m.group(4) or 0), int(m.group(5) or 0)
+        return (calendar.timegm((y, mo, d, h, mi, 0)) - 7 * 3600) * 1000
+    except Exception:
+        return 0
+
+
+def berita_tayang(o, t):
+    """Berita lama (tanpa status) dianggap terbit. Baru: status terbit dan dalam jendela mulai..sampai."""
+    if not isinstance(o, dict) or o.get("status", "terbit") != "terbit":
+        return False
+    if o.get("mulai") and o["mulai"] > t:
+        return False
+    if o.get("sampai") and o["sampai"] <= t:
+        return False
+    return True
 ROSTER = {r["id"]: r for r in SKM_MPP}
 
 
@@ -1018,6 +1043,13 @@ class handler(BaseHTTPRequestHandler):
             return self.bot_miss(b)
         if path == "/game/main" and method == "POST":
             return self.game_main(b)
+        if path == "/berita/baca" and method == "POST":
+            nid = str(int(b.get("id") or 0))
+            if nid != "0" and not limited("rl:bbc:" + self.ip(), 120, 3600):
+                db().cmd("HINCRBY", "brd", nid + (":x" if b.get("v") == 1 else ":r"), 1)
+            return self.json({"ok": True})
+        if path == "/bot/rating" and method == "POST":
+            return self.bot_rating(b)
         if path == "/wa":
             return self.kanal_wa(method, q, b)
         if path == "/tg" and method == "POST":
@@ -1141,7 +1173,22 @@ class handler(BaseHTTPRequestHandler):
         db().pipe([["HINCRBY", "miss", t, 1], ["HSET", "missw", t, now_ms()], ["HINCRBY", "kmd", time.strftime("%Y%m%d", wib()), 1]])
         return self.json({"ok": True})
 
-    GAMES = ("cocok", "susun", "urut", "kuis", "kata", "tangkap", "suro", "roda", "usaha", "tebak", "zona", "rush", "arena", "alur", "bidang", "menara", "gabung", "benar", "sandi")
+    ALASAN = ("tidak_jelas", "salah", "kurang_lengkap", "ingin_petugas", "lainnya")
+
+    def bot_rating(self, b):
+        """Penilaian jawaban chatbot (anonim): v=1 membantu, v=-1 belum; alasan opsional dari daftar tetap."""
+        v = b.get("v")
+        if v not in (1, -1) or limited("rl:brt:" + self.ip(), 60, 3600):
+            return self.json({"ok": True})
+        d = time.strftime("%Y%m%d", wib())
+        cmds = [["HINCRBY", "brt:d", "%s:%s" % (d, "u" if v == 1 else "d"), 1]]
+        a = b.get("a")
+        if v == -1 and a in self.ALASAN:
+            cmds.append(["HINCRBY", "brt:a", a, 1])
+        db().pipe(cmds)
+        return self.json({"ok": True})
+
+    GAMES = ("cocok", "susun", "urut", "kuis", "kata", "tangkap", "suro", "roda", "usaha", "tebak", "zona", "rush", "arena", "alur", "bidang", "menara", "gabung", "benar", "sandi", "kalimas")
 
     def game_main(self, b):
         """Hitung pemakaian Ruang Main secara anonim (tanpa IP/identitas): total per permainan dan per hari."""
@@ -1291,7 +1338,12 @@ class handler(BaseHTTPRequestHandler):
                 who = {"peran": "pemohon", "nama": p["nama"], "hp": p["hp"], "email": p.get("email", "")}
         refresh_loket(0)
         c = cfg_all()
-        bt = sorted([parse(v, {}) for v in hall(db().cmd("HGETALL", "berita")).values()], key=lambda x: (not x.get("sematkan"), -x.get("id", 0)))[:10]
+        _t = now_ms()
+        bt = sorted([x for x in (parse(v, {}) for v in hall(db().cmd("HGETALL", "berita")).values()) if berita_tayang(x, _t)],
+                    key=lambda x: (x.get("tingkat") != "darurat", not x.get("sematkan"), -x.get("id", 0)))[:12]
+        for x in bt:
+            x.pop("oleh", None)
+            x.pop("catatan", None)
         rt = sorted(float(x) for x in db().cmd("LRANGE", "rt", -50, -1) or [])
         balas = round(rt[len(rt) // 2]) if len(rt) >= 3 else None
         kv = db().cmd("HGET", "kata2", "v")
@@ -1787,6 +1839,234 @@ class handler(BaseHTTPRequestHandler):
         out.sort(key=lambda x: -int(x.get("dibuat") or 0))
         return self.json({"daftar": out, "total": len(out)}, extra=ex)
 
+    # ---- Redaksi berita pelayanan: admin loket menulis, superuser menyetujui ----
+    def _bt_boleh(self, o):
+        if self.adm["sup"]:
+            return True
+        return o.get("oleh") == self.adm.get("u") or (o.get("loket") and self.boleh(o["loket"]))
+
+    def redaksi_daftar(self, ex):
+        t = now_ms()
+        rows = [parse(v, {}) for v in hall(db().cmd("HGETALL", "berita")).values()]
+        brd = {a: int(float(v)) for a, v in hall(db().cmd("HGETALL", "brd")).items()}
+        out = []
+        for o in rows:
+            if not o or not self._bt_boleh(o):
+                continue
+            o.setdefault("status", "terbit")
+            o["tayang"] = berita_tayang(o, t)
+            o["baca"] = brd.get("%s:r" % o.get("id"), 0)
+            o["membantu"] = brd.get("%s:x" % o.get("id"), 0)
+            o["loket_nama"] = label(o["loket"]) if o.get("loket") else "Semua loket"
+            out.append(o)
+        out.sort(key=lambda x: (x.get("status") != "tinjau", -x.get("id", 0)))
+        lk = [{"kunci": k, "nama": label(k)} for k in (self.adm["lk"] if not self.adm["sup"] else [])][:80]
+        return self.json({"daftar": out, "super": bool(self.adm["sup"]), "loket": lk, "kategori": KAT_BERITA, "now": t,
+                          "tinjau": sum(1 for o in out if o["status"] == "tinjau")}, extra=ex)
+
+    def redaksi_simpan(self, b, ex):
+        jd, isi = clean(b.get("judul", ""), 100), sanitize_html(b.get("isi", ""))
+        if len(jd) < 3 or len(re.sub(r"<[^>]+>", "", isi).strip()) < 3:
+            raise HttpError(400, "Isi judul dan isi berita.")
+        if len(isi) > 8000:
+            raise HttpError(400, "Isi berita terlalu panjang.")
+        kat = b.get("kategori") if b.get("kategori") in KAT_BERITA else "Berita"
+        tk = b.get("tingkat") if b.get("tingkat") in TINGKAT_BERITA else "info"
+        lok = clean(b.get("loket", ""), 60)
+        sup = bool(self.adm["sup"])
+        if not sup and (not lok or not self.boleh(lok)):
+            raise HttpError(403, "Pilih loket yang menjadi wewenang Anda.")
+        if not sup and tk == "darurat":
+            tk = "penting"
+        nid = int(b.get("id") or 0)
+        old = parse(db().cmd("HGET", "berita", nid)) if nid else None
+        if nid and (not old or not self._bt_boleh(old)):
+            raise HttpError(403, "Berita tidak ditemukan atau di luar wewenang Anda.")
+        mulai, sampai = tgl_wib_ms(b.get("mulai")), tgl_wib_ms(b.get("sampai"))
+        if sampai and mulai and sampai <= mulai:
+            raise HttpError(400, "Tanggal berakhir harus setelah tanggal mulai.")
+        want = b.get("status") if b.get("status") in ("draf", "tinjau", "terbit") else "draf"
+        if not sup and want == "terbit":
+            want = "tinjau"
+        if not nid:
+            nid = int(db().cmd("INCR", "seq:berita"))
+        o = {"id": nid, "judul": jd, "isi": isi, "kategori": kat, "tingkat": tk, "loket": lok, "status": want, "mulai": mulai, "sampai": sampai,
+             "sematkan": bool(b.get("sematkan")) if sup else bool(old and old.get("sematkan")), "waktu": old["waktu"] if old else now_ms(), "ubah": now_ms(),
+             "oleh": old.get("oleh") if old else self.adm.get("u", ""), "penulis": old.get("penulis") if old else (self.adm.get("nm") or self.adm.get("u") or ADM_SUPER_NAMA)}
+        if want == "terbit" and not old or (old and old.get("status") != "terbit" and want == "terbit"):
+            o["waktu"] = now_ms()
+        db().cmd("HSET", "berita", nid, json.dumps(o, ensure_ascii=False))
+        return self.json({"ok": True, "id": nid, "status": want}, extra=ex)
+
+    def redaksi_aksi(self, b, ex):
+        nid = int(b.get("id") or 0)
+        o = parse(db().cmd("HGET", "berita", nid)) if nid else None
+        if not o or not self._bt_boleh(o):
+            raise HttpError(404, "Berita tidak ditemukan.")
+        a, sup = b.get("aksi"), bool(self.adm["sup"])
+        st = o.get("status", "terbit")
+        if a == "hapus":
+            if not sup and st == "terbit":
+                raise HttpError(403, "Berita terbit hanya dapat dihapus superuser. Gunakan Arsipkan.")
+            db().pipe([["HDEL", "berita", str(nid)], ["HDEL", "brd", "%d:r" % nid], ["HDEL", "brd", "%d:x" % nid]])
+            return self.json({"ok": True}, extra=ex)
+        if a == "arsip":
+            o["status"] = "arsip"
+        elif a in ("setuju", "tolak", "sematkan", "terbit") and not sup:
+            raise HttpError(403, "Hanya superuser yang dapat menyetujui atau menyematkan.")
+        elif a in ("setuju", "terbit"):
+            o["status"] = "terbit"
+            o["waktu"] = now_ms() if st != "terbit" else o.get("waktu", now_ms())
+            o.pop("catatan", None)
+        elif a == "tolak":
+            o["status"] = "draf"
+            o["catatan"] = clean(b.get("catatan", ""), 200) or "Perlu diperbaiki."
+        elif a == "sematkan":
+            o["sematkan"] = not o.get("sematkan")
+        elif a == "kirim":
+            if st not in ("draf", "arsip"):
+                raise HttpError(400, "Berita sudah dikirim.")
+            o["status"] = "terbit" if sup else "tinjau"
+        else:
+            raise HttpError(400, "Aksi tidak dikenal.")
+        o["ubah"] = now_ms()
+        db().cmd("HSET", "berita", nid, json.dumps(o, ensure_ascii=False))
+        return self.json({"ok": True, "status": o["status"]}, extra=ex)
+
+    def monitor(self, ex):
+        """Data ringan untuk grafik pemantauan langsung (disegarkan tiap 30 detik oleh UI)."""
+        t0 = now_ms()
+        rows = muat_semua(ok=self.boleh)
+        sup = bool(self.adm["sup"])
+        jam = [{"u": 0, "a": 0} for _ in range(24)]
+        harian = {}
+        menunggu, tertua, aktif1j = 0, 0, 0
+        resp_h = {}
+        for r in rows:
+            ms = sorted(r["msgs"], key=lambda m: m.get("waktu", 0))
+            if not ms:
+                continue
+            for m in ms:
+                w = m.get("waktu", 0)
+                age = (t0 - w) / 3600000.0
+                if 0 <= age < 24:
+                    jam[23 - int(age)]["u" if m.get("dari") == "pemohon" else "a"] += 1
+                d = time.strftime("%Y%m%d", time.gmtime(w / 1000 + 7 * 3600))
+                if t0 - w < 14 * 86400000:
+                    x = harian.setdefault(d, [0, 0])
+                    x[0 if m.get("dari") == "pemohon" else 1] += 1
+            if t0 - ms[-1].get("waktu", 0) < 3600000:
+                aktif1j += 1
+            resp, mulai = AN.hitung_respons(ms, t0)
+            if mulai is not None and not r.get("selesai"):
+                menunggu += 1
+                tertua = max(tertua, (t0 - mulai) / 60000.0)
+            if resp:
+                d = time.strftime("%Y%m%d", time.gmtime(ms[-1].get("waktu", t0) / 1000 + 7 * 3600))
+                resp_h.setdefault(d, []).extend(resp)
+        dl = [time.strftime("%Y%m%d", time.gmtime(time.time() + 7 * 3600 - i * 86400)) for i in range(13, -1, -1)]
+        med = lambda a: (sorted(a)[len(a) // 2] if a else None)
+        out = {"dibuat": t0, "super": sup, "menunggu": menunggu, "tertua_menit": round(tertua), "aktif_1j": aktif1j,
+               "jam": [{"j": time.strftime("%H", time.gmtime(t0 / 1000 + 7 * 3600 - (23 - i) * 3600)), "u": x["u"], "a": x["a"]} for i, x in enumerate(jam)],
+               "harian": [{"d": d[6:] + "/" + d[4:6], "u": harian.get(d, [0, 0])[0], "a": harian.get(d, [0, 0])[1], "r": (round(med(resp_h.get(d, [])), 1) if resp_h.get(d) else None)} for d in dl],
+               "alert": []}
+        now_h = time.gmtime(time.time() + 7 * 3600).tm_hour
+        al = out["alert"]
+        if menunggu and tertua > 1440:
+            al.append({"lv": "merah", "t": "Ada percakapan menunggu lebih dari 24 jam (tertua %d jam)." % round(tertua / 60)})
+        elif menunggu and tertua > 240:
+            al.append({"lv": "kuning", "t": "%d percakapan menunggu, yang tertua %d jam." % (menunggu, round(tertua / 60))})
+        if sum(x["u"] for x in jam[-3:]) >= 3 * max(1, sum(x["u"] for x in jam[:-3]) / 21.0) and sum(x["u"] for x in jam[-3:]) >= 6:
+            al.append({"lv": "kuning", "t": "Lonjakan pertanyaan dalam 3 jam terakhir dibanding rata-rata 24 jam."})
+        tj = [parse(v, {}) for v in hall(db().cmd("HGETALL", "berita")).values()]
+        tin = [x for x in tj if x and x.get("status") == "tinjau" and self._bt_boleh(x)]
+        if tin and sup:
+            al.append({"lv": "kuning", "t": "%d berita menunggu persetujuan di tab Berita." % len(tin)})
+        if sup:
+            try:
+                res = db().pipe([["ZCOUNT", "vs:on", int(time.time()) - 300, "+inf"], ["HGETALL", "khd"], ["HGETALL", "kmd"], ["HGETALL", "gm:d"], ["HGETALL", "brd"]])
+                out["online"] = int(res[0] or 0)
+                khd, kmd, gmd, brd = [{a: int(float(v)) for a, v in hall(x).items()} for x in res[1:]]
+                out["bot"] = [{"d": d[6:] + "/" + d[4:6], "hit": khd.get(d, 0), "miss": kmd.get(d, 0)} for d in dl]
+                out["game"] = [{"d": d[6:] + "/" + d[4:6], "n": gmd.get(d, 0)} for d in dl]
+                bc = [(int(a.split(":")[0]), v) for a, v in brd.items() if a.endswith(":r")]
+                bc.sort(key=lambda x: -x[1])
+                out["berita"] = [{"judul": (parse(db().cmd("HGET", "berita", i), {}) or {}).get("judul", "#%d" % i), "n": n} for i, n in bc[:5]]
+                th, tm = sum(khd.get(d, 0) for d in dl[-3:]), sum(kmd.get(d, 0) for d in dl[-3:])
+                if th + tm >= 10 and tm / float(th + tm) > 0.35:
+                    al.append({"lv": "kuning", "t": "Chatbot tidak menjawab %d%% pertanyaan 3 hari terakhir. Tambahkan Kata cari." % round(100.0 * tm / (th + tm))})
+            except Exception as e:
+                print("MONITOR sup", repr(e))
+        if not al:
+            al.append({"lv": "hijau", "t": "Semua normal. Tidak ada peringatan."})
+        return self.json(out, extra=ex)
+
+    def laporan(self, q, ex):
+        """Laporan terpadu untuk admin (dibatasi loketnya) dan superuser (ditambah chatbot, game, kanal, pengunjung)."""
+        hari = int((q.get("hari") or ["30"])[0] or 30)
+        hari = hari if hari in (7, 14, 30, 90) else 30
+        sup = bool(self.adm["sup"])
+        t0 = now_ms()
+        rows = muat_semua(ok=self.boleh)
+        an = AN.statistik(rows, t0, hari, label)
+        batas = t0 - hari * 86400000
+        # Daftar percakapan: nama disamarkan (inisial saja), tanpa HP dan tanpa isi pesan.
+        daftar = []
+        for r in rows:
+            ms = sorted(r["msgs"], key=lambda m: m.get("waktu", 0))
+            if not ms or ms[-1].get("waktu", 0) < batas:
+                continue
+            pm = [m for m in ms if m.get("dari") == "pemohon"]
+            resp, mulai = AN.hitung_respons(ms, t0)
+            a = AN.analyze(" ".join(m.get("isi", "") for m in pm[-5:]))
+            nm = (r.get("nama") or "?").strip()
+            daftar.append({"tgl": time.strftime("%d/%m/%Y %H:%M", time.gmtime(ms[0].get("waktu", t0) / 1000 + 7 * 3600)), "loket": label(r["kunci"]),
+                           "nama": (nm[:1].upper() + "***") if nm else "?", "topik": (a["topik"] or ["Lainnya"])[0],
+                           "pesan": len(ms), "status": "Selesai" if r.get("selesai") else ("Menunggu" if mulai is not None else "Dibalas"),
+                           "respons": round(resp[0], 1) if resp else None, "senti": a["senti"], "nilai": r.get("nilai")})
+        daftar.sort(key=lambda x: x["tgl"][6:10] + x["tgl"][3:5] + x["tgl"][:2] + x["tgl"][11:], reverse=True)
+        out = {"hari": hari, "dibuat": t0, "super": sup, "chat": an, "daftar": daftar[:300], "total_daftar": len(daftar),
+               "rek": []}
+        k = an["kpi"]
+        rek = out["rek"]
+        if k.get("sla1") is not None and k["sla1"] < 60:
+            rek.append("Hanya %s%% pertanyaan dibalas dalam 1 jam. Atur piket atau aktifkan balasan cepat di jam sibuk." % k["sla1"])
+        if an["umur"].get(">24 jam"):
+            rek.append("%d percakapan menunggu lebih dari 24 jam. Prioritaskan sebelum laporan berikutnya." % an["umur"][">24 jam"])
+        if an["faq"] and an["faq"][0]["n"] >= 3:
+            rek.append("Pertanyaan \"%s\" muncul %d kali. Jadikan aturan Kata cari chatbot." % (an["faq"][0]["contoh"], an["faq"][0]["n"]))
+        if sup:
+            res = db().pipe([["HGETALL", "khit"], ["HGETALL", "kup"], ["HGETALL", "kdn"], ["HGETALL", "khd"], ["HGETALL", "kmd"], ["HGETALL", "miss"], ["HGETALL", "brt:d"],
+                             ["HGETALL", "brt:a"], ["HGETALL", "gm:n"], ["HGETALL", "gm:d"], ["HGETALL", "kn:n"]])
+            hit, up, dn, khd, kmd, miss, brd, bra, gn, gd, kn = [hall(x) for x in res]
+            iv = lambda d: {a: int(float(v)) for a, v in d.items()}
+            hit, up, dn, khd, kmd, brd, bra, gn, gd, kn = [iv(x) for x in (hit, up, dn, khd, kmd, brd, bra, gn, gd, kn)]
+            dl = [time.strftime("%Y%m%d", time.gmtime(time.time() + 7 * 3600 - i * 86400)) for i in range(min(hari, 30) - 1, -1, -1)]
+            th, tm = sum(khd.get(d, 0) for d in dl), sum(kmd.get(d, 0) for d in dl)
+            bu, bd = sum(brd.get(d + ":u", 0) for d in dl), sum(brd.get(d + ":d", 0) for d in dl)
+            top = sorted(hit.items(), key=lambda x: -x[1])[:10]
+            ms = sorted(((a, int(v)) for a, v in miss.items()), key=lambda x: -x[1])[:15]
+            out["bot"] = {"hit": th, "miss": tm, "akurasi": round(100.0 * th / max(1, th + tm)), "up": bu + sum(up.values()), "dn": bd + sum(dn.values()),
+                          "rating_up": bu, "rating_dn": bd, "alasan": bra, "top": [{"k": a, "n": n} for a, n in top], "tak_terjawab": [{"q": a, "n": n} for a, n in ms],
+                          "harian": [{"d": d[6:] + "/" + d[4:6], "hit": khd.get(d, 0), "miss": kmd.get(d, 0)} for d in dl]}
+            out["game"] = {"per": {g: gn.get(g, 0) for g in self.GAMES if gn.get(g)}, "total": sum(gn.values()),
+                           "harian": [{"d": d[6:] + "/" + d[4:6], "n": gd.get(d, 0)} for d in dl]}
+            out["kanal"] = {a: n for a, n in kn.items() if a.endswith(":total")}
+            try:
+                ds = [time.strftime("%Y%m%d", time.gmtime(time.time() + 7 * 3600 - i * 86400)) for i in range(min(hari, 30) - 1, -1, -1)]
+                out["visitor"] = PG.statistik(db(), int(time.time()), ds, lambda x: x[6:] + "/" + x[4:6])
+            except Exception as e:
+                print("LAPORAN visitor", repr(e))
+            if th + tm >= 10 and out["bot"]["akurasi"] < 70:
+                rek.append("Chatbot hanya menjawab %d%% pertanyaan. Tambahkan aturan untuk daftar tak terjawab teratas." % out["bot"]["akurasi"])
+            if ms and ms[0][1] >= 3:
+                rek.append("Pertanyaan tak terjawab terbanyak: \"%s\" (%d kali)." % ms[0])
+            if bu + bd >= 5 and bd > bu:
+                rek.append("Lebih banyak warga menilai jawaban chatbot belum membantu. Periksa alasan penilaian.")
+        if not rek:
+            rek.append("Belum ada temuan yang perlu ditindaklanjuti pada periode ini.")
+        return self.json(out, extra=ex)
+
     def admin(self, method, r, q, b, ex):
         if not self.adm["sup"] and (r in ADM_SUPER or (r == "templat" and method == "POST")):
             raise HttpError(403, "Fitur ini hanya untuk superuser.")
@@ -1955,6 +2235,16 @@ class handler(BaseHTTPRequestHandler):
         if r == "analitik" and method == "GET":
             hari = int((q.get("hari") or ["30"])[0] or 30)
             return self.json(AN.statistik(muat_semua(ok=self.boleh), now_ms(), hari, label), extra=ex)
+        if r == "laporan" and method == "GET":
+            return self.laporan(q, ex)
+        if r == "redaksi" and method == "GET":
+            return self.redaksi_daftar(ex)
+        if r == "redaksi/simpan" and method == "POST":
+            return self.redaksi_simpan(b, ex)
+        if r == "redaksi/aksi" and method == "POST":
+            return self.redaksi_aksi(b, ex)
+        if r == "monitor" and method == "GET":
+            return self.monitor(ex)
         if r == "cari" and method == "GET":
             kata = clean((q.get("q") or [""])[0], 60).lower()
             if len(kata) < 2:
