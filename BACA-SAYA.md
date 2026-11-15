@@ -607,3 +607,19 @@ Berkas baru `public/ramah.js` dan `ramah.css`; semua tersimpan di perangkat warg
 - **Bukti sosial:** "N warga sedang memakai Takok" / "N warga memakai Takok hari ini".
 - **Sambutan 3 langkah** untuk pengunjung baru (sekali saja); jendela "Yang baru" ditunda untuk mereka.
 Daftar tips ada di `ramah.js` (variabel `TIPS`), silakan ubah sesuai kebijakan setempat.
+
+## Versi 59: Paket Nyaman (`ramah2.js`, `ramah2.css`)
+- **Misi harian:** 3 misi per hari (cari layanan, buka loket, favorit, tanya asisten, Ruang Main, bagikan, ganti lokasi), +10 poin tiap misi, bonus +30 bila semua selesai (konfeti). Ada tingkat: Warga Baru, Warga Aktif, Duta Layanan, Pahlawan Pelayanan.
+- **Pencarian terakhir** (chip di bawah kolom cari, bisa dihapus).
+- **Catatan pribadi per loket**, tersimpan di HP warga.
+- **Geser kiri/kanan** di daftar loket untuk pindah lokasi SPP.
+- **Kerangka memuat** (skeleton) saat daftar loket belum siap.
+- **"Versi baru siap, muat ulang"** saat aplikasi diperbarui.
+Semua data tersimpan di perangkat (kunci `tk_misi`, `tk_cari`, `tk_note`).
+
+## Versi 60: Cerita Layanan + kenyamanan chat (`ceritakan.js`, `ceritakan.css`)
+- **Ceritakan ulang:** setiap jawaban asisten bisa diceritakan sebagai **Berita**, **Cerita warga** (ilustrasi, tokoh rekaan), **Penjelasan mudah**, **Poin-poin**, **Pesan WhatsApp**, **Caption medsos**, atau **Tanya-jawab**. Tombol "Ceritakan ulang" ada di bawah jawaban, dan "Ceritakan sebagai berita" di tiap loket.
+- Perintah chat: `/cerita`, `/berita bikin NIB`, `/ceritakan` (jawaban terakhir).
+- Hasil bisa Disalin, WhatsApp, Dengarkan, atau **Kartu gambar** (PNG 1080x1350 untuk dibagikan).
+- **Saran pertanyaan** saat mengetik di chat, **kecepatan suara** Dengarkan (Lambat/Normal/Cepat) dan **Hentikan suara**.
+- Semua dibuat di peramban dari isi layanan yang sudah ada; tidak menambah fakta. Berita diberi catatan "disusun otomatis, bukan berita media".
