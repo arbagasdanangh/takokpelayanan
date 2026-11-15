@@ -623,3 +623,41 @@ Semua data tersimpan di perangkat (kunci `tk_misi`, `tk_cari`, `tk_note`).
 - Hasil bisa Disalin, WhatsApp, Dengarkan, atau **Kartu gambar** (PNG 1080x1350 untuk dibagikan).
 - **Saran pertanyaan** saat mengetik di chat, **kecepatan suara** Dengarkan (Lambat/Normal/Cepat) dan **Hentikan suara**.
 - Semua dibuat di peramban dari isi layanan yang sudah ada; tidak menambah fakta. Berita diberi catatan "disusun otomatis, bukan berita media".
+
+## Versi 61: Laporan detail, Asisten lebih lengkap, game 3D Arus Kalimas
+**Laporan admin dan superadmin** (`laporan-pro.js`, endpoint `GET /admin/laporan?hari=7|14|30|90`)
+- Tab **Laporan** kini tersedia juga untuk admin loket (hanya data loketnya). Superadmin melihat tambahan: chatbot (akurasi, pertanyaan tak terjawab, aturan terpakai, penilaian warga + alasan), Ruang Main, kanal, dan pengunjung.
+- Isi: ringkasan eksekutif otomatis, rekomendasi tindak lanjut, KPI, grafik harian, peta jam sibuk, topik, kinerja per loket, antrean terlama, daftar percakapan (nama disamarkan jadi inisial, tanpa nomor HP dan isi pesan).
+- Keluaran: **Cetak / simpan PDF** (format cetak), **CSV** multi-bagian, **Salin ringkasan**, **Kirim WhatsApp**.
+
+**Asisten (`bot-ekstra.js`)**
+- 👍/👎 pada setiap jawaban, dengan alasan (tidak jelas, kurang tepat, kurang lengkap, mau tanya petugas) lewat `POST /bot/rating` (anonim, dibatasi 60/jam per IP). Hasilnya muncul di Laporan.
+- Setelah 👎 tersedia tombol **Teruskan ke admin** (memakai alur yang sudah ada).
+- Chip **pertanyaan lanjutan** sesuai topik jawaban.
+- Riwayat obrolan dipulihkan di perangkat (maks 3 hari), ada tombol Mulai percakapan baru.
+
+**Game Arus Kalimas 3D (`kalimas.js`, `kalimas.css`)**
+- WebGL mentah tanpa library: air bergelombang memantulkan langit, kabut, bangunan dan jembatan Surabaya, Tugu Pahlawan di kejauhan, siang-senja-malam (jendela menyala), bloom, percikan, jejak air, getar layar.
+- Kumpulkan berkas dan stempel emas, perisai, turbo, hati; hindari Boyo, kayu, enceng gondok, pelampung. Kombo hingga x4, 3 nyawa.
+- Kontrol: geser, ketuk sisi layar, tombol, panah/A/D. Pengaturan Grafis: Otomatis, Tinggi, Sedang, Hemat (otomatis menurunkan resolusi bila patah-patah). Tanpa WebGL, pemain diarahkan ke Suroboyo Rush.
+- Masuk katalog Ruang Main, tantangan harian, dan hitungan Laporan.
+
+## Versi 62: Redaksi Berita Pelayanan + Monitor layanan
+**Redaksi Berita (`redaksi.js`, tab Berita, kini juga untuk admin loket)**
+- Admin loket menulis berita untuk loketnya lalu **Kirim untuk ditinjau**. Superuser melihat antrean "Menunggu persetujuan": **Setujui dan terbitkan**, **Kembalikan** (dengan catatan), atau menerbitkan langsung. Berita terbit hanya bisa dihapus superuser (admin loket memakai Arsipkan).
+- Tingkat **Info / Penting / Darurat**. Darurat (hanya superuser) tampil sebagai **spanduk merah** di aplikasi warga, bisa ditutup dan tersimpan di perangkat.
+- **Jadwal tayang** (mulai dan berakhir, WIB), kategori baru (Gangguan, Libur, Layanan Baru), **sematkan**, **pratinjau**, 4 **templat cepat**, dan **Salin untuk WhatsApp**.
+- Statistik per berita: **dibaca** dan **dinilai membantu** (tombol 👍 di sisi warga, anonim, dibatasi 120/jam per IP).
+- Berita lama tanpa status tetap dianggap terbit. Endpoint: `GET /admin/redaksi`, `POST /admin/redaksi/simpan`, `POST /admin/redaksi/aksi`, `POST /berita/baca`.
+
+**Monitor layanan (`monitor.js`, tab Monitor)**
+- Grafik SVG tanpa library, otomatis diperbarui tiap 30 detik (bisa dijeda): pesan per jam 24 jam, pesan per hari 14 hari, median waktu balas harian, tolok rasio balasan, kartu antrean menunggu dan tertua.
+- Peringatan otomatis: percakapan menunggu lebih dari 4 atau 24 jam, lonjakan pertanyaan, berita menunggu persetujuan, chatbot banyak gagal menjawab.
+- Superuser: tambahan pengunjung online, donat dan grafik chatbot, Ruang Main per hari, berita paling banyak dibaca. Admin loket hanya melihat data loketnya. Endpoint: `GET /admin/monitor`.
+
+## Versi 63: Arus Kalimas ala game mobile (joystick, jurus, hero)
+- **Kemudi bebas** (bukan lagi jalur kaku): **joystick melayang**, muncul di mana pun jari menyentuh layar. Geser ke atas untuk ngebut, ke bawah untuk mengerem. Gerak punya inersia, perahu miring mengikuti belokan. Di komputer, **kursor mouse diikuti perahu** dengan mulus; panah/WASD juga bisa.
+- **3 tombol jurus** dengan cooldown melingkar: **Ngebut** (J/1), **Ombak Kali Mas** (K/2, menghancurkan semua rintangan di depan), **Perisai** (L/3).
+- **3 hero:** Cak Takok (seimbang), Ning Suroboyo (lincah), Pak Bhabin (tangguh, 4 nyawa). Pilihan disimpan di perangkat.
+- **Sistem kill beruntun:** hancurkan rintangan atau Boyo dalam 3 detik untuk DOUBLE, TRIPLE, MEGA, LEGENDARY KILL dengan pengali skor, angka poin melayang di posisi benda.
+- **Zona dan misi jarak:** Kali Mas, Jembatan Merah, Pasar Pabean, Taman Prestasi, Tugu Pahlawan, Surabaya Gemilang dengan bar progres, spanduk zona, dan bonus. Denyut tepi layar merah saat nyawa terakhir.
