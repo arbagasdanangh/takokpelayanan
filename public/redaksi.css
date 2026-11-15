@@ -1,0 +1,24 @@
+/* Versi 62: Redaksi berita, spanduk darurat, monitor */
+.rd-i{margin:0 0 10px}.rd-h{display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-bottom:2px}
+.rd-p{margin:6px 0 8px;color:var(--ink)}
+.rd-cat{margin:6px 0;padding:6px 10px;border-radius:10px;background:#fff4e0;color:#7a4a00;font-size:.88rem}
+.rd-warn{margin:0 0 10px;padding:10px 14px;border-radius:12px;background:#fff4e0;color:#7a4a00;border:1px solid #f1c27a}
+.nw-f{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px}
+.news.nw-d{border-color:#c81e1e;box-shadow:0 0 0 2px rgba(200,30,30,.15)}
+.nw-dar{position:fixed;left:8px;right:8px;top:calc(env(safe-area-inset-top,0px) + 6px);z-index:210;display:flex;gap:8px;align-items:center;padding:9px 12px;border-radius:14px;background:#c81e1e;color:#fff;box-shadow:0 8px 24px rgba(120,0,0,.35);cursor:pointer;font-size:.92rem}
+.nw-dar span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nw-x{background:rgba(255,255,255,.2);color:#fff;border:0;border-radius:50%;width:28px;height:28px;font-size:1.1rem;cursor:pointer}
+/* Monitor */
+.mo-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:0 0 12px}
+.mo-k{padding:12px;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+.mo-k b{display:block;font-size:1.6rem;font-variant-numeric:tabular-nums}.mo-k span{font-size:.8rem;color:var(--mute)}
+.mo-k.bad b{color:#c81e1e}.mo-k.warn b{color:#b45309}.mo-k.ok b{color:#15803d}
+.mo-c{padding:12px;border:1px solid var(--line);border-radius:14px;background:var(--surface);margin:0 0 12px}
+.mo-c h3{margin:0 0 6px;font-size:.95rem}.mo-c svg{width:100%;height:auto;display:block}
+.mo-leg{display:flex;flex-wrap:wrap;gap:12px;font-size:.8rem;color:var(--mute);margin-top:4px}.mo-leg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.mo-al{display:grid;gap:6px;margin:0 0 12px}.mo-al div{display:flex;gap:10px;align-items:flex-start;padding:9px 12px;border-radius:12px;border:1px solid var(--line);background:var(--surface)}
+.mo-al i{flex:0 0 12px;height:12px;border-radius:50%;margin-top:4px}
+.mo-g2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
+.mo-t{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 10px}.mo-live{display:inline-block;width:9px;height:9px;border-radius:50%;background:#16a34a;margin-right:6px;animation:mop 1.6s infinite}
+@keyframes mop{50%{opacity:.25}}@media (prefers-reduced-motion:reduce){.mo-live{animation:none}}
+.rd-i small{display:block;margin:2px 0}
