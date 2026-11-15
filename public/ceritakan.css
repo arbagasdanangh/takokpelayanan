@@ -1,0 +1,10 @@
+/* v60: Cerita Layanan */
+.rm-art{background:var(--bg);border:1px solid var(--line);border-left:4px solid var(--tick);border-radius:12px;padding:10px 12px}
+.rm-at{display:block;font-size:1rem;line-height:1.3;color:var(--ink);margin-bottom:6px}
+.rm-ab{white-space:pre-wrap;font-size:.88rem;line-height:1.55}
+.rm-fr{margin-top:8px}
+.rm-ctb{margin-top:6px}
+.rm-ctl{margin-top:10px}
+.rm-sg{padding:4px 10px 0;overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none}.rm-sg::-webkit-scrollbar{display:none}
+.rm-sg[hidden]{display:none}.rm-sg button{flex:none;white-space:nowrap}
+@media print{.rm-sg{display:none!important}}

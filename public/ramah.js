@@ -93,7 +93,7 @@ function adaFav(k) { return st.fav.indexOf(k) > -1; }
 function ubahFav(k) {
   var i = st.fav.indexOf(k);
   if (i > -1) { st.fav.splice(i, 1); toast("Dihapus dari favorit"); }
-  else { st.fav.unshift(k); st.fav = st.fav.slice(0, 20); toast("Disimpan ke favorit"); }
+  else { st.fav.unshift(k); st.fav = st.fav.slice(0, 20); toast("Disimpan ke favorit"); try { D.dispatchEvent(new CustomEvent("rm:fav")); } catch (e) {} }
   simpan(); hiasList(); gambarPintasan(); getar();
 }
 function hiasList() {
