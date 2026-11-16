@@ -1,0 +1,4 @@
+/* Versi 68: cadangan dan pemulihan */
+.cd-l{display:grid;gap:6px;margin:8px 0}.cd-l label{display:flex;gap:8px;align-items:center;font-weight:600;font-size:.9rem}.cd-l small{color:var(--mute);font-weight:500}
+.cd-k{display:grid;gap:4px;margin:8px 0;font-size:.86rem}.cd-k input{font:inherit;padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:inherit;max-width:220px}
+#cd-r{margin-top:8px}
