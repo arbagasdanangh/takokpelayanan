@@ -1,0 +1,21 @@
+.rp-tabs{display:flex;gap:6px;margin:10px 0 6px;position:sticky;top:0;z-index:5;background:var(--bg,transparent);padding:4px 0;backdrop-filter:blur(6px)}
+.rp-tabs button{flex:1;display:flex;gap:6px;align-items:center;justify-content:center;font:inherit;font-weight:700;font-size:.9rem;padding:9px 10px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+.rp-tabs button[aria-selected=true]{background:var(--acc);color:#fff;border-color:var(--acc)}
+.rp-tabs i{font-style:normal;background:rgba(0,0,0,.12);border-radius:999px;padding:0 8px;font-size:.75rem}
+.rp-tabs em{font-style:normal;font-size:.7rem;opacity:.85}
+#v-my[data-rtab=tiket]>:not(.tkbox):not(.rp-tabs){display:none!important}
+#v-my[data-rtab=chat]>.tkbox{display:none!important}
+.tkcard.rp-c{cursor:pointer;padding:9px 12px;margin-bottom:6px}
+.tkcard.rp-c[hidden]{display:none}
+.tkcard.rp-c .tkcard-h{margin-bottom:2px;justify-content:flex-start}
+.tkcard.rp-c .tkcard-h .pb{margin-left:auto}
+.tkcard.rp-c:not(.open) .tkq,.tkcard.rp-c:not(.open) .tks,.tkcard.rp-c:not(.open)>small,.tkcard.rp-c:not(.open) .tkact{display:none}
+.tkcard.rp-c>b{font-size:.92rem}
+.tkcard.rp-c{position:relative}
+.tkcard.rp-c::after{content:"\25BE";position:absolute;right:14px;bottom:8px;color:var(--mute)}
+.tkcard.rp-c.open::after{content:"\25B4"}
+.rp-st{border:0;background:none;cursor:pointer;font-size:1.05rem;color:var(--mute);padding:0 4px}.rp-st.on{color:#d97706}
+.rp-more{display:flex;gap:10px;align-items:center;justify-content:center;margin:8px 0 12px}
+#v-my .tl{max-height:none;overflow:visible}
+#v-my .tl .ti[hidden]{display:none}
+.tkbox .tkf{position:sticky;top:46px;z-index:4}
