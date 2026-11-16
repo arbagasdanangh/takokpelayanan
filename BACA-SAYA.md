@@ -683,3 +683,19 @@ Semua data tersimpan di perangkat (kunci `tk_misi`, `tk_cari`, `tk_note`).
 - **Ajari chatbot**: tombol di percakapan admin yang mengubah tanya-jawab nyata menjadi aturan Kata cari (kata kunci disarankan otomatis dari pertanyaan, bisa diedit). Akun loket mengirim usulan; superadmin langsung menambah atau menyetujui di tab **Usulan chatbot** (boleh mengubah kata kunci dan jawaban dahulu).
 - **Perkiraan lama jawaban untuk pemohon**: setelah mengirim pertanyaan, muncul "Biasanya pegawai menjawab dalam sekitar X" (median per loket, tampil bila ada minimal 3 jawaban; dihitung ulang tiap 30 menit).
 - File baru: `mutu.js`, `mutu.css`. Rute API: `/admin/mutu`, `/admin/mutu/sla`, `/admin/usulan/saran`, `/admin/usulan`, `/admin/usulan/daftar`, `/admin/usulan/aksi`, `/estimasi`. `sw.js` menjadi `takok-v66`.
+
+## Versi 67: Penyempurna fitur yang ada
+- **Mutu jawaban memakai jam kerja**: batas waktu jawab dan median hanya menghitung hari dan jam kerja (bawaan Sen–Jum 08.00–16.00 WIB; superadmin bisa mengubah hari dan jam, atau memilih semua hari 0–24 untuk 24 jam penuh). Pertanyaan yang masuk Jumat sore tidak lagi dianggap terlambat di akhir pekan.
+- **Perkiraan lama jawaban untuk pemohon** kini menyebut jam kerja dan jadwalnya.
+- **Ajari chatbot lebih aman**: dialog menampilkan aturan Kata cari yang sudah ada dan cocok dengan pertanyaan tersebut agar tidak dobel.
+- **Usulan menumpuk terlihat**: tab Mutu jawaban memberi tahu superadmin jumlah usulan chatbot yang menunggu.
+- **Dari pertanyaan tak terjawab ke aturan**: tab Usulan chatbot menampilkan 10 pertanyaan chatbot yang paling sering gagal dijawab; tombol "Buat jawaban" langsung membuat aturannya dan membersihkannya dari daftar.
+- File berubah: `api/app.py`, `mutu.js`, `mutu.css`. `sw.js` menjadi `takok-v67`.
+
+## Versi 68: Cadangan dan pemulihan data (superadmin)
+- Tab baru **Cadangan data**: unduh berkas `.json` berisi pengaturan umum dan templat balasan, kata cari chatbot, editor loket dan lokasi, katalog perizinan, data KBLI, berita, usulan chatbot, dan daftar biro jasa. Bagian bisa dipilih.
+- **Pemulihan**: unggah berkas, lihat perbandingan "sekarang → menjadi" tiap bagian, centang bagian yang ingin dipulihkan, ketik `PULIHKAN`. Isi tiap bagian diganti utuh lewat kunci sementara lalu RENAME, jadi tidak pernah tersisa setengah jadi. Berkas divalidasi ketat (hanya kunci dalam daftar putih).
+- **Tidak termasuk**: data pribadi warga (akun pemohon, percakapan, permohonan, booking) dan akun admin. Berkas aman disimpan sebagai dokumen internal.
+- Riwayat unduh dan pemulihan tercatat (10 terakhir) dan masuk Log aktivitas.
+- File baru: `cadangan.js`, `cadangan.css`. Rute API: `/admin/cadangan`, `/admin/cadangan.json`, `/admin/cadangan/pulih` (hanya superuser). `sw.js` menjadi `takok-v68`.
+- Catatan: ini mencadangkan pengaturan. Cadangan basis data penuh (percakapan, akun warga) tetap sebaiknya memakai fitur ekspor/snapshot Upstash.
