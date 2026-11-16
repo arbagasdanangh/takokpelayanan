@@ -699,3 +699,13 @@ Semua data tersimpan di perangkat (kunci `tk_misi`, `tk_cari`, `tk_note`).
 - Riwayat unduh dan pemulihan tercatat (10 terakhir) dan masuk Log aktivitas.
 - File baru: `cadangan.js`, `cadangan.css`. Rute API: `/admin/cadangan`, `/admin/cadangan.json`, `/admin/cadangan/pulih` (hanya superuser). `sw.js` menjadi `takok-v68`.
 - Catatan: ini mencadangkan pengaturan. Cadangan basis data penuh (percakapan, akun warga) tetap sebaiknya memakai fitur ekspor/snapshot Upstash.
+
+## Versi 69 - Kotak Masuk Pro (rapi saat komentar banyak)
+- File baru: `kotak.js`, `kotak.css` (hanya front-end; tidak ada perubahan API). `sw.js` menjadi `takok-v69`.
+- Daftar percakapan admin kini **berhalaman**: 30 per halaman, tombol "Muat 30 lagi" / "Tampilkan semua"; halaman kembali ke 30 saat filter berubah. Ringan untuk 300+ percakapan.
+- Pencarian kini juga mencocokkan **isi pesan terakhir**, nomor tiket, label, topik (beberapa kata = semua harus cocok).
+- **Bintang** dan **Tunda** (1 jam / besok) per percakapan; tunda otomatis batal bila pemohon mengirim pesan baru. Chip filter baru "Bintang" dan "Ditunda". Disimpan di peramban admin (tidak dibagi antar-petugas/perangkat).
+- Urutan terbaru/terlama diberi **judul kelompok** (Hari ini, Kemarin, Minggu ini, Lebih lama).
+- Tombol **"Pilih semua N (semua halaman)"** untuk aksi massal "Tandai selesai".
+- Panel percakapan: bila >16 pesan, pesan lama **dilipat** ("Tampilkan N pesan sebelumnya"); ada kartu **Ringkasan** (jumlah pesan, awal dan terakhir pertanyaan) dan daftar **pertanyaan serupa** (topik sama, masih menunggu) untuk lompat cepat.
+- Diuji dengan Playwright memakai 340 percakapan tiruan; belum diuji di perangkat/Vercel asli.
