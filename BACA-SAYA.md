@@ -709,3 +709,12 @@ Semua data tersimpan di perangkat (kunci `tk_misi`, `tk_cari`, `tk_note`).
 - Tombol **"Pilih semua N (semua halaman)"** untuk aksi massal "Tandai selesai".
 - Panel percakapan: bila >16 pesan, pesan lama **dilipat** ("Tampilkan N pesan sebelumnya"); ada kartu **Ringkasan** (jumlah pesan, awal dan terakhir pertanyaan) dan daftar **pertanyaan serupa** (topik sama, masih menunggu) untuk lompat cepat.
 - Diuji dengan Playwright memakai 340 percakapan tiruan; belum diuji di perangkat/Vercel asli.
+
+## Versi 70 - Halaman "Percakapan saya" rapi saat banyak (pemohon)
+- File baru: `rapi.js`, `rapi.css` (front-end saja). `sw.js` menjadi `takok-v70`.
+- **Tab Tiket / Percakapan**: tidak lagi menumpuk panjang; tiap tab menampilkan satu bagian dengan jumlah dan jumlah tiket aktif.
+- **Kartu tiket ringkas** (nomor, loket, status satu baris); ketuk kartu untuk membuka detail (progres, ringkasan, tombol). Awal 6 tiket, "Lihat 10 tiket lagi". Tiket berbintang dan aktif di urutan atas.
+- **Bintang tiket** (disimpan di perangkat pemohon).
+- **Daftar percakapan** dibatasi 5 per kelompok (Perlu Anda lihat / Menunggu balasan) dengan "Lihat lagi"; batas tinggi yang memotong daftar dihapus.
+- **Chatbot**: perintah baru `/menunggu`, `/balasan`, `/bintang`.
+- Diuji Playwright (layar 430px, 30 tiket dan 30 percakapan tiruan); belum diuji di perangkat/Vercel asli.
