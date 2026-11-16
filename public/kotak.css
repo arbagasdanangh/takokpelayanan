@@ -1,0 +1,9 @@
+.kt-g{font-size:.72rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--mute);margin:10px 4px 4px}
+.tiw{position:relative}
+.kt-ac{display:flex;flex-direction:column;gap:2px;flex:none}
+.kt-b{background:none;border:0;cursor:pointer;font-size:1rem;line-height:1;padding:4px;border-radius:8px;color:var(--mute)}
+.kt-b.on{color:#d97706}.kt-b:hover{background:var(--line)}
+.kt-more{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center;padding:10px 0}
+.kt-rk{border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:8px 10px;margin:6px 0}
+.kt-lm{display:block;margin:4px auto 8px}
+#al{max-height:70vh;overflow-y:auto}
