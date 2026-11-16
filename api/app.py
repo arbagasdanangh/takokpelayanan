@@ -104,7 +104,7 @@ ADM_MAX = 200
 # Rute admin yang hanya boleh dipakai superuser: pengaturan global, isi chatbot, editor loket, kanal, data seluruh instansi, dan akun.
 ADM_SUPER = frozenset([
     "akun", "akun/simpan", "akun/hapus", "keamanan", "bj/tandai",
-    "pengaturan", "dinamis", "kanal", "kanal/uji", "piket", "notif", "notif/simpan",
+    "pengaturan", "dinamis", "kanal", "kanal/uji", "piket", "notif", "notif/simpan", "mutu/sla", "usulan/daftar", "usulan/aksi",
     "loket", "loket/simpan", "loket/massal", "loket/reset", "loket/hapus", "lokasi/hapus", "lokasi/simpan", "lokasi/urutan", "lokasi/reset",
     "berita", "berita/hapus",
     "kata", "kata.xlsx", "kata-templat.xlsx", "kata/impor", "kstat", "kstat/reset", "miss", "miss/hapus",
@@ -724,6 +724,114 @@ def ntf_kirim(situs, pid, k, tk, uji=False):
     return "gagal" if err else "ok"
 
 
+
+# ---------------- Mutu jawaban (SLA) dan usulan jawaban chatbot ----------------
+def sla_jam():
+    try:
+        return min(168, max(1, int(cfg_all().get("sla_jam") or 8)))
+    except ValueError:
+        return 8
+
+
+def _median(a):
+    a = sorted(a)
+    n = len(a)
+    return 0 if not n else (a[n // 2] if n % 2 else (a[n // 2 - 1] + a[n // 2]) / 2.0)
+
+
+def mutu_hitung(boleh=None, sla=None):
+    """Ringkasan mutu jawaban per loket dari percakapan terbaru: antrean menunggu pegawai, yang melewati batas waktu (SLA),
+    median waktu jawab pegawai (Asisten Piket tidak dihitung), dan rata-rata penilaian pemohon."""
+    sla = sla or sla_jam()
+    now = now_ms()
+    per, antri = {}, []
+    for r in muat_semua(200, ok=boleh):
+        k = r["kunci"]
+        d = per.setdefault(k, {"kunci": k, "n": 0, "pend": 0, "lewat": 0, "rt": [], "nl": []})
+        d["n"] += 1
+        if r["nilai"] is not None:
+            d["nl"].append(r["nilai"])
+        awal = None
+        for m in r["msgs"]:
+            if m.get("hapus"):
+                continue
+            if m["dari"] == "pemohon":
+                awal = m["waktu"] if awal is None else awal
+            elif not m.get("bot") and awal is not None:
+                d["rt"].append((m["waktu"] - awal) / 60000.0)
+                awal = None
+        if awal is not None and not (r["selesai"] and r["selesai"] >= awal):
+            tunggu = (now - awal) / 60000.0
+            d["pend"] += 1
+            if tunggu > sla * 60:
+                d["lewat"] += 1
+            tk = ""
+            for m in reversed(r["msgs"]):
+                if m.get("tk"):
+                    tk = m["tk"]
+                    break
+            antri.append({"pid": r["pid"], "kunci": k, "loket": label(k), "nama": r["nama"], "tunggu": round(tunggu), "tk": tk, "lewat": tunggu > sla * 60})
+    rows = []
+    for k, d in per.items():
+        rows.append({"kunci": k, "loket": label(k), "n": d["n"], "pend": d["pend"], "lewat": d["lewat"], "jawab": len(d["rt"]), "med": round(_median(d["rt"])) if d["rt"] else None,
+                     "dalam": round(100.0 * sum(1 for x in d["rt"] if x <= sla * 60) / len(d["rt"])) if d["rt"] else None,
+                     "nilai": round(sum(d["nl"]) / len(d["nl"]), 1) if d["nl"] else None, "nn": len(d["nl"])})
+    rows.sort(key=lambda x: (-x["lewat"], -x["pend"], x["loket"]))
+    antri.sort(key=lambda x: -x["tunggu"])
+    allrt = [x for d in per.values() for x in d["rt"]]
+    tot = {"pend": sum(d["pend"] for d in per.values()), "lewat": sum(d["lewat"] for d in per.values()), "med": round(_median(allrt)) if allrt else None,
+           "dalam": round(100.0 * sum(1 for x in allrt if x <= sla * 60) / len(allrt)) if allrt else None, "jawab": len(allrt)}
+    return {"sla": sla, "loket": rows, "antri": antri[:15], "tot": tot}
+
+
+def estimasi_loket(k):
+    """Perkiraan lama jawaban pegawai untuk satu loket (median, menit). Dihitung ulang paling cepat tiap 30 menit."""
+    c = parse(db().cmd("GET", "mutu:est"), None)
+    if not isinstance(c, dict):
+        c = {x["kunci"]: {"med": x["med"], "n": x["jawab"]} for x in mutu_hitung()["loket"]}
+        db().cmd("SET", "mutu:est", json.dumps(c), "EX", 1800)
+    e = c.get(k) or {}
+    return {"med": e.get("med") if (e.get("n") or 0) >= 3 else None, "n": e.get("n", 0)}
+
+
+def kata_tambah(ks, j, ts):
+    """Tambahkan satu aturan Kata cari secara atomik (tulis ulang seluruh daftar lalu RENAME, seperti impor). Kembalian: jumlah aturan."""
+    daftar, _ = kata_baca()
+    daftar = [x for x in daftar if isinstance(x, dict)]
+    ks = list(dict.fromkeys(w for w in (clean(x, 40).lower() for x in ks if isinstance(x, str)) if len(w) >= 2))[:10]
+    ts = [t for t in ts if isinstance(t, str) and t in LOKET][:5]
+    j = clean(j, 1500)
+    if not ks or not (ts or j):
+        raise HttpError(400, "Kata kunci dan jawaban wajib diisi.")
+    if len(daftar) >= KATA_MAX:
+        raise HttpError(400, "Aturan sudah penuh (%d)." % KATA_MAX)
+    daftar.append({"k": ks, "t": ts, "j": j})
+    db().cmd("DEL", "kata2n")
+    cmds = [["HSET", "kata2n", "p%d" % i, json.dumps(daftar[i * 200:(i + 1) * 200], ensure_ascii=False)] for i in range((len(daftar) + 199) // 200)]
+    v = str(now_ms())
+    cmds += [["HSET", "kata2n", "n", len(daftar)], ["HSET", "kata2n", "v", v], ["RENAME", "kata2n", "kata2"]]
+    db().pipe(cmds)
+    _KC["v"] = None
+    return len(daftar)
+
+
+def kata_saran_dari(msgs):
+    """Usulkan kata kunci dari pertanyaan pemohon terakhir dan jawaban dari balasan pegawai terakhir."""
+    q = next((m for m in reversed(msgs) if m["dari"] == "pemohon" and not m.get("hapus")), None)
+    jw = next((m for m in reversed(msgs) if m["dari"] == "admin" and not m.get("bot") and not m.get("hapus")), None)
+    kata = []
+    if q:
+        t = [w for w in AN._tk(q["isi"]) if len(w) > 2 and w not in AN.STOP and not w.isdigit()]
+        for a in range(len(t) - 1):
+            bg = t[a] + " " + t[a + 1]
+            if bg not in kata and len(kata) < 2:
+                kata.append(bg)
+        for w in t:
+            if w not in kata and len(kata) < 5:
+                kata.append(w)
+    return {"k": kata, "j": (jw or {}).get("isi", ""), "q": (q or {}).get("isi", "")}
+
+
 # ---------------- Handler ----------------
 # ---------------- Kata cari chatbot: impor / ekspor ----------------
 KATA_MAX = max(100, min(20000, int(os.environ.get("KATA_MAX", "5000") or 5000)))
@@ -1147,6 +1255,11 @@ class handler(BaseHTTPRequestHandler):
                 return self.user_hapus(ses, b, ex)
             if path == "/pesan/reaksi" and method == "POST":
                 return self.user_reaksi(ses, b, ex)
+            if path == "/estimasi" and method == "GET":
+                k = (q.get("kunci") or [""])[0]
+                if not valid_key(k):
+                    raise HttpError(400, "Loket tidak valid.")
+                return self.json(estimasi_loket(k), extra=ex)
             if path == "/notif" and method == "GET":
                 return self.user_notif(ses, ex)
             if path.startswith("/notif/") and method == "POST":
@@ -2998,6 +3111,56 @@ class handler(BaseHTTPRequestHandler):
                               "aktif": {"wa": cf.get("kanal_wa", "1") != "0", "tg": cf.get("kanal_tg", "1") != "0"}, "url": {"wa": base + "/api/wa", "wa2": base + "/api/app?p=/wa", "tg": base + "/api/tg", "tg2": base + "/api/app?p=/tg"},
                               "n": {c: {"hari": int(n.get("%s:%s" % (c, hari), 0)), "total": int(n.get("%s:total" % c, 0))} for c in ("wa", "tg", "uji")},
                               "log": [x for x in (parse(i) for i in (db().cmd("LRANGE", "kn:log", 0, 14) or [])) if x]}, extra=ex)
+        if r == "mutu":
+            return self.json(dict(mutu_hitung(self.boleh), sup=bool(self.adm["sup"])), extra=ex)
+        if r == "mutu/sla":
+            h = int(b.get("jam") or 0)
+            if not 1 <= h <= 168:
+                raise HttpError(400, "Batas waktu 1 sampai 168 jam.")
+            db().pipe([["HSET", "cfg", "sla_jam", h], ["DEL", "mutu:est"]])
+            return self.json({"ok": True}, extra=ex)
+        if r == "usulan/saran":
+            pid, k = int(b.get("pid") or 0), str(b.get("kunci", ""))
+            if not valid_key(k):
+                raise HttpError(400, "Data tidak valid.")
+            self.izin(k)
+            ms = [m for m in (parse(x) for x in db().cmd("LRANGE", "msgs:%s|%s" % (pid, k), 0, -1) or []) if m]
+            return self.json(dict(kata_saran_dari(ms), t=k, loket=label(k)), extra=ex)
+        if r == "usulan":
+            ks = [x for x in (b.get("k") or []) if isinstance(x, str)]
+            j = clean(b.get("j", ""), 1500)
+            ts = [t for t in (b.get("t") or []) if isinstance(t, str) and t in LOKET and self.boleh(t)]
+            if not ks or not j:
+                raise HttpError(400, "Kata kunci dan jawaban wajib diisi.")
+            if self.adm["sup"] and b.get("langsung"):
+                n = kata_tambah(ks, j, ts)
+                return self.json({"ok": True, "langsung": True, "n": n}, extra=ex)
+            if limited("rl:usul:%s" % (self.adm.get("u") or "sup"), 30, 3600):
+                raise HttpError(429, "Terlalu banyak usulan. Coba lagi nanti.")
+            uid = int(db().cmd("INCR", "seq:usulan"))
+            o = {"id": uid, "k": [clean(x, 40).lower() for x in ks][:10], "j": j, "t": ts, "oleh": self.adm.get("nm") or self.adm.get("u") or "admin", "waktu": now_ms()}
+            db().pipe([["HSET", "usul", uid, json.dumps(o, ensure_ascii=False)]])
+            return self.json({"ok": True, "id": uid}, extra=ex)
+        if r == "usulan/daftar":
+            h = hall(db().cmd("HGETALL", "usul"))
+            d = sorted([x for x in (parse(v) for v in h.values()) if x], key=lambda x: -x["waktu"])[:100]
+            for x in d:
+                x["tl"] = label(x["t"][0]) if x.get("t") else ""
+            return self.json({"daftar": d}, extra=ex)
+        if r == "usulan/aksi":
+            uid = str(int(b.get("id") or 0))
+            o = parse(db().cmd("HGET", "usul", uid), None)
+            if not o:
+                raise HttpError(404, "Usulan tidak ditemukan.")
+            if b.get("aksi") == "terima":
+                ks = [x for x in (b.get("k") or o["k"]) if isinstance(x, str)]
+                n = kata_tambah(ks, b.get("j") or o["j"], o.get("t") or [])
+                db().cmd("HDEL", "usul", uid)
+                return self.json({"ok": True, "n": n}, extra=ex)
+            if b.get("aksi") == "tolak":
+                db().cmd("HDEL", "usul", uid)
+                return self.json({"ok": True}, extra=ex)
+            raise HttpError(400, "Aksi tidak dikenal.")
         if r == "notif":
             env, hari = os.environ, time.strftime("%Y%m%d", wib())
             n = hall(db().cmd("HGETALL", "ntf:n"))
