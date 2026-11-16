@@ -677,3 +677,9 @@ Semua data tersimpan di perangkat (kunci `tk_misi`, `tk_cari`, `tk_note`).
 - Superadmin: tab baru **Pemberitahuan jawaban** (saklar, isi pesan dengan {nama} {tiket} {loket} {situs}, nama templat WhatsApp, statistik, log). Toast setelah membalas kini menyebut apakah pemberitahuan terkirim.
 - Pemasangan: Telegram memakai `TG_TOKEN` + `TG_SECRET` (sama dengan Kanal Telegram); opsional `TG_BOT` (nama bot tanpa @). WhatsApp memakai `WA_TOKEN` + `WA_PHONE_ID`. Agar WhatsApp bisa mengirim di luar 24 jam, buat templat kategori Utility di Meta dengan 3 parameter ({{1}} nama, {{2}} tiket, {{3}} loket) lalu isi namanya di tab ini.
 - File baru: `notif.js`, `notif.css`. Rute API: `/notif`, `/notif/atur|tautkan|uji` (pemohon), `/admin/notif`, `/admin/notif/simpan` (superadmin). `sw.js` menjadi `takok-v65`.
+
+## Versi 66: Penunjang chatbot dan pertanyaan loket
+- **Mutu jawaban** (tab baru, semua admin sesuai wewenang loket): jumlah pertanyaan menunggu pegawai, yang melewati batas waktu, median waktu jawab, persentase tepat waktu, dan nilai pemohon per loket, plus antrean paling lama menunggu. Batas waktu (bawaan 8 jam) diatur superadmin. Jawaban Asisten Piket tidak dihitung sebagai jawaban pegawai.
+- **Ajari chatbot**: tombol di percakapan admin yang mengubah tanya-jawab nyata menjadi aturan Kata cari (kata kunci disarankan otomatis dari pertanyaan, bisa diedit). Akun loket mengirim usulan; superadmin langsung menambah atau menyetujui di tab **Usulan chatbot** (boleh mengubah kata kunci dan jawaban dahulu).
+- **Perkiraan lama jawaban untuk pemohon**: setelah mengirim pertanyaan, muncul "Biasanya pegawai menjawab dalam sekitar X" (median per loket, tampil bila ada minimal 3 jawaban; dihitung ulang tiap 30 menit).
+- File baru: `mutu.js`, `mutu.css`. Rute API: `/admin/mutu`, `/admin/mutu/sla`, `/admin/usulan/saran`, `/admin/usulan`, `/admin/usulan/daftar`, `/admin/usulan/aksi`, `/estimasi`. `sw.js` menjadi `takok-v66`.
