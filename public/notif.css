@@ -1,0 +1,8 @@
+/* Versi 65: Pemberitahuan jawaban admin */
+.ntf-card{margin:12px 0;padding:12px 14px;border-radius:16px;border:1px solid var(--line);background:linear-gradient(135deg,var(--surface),var(--accsoft))}
+.ntf-h{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;justify-content:space-between}
+.ntf-card p{margin:4px 0 8px}
+.ntf-on,.ntf-off{font-size:.74rem;font-weight:800;padding:2px 10px;border-radius:99px}
+.ntf-on{background:#d9f7e4;color:#0b6b35}.ntf-off{background:#eef0f6;color:var(--mute)}
+.ntf-b{display:flex;flex-wrap:wrap;gap:6px}.ntf-b .btn.on{border-color:var(--acc);box-shadow:0 0 0 2px color-mix(in srgb,var(--acc) 25%,transparent)}
+.ntf-l{margin-top:8px;padding:8px 10px;border-radius:12px;background:#fff4e0;color:#7a4a00;font-size:.88rem}

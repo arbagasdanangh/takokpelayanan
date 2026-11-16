@@ -256,7 +256,7 @@ $("v-adm").addEventListener("click",async function(e){if(S!=="adm")return;var id
  if(!SEL)return;
  if(qb){var ta=$("rt");ta.value=(ta.value?ta.value+"\n":"")+fillT(QR[+qb.dataset.q]);ta.focus();return}
  if(id==="cats"){await api("/api/admin/catatan",{pid:SEL.pid,kunci:SEL.kunci,teks:$("cat").value});SEL.cat=$("cat").value;toast("Catatan tersimpan.");return}
- if(id==="rs"){var t=clean($("rt").value);if(!t)return;e.target.disabled=true;await api("/api/admin/balas",{pid:SEL.pid,kunci:SEL.kunci,isi:t});$("rt").value="";toast("Jawaban terkirim. Beritahu pemohon lewat WhatsApp atau email bila perlu.");ASIG="";SM.sig="";await tick();var b=$("rs");if(b)b.disabled=false}
+ if(id==="rs"){var t=clean($("rt").value);if(!t)return;e.target.disabled=true;var rr=await api("/api/admin/balas",{pid:SEL.pid,kunci:SEL.kunci,isi:t});$("rt").value="";toast(rr&&rr.notif==="ok"?"Jawaban terkirim. Pemohon sudah diberi tahu otomatis lewat Telegram/WhatsApp.":rr&&rr.notif==="gagal"?"Jawaban terkirim, tetapi pemberitahuan otomatis gagal. Beritahu pemohon lewat WhatsApp atau email.":"Jawaban terkirim. Beritahu pemohon lewat WhatsApp atau email bila perlu.");ASIG="";SM.sig="";await tick();var b=$("rs");if(b)b.disabled=false}
  if(id==="rc"){await api("/api/admin/selesai",{pid:SEL.pid,kunci:SEL.kunci});toast("Ditandai selesai.");ASIG="";tick()}
  if(id==="rd"){if(e.target.dataset.sure!=="1"){e.target.dataset.sure="1";e.target.textContent="Yakin hapus? Klik lagi";return}await api("/api/admin/hapus",{pid:SEL.pid,kunci:SEL.kunci});SEL=null;ASIG="";await tick();admPane()}
  }catch(x){err(x.message);var b2=$("rs");if(b2)b2.disabled=false}});
