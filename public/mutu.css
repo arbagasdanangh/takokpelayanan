@@ -1,0 +1,14 @@
+/* Versi 66: mutu jawaban, ajari chatbot */
+.mu-k{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin:8px 0}
+.mu-k .kpi{padding:10px 12px;border-radius:14px;border:1px solid var(--line);background:var(--surface)}.mu-k .kpi b{display:block;font-size:1.4rem}.mu-k .kpi span{font-size:.78rem;color:var(--mute)}
+.mu-k .mu-bad{border-color:#e5806f;background:#fff1ee}.mu-k .mu-bad b{color:#b3261e}
+td.mu-bad{color:#b3261e;font-weight:800}
+.mu-q{display:grid;gap:6px;margin-top:6px}.mu-q>div{display:grid;grid-template-columns:1fr auto;gap:0 10px;padding:7px 10px;border-radius:12px;border:1px solid var(--line)}
+.mu-q span{grid-column:1;font-size:.8rem;color:var(--mute)}.mu-q em{grid-row:1/3;grid-column:2;font-style:normal;font-weight:800;align-self:center}
+.mu-q .mu-late{border-color:#e5806f;background:#fff1ee}.mu-q .mu-late em{color:#b3261e}
+.mu-t{overflow-x:auto}
+.mu-ov{position:fixed;inset:0;z-index:200;background:rgba(10,20,50,.55);display:grid;place-items:center;padding:14px}
+.mu-bx{width:min(520px,100%);max-height:92vh;overflow:auto;background:var(--surface);color:var(--ink);border-radius:18px;padding:16px;display:grid;gap:8px;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+.mu-bx label,.mu-u label{display:grid;gap:3px;font-weight:700;font-size:.86rem}.mu-bx input:not([type=checkbox]),.mu-bx textarea,.mu-u input,.mu-u textarea{width:100%;font:inherit;padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:inherit}
+.mu-bx .mu-c{display:flex;gap:8px;align-items:center;font-weight:600}
+.mu-u{display:grid;gap:6px}
