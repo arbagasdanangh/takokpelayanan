@@ -101,14 +101,7 @@ window.addEventListener("offline", function () { status(false); });
 window.addEventListener("online", function () { status(true); });
 if (navigator.onLine === false) status(false, true);
 
-/* ---------- 7. Tombol ke atas ---------- */
-var up = D.createElement("button"); up.type = "button"; up.className = "apk-up"; up.setAttribute("aria-label", "Kembali ke atas");
-up.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 14l6-6 6 6"/></svg>'; D.body.appendChild(up);
-up.onclick = function () { getar(8); window.scrollTo({top: 0, behavior: gerak() ? "smooth" : "auto"}); };
-var upT = 0;
-window.addEventListener("scroll", function () {
-  if (upT) return; upT = setTimeout(function () { upT = 0; up.classList.toggle("on", window.scrollY > 700 && !adaLapisan()); }, 120);
-}, {passive: true});
+/* ---------- 7. Tombol ke atas: dipakai tombol bercincin di keren.js (dobel dihapus) ---------- */
 
 /* ---------- 8. Warna bilah status mengikuti tema ---------- */
 function warna() {

@@ -706,4 +706,6 @@ document.addEventListener("click", function (e) {
   else if (b.dataset.klq != null) { try { localStorage.setItem(QK, b.dataset.klq); } catch (x) {} menu(); }
 });
 window.ArusKalimas = {menu: menu, play: play};
+window.TKGL = {mul: mul, persp: persp, look: look, model: model, mBox: mBox, mCyl: mCyl, mCone: mCone, mPyr: mPyr, mSphere: mSphere, PRE: PRE, GLSL_SKY: GLSL_SKY, VS_MESH: VS_MESH, FS_MESH: FS_MESH,
+  VS_PT: VS_PT, FS_PT: FS_PT, VS_Q: VS_Q, FS_BRIGHT: FS_BRIGHT, FS_BLUR: FS_BLUR, FS_COMP: FS_COMP, prog: prog, seeded: seeded, lerp: lerp, clamp: clamp, nrm: nrm, mixv: mixv, webgl: webgl, setU: setU, attr: attr};
 })();

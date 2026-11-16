@@ -94,3 +94,4 @@ html.apk-noanim .apk-launch,html.apk-noanim .apk-ptr,html.apk-noanim #apk-splash
 html.apk-noanim .apk-pop,html.apk-noanim .sh-i.on .sh-ic svg,html.apk-noanim .sh-i.on::after,html.apk-noanim .pn-box,html.apk-noanim .ap-box,html.apk-noanim .ug-dlg,html.apk-noanim .kr-card,html.apk-noanim .sh-in{animation:none!important}
 @media (prefers-reduced-motion:reduce){.apk-launch,#apk-splash,.apk-pop,.sh-i.on .sh-ic svg,.pn-box,.ap-box,.ug-dlg{animation:none!important}.apk-launch,#apk-splash{display:none!important}}
 @media print{.apk-ptr,.apk-edge,.apk-off,.apk-up,#apk-splash{display:none!important}}
+.apk-up{display:none!important}

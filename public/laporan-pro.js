@@ -15,7 +15,7 @@ function unduh(nama, baris) {
   a.download = nama; document.body.appendChild(a); a.click(); a.remove();
 }
 var ALASAN = {tidak_jelas: "Jawaban tidak jelas", salah: "Jawaban salah", kurang_lengkap: "Kurang lengkap", ingin_petugas: "Ingin bicara dengan petugas", lainnya: "Lainnya"};
-var NAMA_GAME = {kalimas: "Arus Kalimas", rush: "Rush", cocok: "Cocokkan", susun: "Susun", urut: "Urut", kuis: "Kuis", kata: "Kata", tangkap: "Tangkap", suro: "Suro", roda: "Roda", usaha: "Usaha", tebak: "Tebak", zona: "Zona", arena: "Arena", alur: "Alur", bidang: "Bidang", menara: "Menara", gabung: "Gabung", benar: "Benar", sandi: "Sandi"};
+var NAMA_GAME = {kalimas: "Arus Kalimas", moba3d: "Arena Suroboyo 3D", rush: "Rush", cocok: "Cocokkan", susun: "Susun", urut: "Urut", kuis: "Kuis", kata: "Kata", tangkap: "Tangkap", suro: "Suro", roda: "Roda", usaha: "Usaha", tebak: "Tebak", zona: "Zona", arena: "Arena", alur: "Alur", bidang: "Bidang", menara: "Menara", gabung: "Gabung", benar: "Benar", sandi: "Sandi"};
 
 /* Ringkasan eksekutif: kalimat otomatis dari angka. */
 function ringkas(d) {
