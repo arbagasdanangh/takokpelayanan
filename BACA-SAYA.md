@@ -661,3 +661,12 @@ Semua data tersimpan di perangkat (kunci `tk_misi`, `tk_cari`, `tk_note`).
 - **3 hero:** Cak Takok (seimbang), Ning Suroboyo (lincah), Pak Bhabin (tangguh, 4 nyawa). Pilihan disimpan di perangkat.
 - **Sistem kill beruntun:** hancurkan rintangan atau Boyo dalam 3 detik untuk DOUBLE, TRIPLE, MEGA, LEGENDARY KILL dengan pengali skor, angka poin melayang di posisi benda.
 - **Zona dan misi jarak:** Kali Mas, Jembatan Merah, Pasar Pabean, Taman Prestasi, Tugu Pahlawan, Surabaya Gemilang dengan bar progres, spanduk zona, dan bonus. Denyut tepi layar merah saat nyawa terakhir.
+
+## Versi 64: Arena Suroboyo 3D (MOBA)
+- Gim baru di Ruang Main: **Arena Suroboyo 3D**, tempur 3 lawan 3 melawan bot. 3 jalur, 2 menara per jalur, pasukan keluar tiap 28 detik, 4 monster Boyo hutan, markas Tugu Pahlawan (Biru) melawan Sarang Boyo (Merah; terbuka setelah menara dalam runtuh).
+- 3 hero dengan 3 jurus masing-masing: Cak Takok (petarung), Ning Suroboyo (penyihir), Pak Bhabin (penjaga). Level sampai 9, emas, toko item (di markas), pulang ke markas, minimap, kill feed, FIRST BLOOD.
+- Tingkat bot: Mudah / Normal / Sulit. Grafis otomatis menyesuaikan (bloom, resolusi).
+- Kontrol HP: joystick melayang di kiri, tombol serang dan 3 jurus di kanan. Komputer: klik tanah / WASD, Q E R, J atau Spasi, B pulang, P toko.
+- File baru: `arena3d.js`, `arena3d.css` (memakai mesin WebGL dari `kalimas.js`, jadi urutan skrip di `index.html` harus tetap). `api/app.py` menerima gim `moba3d`; laporan admin menampilkan "Arena Suroboyo 3D".
+- `sw.js` menjadi `takok-v64`: pengguna lama mendapat berkas baru setelah memuat ulang sekali.
+- Perbaikan: tombol "ke atas" yang muncul dobel (apk.js dan keren.js) kini hanya satu, yaitu yang bercincin kemajuan.
