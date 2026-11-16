@@ -109,7 +109,7 @@ ADM_SUPER = frozenset([
     "berita", "berita/hapus",
     "kata", "kata.xlsx", "kata-templat.xlsx", "kata/impor", "kstat", "kstat/reset", "miss", "miss/hapus",
     "kbli/impor", "kbli/hapus", "izin", "izin/simpan", "izin/cek",
-    "data.xlsx", "audit", "kesehatan", "pemohon", "visitor",
+    "data.xlsx", "audit", "kesehatan", "pemohon", "visitor", "cadangan", "cadangan.json", "cadangan/pulih",
 ])
 # Rute admin berupa aksi baca lewat POST atau pemeriksaan: tidak dicatat di Log aktivitas.
 AUDIT_ABAIKAN = frozenset(["kanal/uji", "piket", "kata/impor-cek", "izin/cek"])
@@ -739,11 +739,46 @@ def _median(a):
     return 0 if not n else (a[n // 2] if n % 2 else (a[n // 2 - 1] + a[n // 2]) / 2.0)
 
 
+def kerja_cfg():
+    c = cfg_all()
+    hari = "".join(x for x in "1234567" if x in (c.get("kerja_hari") or "12345"))
+    try:
+        mulai, akhir = int(c.get("kerja_mulai") or 8), int(c.get("kerja_akhir") or 16)
+    except ValueError:
+        mulai, akhir = 8, 16
+    if not (0 <= mulai < akhir <= 24) or not hari:
+        hari, mulai, akhir = "12345", 8, 16
+    return {"hari": hari, "mulai": mulai, "akhir": akhir}
+
+
+def menit_kerja(a, b, kc):
+    """Menit dalam jam kerja (WIB) di antara dua waktu (ms). Hari dan jam di luar kerja tidak dihitung."""
+    if b <= a:
+        return 0.0
+    off = 7 * 3600000
+    a2, b2 = a + off, b + off
+    d0 = a2 // 86400000
+    tot = 0
+    for d in range(d0, min(b2 // 86400000, d0 + 120) + 1):
+        if str((d + 3) % 7 + 1) not in kc["hari"]:
+            continue
+        s, e = d * 86400000 + kc["mulai"] * 3600000, d * 86400000 + kc["akhir"] * 3600000
+        tot += max(0, min(e, b2) - max(s, a2))
+    return tot / 60000.0
+
+
+def kerja_teks(kc):
+    nm = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"]
+    h = [nm[int(x) - 1] for x in kc["hari"]]
+    return "%s–%s, %02d.00–%02d.00 WIB" % (h[0], h[-1], kc["mulai"], kc["akhir"]) if len(h) > 1 else "%s, %02d.00–%02d.00 WIB" % (h[0], kc["mulai"], kc["akhir"])
+
+
 def mutu_hitung(boleh=None, sla=None):
     """Ringkasan mutu jawaban per loket dari percakapan terbaru: antrean menunggu pegawai, yang melewati batas waktu (SLA),
     median waktu jawab pegawai (Asisten Piket tidak dihitung), dan rata-rata penilaian pemohon."""
     sla = sla or sla_jam()
     now = now_ms()
+    kc = kerja_cfg()
     per, antri = {}, []
     for r in muat_semua(200, ok=boleh):
         k = r["kunci"]
@@ -758,10 +793,10 @@ def mutu_hitung(boleh=None, sla=None):
             if m["dari"] == "pemohon":
                 awal = m["waktu"] if awal is None else awal
             elif not m.get("bot") and awal is not None:
-                d["rt"].append((m["waktu"] - awal) / 60000.0)
+                d["rt"].append(menit_kerja(awal, m["waktu"], kc))
                 awal = None
         if awal is not None and not (r["selesai"] and r["selesai"] >= awal):
-            tunggu = (now - awal) / 60000.0
+            tunggu = menit_kerja(awal, now, kc)
             d["pend"] += 1
             if tunggu > sla * 60:
                 d["lewat"] += 1
@@ -781,7 +816,7 @@ def mutu_hitung(boleh=None, sla=None):
     allrt = [x for d in per.values() for x in d["rt"]]
     tot = {"pend": sum(d["pend"] for d in per.values()), "lewat": sum(d["lewat"] for d in per.values()), "med": round(_median(allrt)) if allrt else None,
            "dalam": round(100.0 * sum(1 for x in allrt if x <= sla * 60) / len(allrt)) if allrt else None, "jawab": len(allrt)}
-    return {"sla": sla, "loket": rows, "antri": antri[:15], "tot": tot}
+    return {"sla": sla, "kerja": dict(kc, teks=kerja_teks(kc)), "loket": rows, "antri": antri[:15], "tot": tot}
 
 
 def estimasi_loket(k):
@@ -791,7 +826,7 @@ def estimasi_loket(k):
         c = {x["kunci"]: {"med": x["med"], "n": x["jawab"]} for x in mutu_hitung()["loket"]}
         db().cmd("SET", "mutu:est", json.dumps(c), "EX", 1800)
     e = c.get(k) or {}
-    return {"med": e.get("med") if (e.get("n") or 0) >= 3 else None, "n": e.get("n", 0)}
+    return {"med": e.get("med") if (e.get("n") or 0) >= 3 else None, "n": e.get("n", 0), "kerja": kerja_teks(kerja_cfg())}
 
 
 def kata_tambah(ks, j, ts):
@@ -830,6 +865,89 @@ def kata_saran_dari(msgs):
             if w not in kata and len(kata) < 5:
                 kata.append(w)
     return {"k": kata, "j": (jw or {}).get("isi", ""), "q": (q or {}).get("isi", "")}
+
+
+
+# ---------------- Cadangan dan pemulihan pengaturan ----------------
+# Hanya pengaturan dan pengetahuan aplikasi. Data pribadi warga (akun pemohon, percakapan, permohonan, booking) dan akun admin tidak ikut.
+CADANGAN = [
+    ("cfg", "Pengaturan umum dan templat balasan", [("cfg", "hash")]),
+    ("kata", "Kata cari chatbot", [("kata2", "hash")]),
+    ("loket", "Editor loket dan lokasi", [("loketx", "hash"), ("lokx", "hash")]),
+    ("izin", "Katalog perizinan", [("izin", "hash")]),
+    ("kbli", "Data KBLI", [("kbli", "hash")]),
+    ("berita", "Berita pelayanan", [("berita", "hash")]),
+    ("usul", "Usulan chatbot", [("usul", "hash")]),
+    ("bj", "Daftar biro jasa", [("bj", "hash"), ("bjset", "set")]),
+]
+CADANGAN_VER = 1
+
+
+def cadangan_buat(pilih):
+    out = {}
+    for sid, nm, keys in CADANGAN:
+        if sid not in pilih:
+            continue
+        d = {}
+        for k, t in keys:
+            if t == "hash":
+                v = hall(db().cmd("HGETALL", k))
+            else:
+                v = sorted(str(x) for x in (db().cmd("SMEMBERS", k) or []))
+            d[k] = {"t": t, "d": v}
+        out[sid] = {"nama": nm, "k": d}
+    return {"app": "takok-pelayanan", "v": CADANGAN_VER, "waktu": now_ms(), "set": out}
+
+
+def cadangan_cek(dat):
+    """Validasi berkas cadangan. Kembalian: {set_id: {nama, entri}} yang valid. Menolak apa pun di luar daftar putih."""
+    if not isinstance(dat, dict) or dat.get("app") != "takok-pelayanan" or dat.get("v") != CADANGAN_VER or not isinstance(dat.get("set"), dict):
+        raise HttpError(400, "Berkas bukan cadangan Takok Pelayanan versi ini.")
+    ok = {}
+    for sid, nm, keys in CADANGAN:
+        x = (dat["set"].get(sid) or {}).get("k")
+        if not isinstance(x, dict):
+            continue
+        ent = {}
+        for k, t in keys:
+            e = x.get(k)
+            if not isinstance(e, dict) or e.get("t") != t:
+                continue
+            v = e.get("d")
+            if t == "hash":
+                if not isinstance(v, dict) or any(not isinstance(a, str) or not isinstance(b, (str, int, float)) for a, b in v.items()):
+                    raise HttpError(400, "Isi cadangan %s rusak." % k)
+                v = {a: str(b) for a, b in v.items()}
+            else:
+                if not isinstance(v, list) or any(not isinstance(a, str) for a in v):
+                    raise HttpError(400, "Isi cadangan %s rusak." % k)
+            ent[k] = (t, v)
+        if ent:
+            ok[sid] = {"nama": nm, "e": ent}
+    if not ok:
+        raise HttpError(400, "Berkas tidak berisi data yang dikenali.")
+    return ok
+
+
+def cadangan_terap(sid_ent):
+    """Ganti isi kunci dengan isi cadangan. Ditulis ke kunci sementara lalu RENAME agar tidak pernah setengah jadi."""
+    for k, (t, v) in sid_ent.items():
+        tmp = "cad:tmp:" + k
+        db().cmd("DEL", tmp)
+        if not v:
+            db().cmd("DEL", k)
+            continue
+        if t == "hash":
+            items = list(v.items())
+            for i in range(0, len(items), 100):
+                c = ["HSET", tmp]
+                for a, b in items[i:i + 100]:
+                    c += [a, b]
+                db().cmd(*c)
+        else:
+            for i in range(0, len(v), 200):
+                db().cmd("SADD", tmp, *v[i:i + 200])
+        db().cmd("RENAME", tmp, k)
 
 
 # ---------------- Handler ----------------
@@ -1175,7 +1293,7 @@ class handler(BaseHTTPRequestHandler):
                     except Exception:
                         raise HttpError(400, "Data tidak valid.")
                     return self.route(method, path, q, body)
-                if n > {"/admin/kata": 700000, "/admin/kata/impor": 4200000, "/admin/loket/massal": 1500000, "/admin/kbli/impor": 1500000, "/admin/izin/simpan": 1200000}.get(path, 10000):
+                if n > {"/admin/kata": 700000, "/admin/kata/impor": 4200000, "/admin/cadangan/pulih": 4200000, "/admin/loket/massal": 1500000, "/admin/kbli/impor": 1500000, "/admin/izin/simpan": 1200000}.get(path, 10000):
                     raise HttpError(413, "Permintaan terlalu besar.")
                 try:
                     body = json.loads(self.rfile.read(n) or b"{}")
@@ -2367,6 +2485,44 @@ class handler(BaseHTTPRequestHandler):
             if limited("rl:izcek", 6, 600):
                 raise HttpError(429, "Terlalu sering. Coba beberapa menit lagi.")
             return self.json({"hasil": izin_uji()}, extra=ex)
+        if r == "cadangan" and method == "GET":
+            out = []
+            for sid, nm, keys in CADANGAN:
+                n = 0
+                for k, t in keys:
+                    n += int(db().cmd("HLEN" if t == "hash" else "SCARD", k) or 0)
+                out.append({"id": sid, "nama": nm, "n": n})
+            return self.json({"daftar": out, "riwayat": [x for x in (parse(v) for v in (db().cmd("LRANGE", "cadlog", 0, 9) or [])) if x]}, extra=ex)
+        if r == "cadangan.json" and method == "GET":
+            pilih = [x for x in ((q.get("set") or [""])[0]).split(",") if x] or [c[0] for c in CADANGAN]
+            dat = json.dumps(cadangan_buat(set(pilih)), ensure_ascii=False)
+            nm = time.strftime("takok-cadangan-%Y%m%d-%H%M.json", wib())
+            db().pipe([["LPUSH", "cadlog", json.dumps({"t": now_ms(), "a": "unduh", "s": pilih, "u": self.adm.get("nm") or "Superuser", "b": len(dat)})], ["LTRIM", "cadlog", 0, 19]])
+            return self.out(200, dat, "application/json; charset=utf-8", [("Content-Disposition", 'attachment; filename="%s"' % nm), ("Cache-Control", "no-store")] + ex)
+        if r == "cadangan/pulih" and method == "POST":
+            ok = cadangan_cek(b.get("data"))
+            pilih = [x for x in (b.get("set") or []) if x in ok]
+            ringkas = []
+            for sid, nm, keys in CADANGAN:
+                if sid in ok:
+                    ringkas.append({"id": sid, "nama": nm, "baru": sum(len(v) for t, v in ok[sid]["e"].values()), "kini": sum(int(db().cmd("HLEN" if t == "hash" else "SCARD", k) or 0) for k, t in keys)})
+            if not b.get("terap"):
+                return self.json({"waktu": (b.get("data") or {}).get("waktu"), "ringkas": ringkas}, extra=ex)
+            if not pilih:
+                raise HttpError(400, "Pilih minimal satu bagian untuk dipulihkan.")
+            if str(b.get("konfirmasi", "")).strip().upper() != "PULIHKAN":
+                raise HttpError(400, "Ketik PULIHKAN untuk memastikan.")
+            for sid in pilih:
+                cadangan_terap({k: v for k, v in ok[sid]["e"].items()})
+            _KC["v"] = None
+            _KB["v"] = None
+            _IZ["v"] = None
+            _LX["t"] = 0.0
+            try:
+                db().pipe([["DEL", "mutu:est"], ["LPUSH", "cadlog", json.dumps({"t": now_ms(), "a": "pulih", "s": pilih, "u": self.adm.get("nm") or "Superuser", "b": 0})], ["LTRIM", "cadlog", 0, 19]])
+            except Exception as e:
+                print("CAD", repr(e))
+            return self.json({"ok": True, "dipulihkan": pilih}, extra=ex)
         if r == "audit" and method == "GET":
             return self.json({"daftar": [x for x in (parse(v, None) for v in db().cmd("LRANGE", "audit", 0, 299) or []) if isinstance(x, dict)]}, extra=ex)
         if r == "kesehatan" and method == "GET":
@@ -3112,12 +3268,19 @@ class handler(BaseHTTPRequestHandler):
                               "n": {c: {"hari": int(n.get("%s:%s" % (c, hari), 0)), "total": int(n.get("%s:total" % c, 0))} for c in ("wa", "tg", "uji")},
                               "log": [x for x in (parse(i) for i in (db().cmd("LRANGE", "kn:log", 0, 14) or [])) if x]}, extra=ex)
         if r == "mutu":
-            return self.json(dict(mutu_hitung(self.boleh), sup=bool(self.adm["sup"])), extra=ex)
+            return self.json(dict(mutu_hitung(self.boleh), sup=bool(self.adm["sup"]), usul=int(db().cmd("HLEN", "usul") or 0) if self.adm["sup"] else 0), extra=ex)
         if r == "mutu/sla":
             h = int(b.get("jam") or 0)
             if not 1 <= h <= 168:
                 raise HttpError(400, "Batas waktu 1 sampai 168 jam.")
-            db().pipe([["HSET", "cfg", "sla_jam", h], ["DEL", "mutu:est"]])
+            hari = "".join(x for x in "1234567" if x in str(b.get("hari") or "12345"))
+            try:
+                mu, ak = int(b.get("mulai", 8)), int(b.get("akhir", 16))
+            except (TypeError, ValueError):
+                raise HttpError(400, "Jam kerja tidak valid.")
+            if not hari or not 0 <= mu < ak <= 24:
+                raise HttpError(400, "Pilih minimal satu hari dan jam mulai harus lebih awal dari jam selesai.")
+            db().pipe([["HSET", "cfg", "sla_jam", h], ["HSET", "cfg", "kerja_hari", hari], ["HSET", "cfg", "kerja_mulai", mu], ["HSET", "cfg", "kerja_akhir", ak], ["DEL", "mutu:est"]])
             return self.json({"ok": True}, extra=ex)
         if r == "usulan/saran":
             pid, k = int(b.get("pid") or 0), str(b.get("kunci", ""))
@@ -3125,7 +3288,9 @@ class handler(BaseHTTPRequestHandler):
                 raise HttpError(400, "Data tidak valid.")
             self.izin(k)
             ms = [m for m in (parse(x) for x in db().cmd("LRANGE", "msgs:%s|%s" % (pid, k), 0, -1) or []) if m]
-            return self.json(dict(kata_saran_dari(ms), t=k, loket=label(k)), extra=ex)
+            sr = kata_saran_dari(ms)
+            mirip = [{"k": a.get("k", [])[:4], "j": clean(a.get("j", ""), 160), "kata": w} for a, w in kata_cache()[2].cocok(sr["q"])[:3]] if sr["q"] else []
+            return self.json(dict(sr, t=k, loket=label(k), mirip=mirip), extra=ex)
         if r == "usulan":
             ks = [x for x in (b.get("k") or []) if isinstance(x, str)]
             j = clean(b.get("j", ""), 1500)
