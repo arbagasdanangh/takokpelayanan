@@ -670,3 +670,10 @@ Semua data tersimpan di perangkat (kunci `tk_misi`, `tk_cari`, `tk_note`).
 - File baru: `arena3d.js`, `arena3d.css` (memakai mesin WebGL dari `kalimas.js`, jadi urutan skrip di `index.html` harus tetap). `api/app.py` menerima gim `moba3d`; laporan admin menampilkan "Arena Suroboyo 3D".
 - `sw.js` menjadi `takok-v64`: pengguna lama mendapat berkas baru setelah memuat ulang sekali.
 - Perbaikan: tombol "ke atas" yang muncul dobel (apk.js dan keren.js) kini hanya satu, yaitu yang bercincin kemajuan.
+
+## Versi 65: Pemberitahuan jawaban admin (Telegram / WhatsApp)
+- Saat admin menjawab pertanyaan, pemohon yang mengaktifkannya otomatis diberi tahu lewat **Telegram** atau **WhatsApp**. Pesan hanya berisi nomor tiket dan ajakan membuka aplikasi; isi jawaban tidak dikirim (privasi). Maksimal satu pemberitahuan per percakapan tiap 10 menit.
+- Pemohon: kartu "Kabari saya bila admin menjawab" di *Percakapan saya* (pilih Telegram atau WhatsApp, kirim uji, matikan). Telegram: tekan tautan lalu Start; di bot, `/stop` untuk berhenti. WhatsApp memakai nomor akun.
+- Superadmin: tab baru **Pemberitahuan jawaban** (saklar, isi pesan dengan {nama} {tiket} {loket} {situs}, nama templat WhatsApp, statistik, log). Toast setelah membalas kini menyebut apakah pemberitahuan terkirim.
+- Pemasangan: Telegram memakai `TG_TOKEN` + `TG_SECRET` (sama dengan Kanal Telegram); opsional `TG_BOT` (nama bot tanpa @). WhatsApp memakai `WA_TOKEN` + `WA_PHONE_ID`. Agar WhatsApp bisa mengirim di luar 24 jam, buat templat kategori Utility di Meta dengan 3 parameter ({{1}} nama, {{2}} tiket, {{3}} loket) lalu isi namanya di tab ini.
+- File baru: `notif.js`, `notif.css`. Rute API: `/notif`, `/notif/atur|tautkan|uji` (pemohon), `/admin/notif`, `/admin/notif/simpan` (superadmin). `sw.js` menjadi `takok-v65`.
