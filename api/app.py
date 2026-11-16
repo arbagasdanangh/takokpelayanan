@@ -104,7 +104,7 @@ ADM_MAX = 200
 # Rute admin yang hanya boleh dipakai superuser: pengaturan global, isi chatbot, editor loket, kanal, data seluruh instansi, dan akun.
 ADM_SUPER = frozenset([
     "akun", "akun/simpan", "akun/hapus", "keamanan", "bj/tandai",
-    "pengaturan", "dinamis", "kanal", "kanal/uji", "piket",
+    "pengaturan", "dinamis", "kanal", "kanal/uji", "piket", "notif", "notif/simpan",
     "loket", "loket/simpan", "loket/massal", "loket/reset", "loket/hapus", "lokasi/hapus", "lokasi/simpan", "lokasi/urutan", "lokasi/reset",
     "berita", "berita/hapus",
     "kata", "kata.xlsx", "kata-templat.xlsx", "kata/impor", "kstat", "kstat/reset", "miss", "miss/hapus",
@@ -659,6 +659,71 @@ def muat_semua(limit=200, ok=None):
     return rows
 
 
+
+# ---------------- Pemberitahuan jawaban admin (Telegram / WhatsApp) ----------------
+NTF_TEKS = "Halo {nama}, pertanyaan Anda ({tiket}) di {loket} sudah dijawab admin. Buka {situs} lalu menu Tanya untuk membaca jawabannya. Takok Pelayanan Suroboyo"
+
+
+def ntf_cfg():
+    c = cfg_all()
+    return {"aktif": c.get("ntf_aktif", "1") != "0", "tpl": clean(c.get("ntf_wa_tpl", ""), 60), "lang": clean(c.get("ntf_wa_lang", "id"), 8) or "id", "teks": c.get("ntf_teks") or NTF_TEKS}
+
+
+def ntf_sub(pid):
+    s = parse(db().cmd("HGET", "ntf", pid), None)
+    return s if isinstance(s, dict) else {}
+
+
+def ntf_isi(teks, nama, tiket, loket, situs):
+    for k, v in (("{nama}", nama), ("{tiket}", tiket), ("{loket}", loket), ("{situs}", situs)):
+        teks = teks.replace(k, v)
+    return teks
+
+
+def ntf_kirim(situs, pid, k, tk, uji=False):
+    """Kabari pemohon bahwa admin sudah menjawab. Isi jawaban TIDAK dikirim (privasi): hanya nomor tiket dan ajakan membuka aplikasi.
+    Kembalian: 'ok' | 'gagal' | alasan dilewati."""
+    cf = ntf_cfg()
+    if not cf["aktif"] and not uji:
+        return "nonaktif"
+    s = ntf_sub(pid)
+    if s.get("ch") not in ("wa", "tg"):
+        return "tanpa"
+    if not uji and limited("rl:ntf:%s|%s" % (pid, k), 1, 600):
+        return "dibatasi"
+    pem = parse(db().cmd("HGET", "pemohon", pid), {}) or {}
+    nama = (pem.get("nama") or "").split(" ")[0] or "Sahabat"
+    lok = label(k) if k else "loket"
+    teks = ntf_isi(cf["teks"], nama, tk, lok, situs)
+    env = os.environ
+    err = ""
+    try:
+        if s["ch"] == "tg":
+            tok = env.get("TG_TOKEN", "")
+            if not (tok and s.get("tg")):
+                raise ValueError("Telegram belum tersambung")
+            BOT.kirim_tg(tok, s["tg"], teks)
+        else:
+            tok, pw = env.get("WA_TOKEN", ""), env.get("WA_PHONE_ID", "")
+            no = s.get("wa") or pem.get("hp") or ""
+            if not (tok and pw and no):
+                raise ValueError("WhatsApp belum dikonfigurasi")
+            ke = "62" + no[1:] if no.startswith("0") else no
+            if cf["tpl"]:
+                BOT.kirim_wa_tpl(tok, pw, ke, cf["tpl"], cf["lang"], [nama, tk, lok])
+            else:
+                BOT.kirim_wa(tok, pw, ke, teks)
+    except Exception as e:
+        err = str(e)[:100]
+    hari = time.strftime("%Y%m%d", wib())
+    try:
+        db().pipe([["HINCRBY", "ntf:n", "gagal" if err else "ok", 1], ["HINCRBY", "ntf:n", "%s:%s" % ("gagal" if err else "ok", hari), 1],
+                   ["LPUSH", "ntf:log", json.dumps({"t": now_ms(), "ch": s["ch"], "tk": tk, "ok": 0 if err else 1, "e": err, "uji": 1 if uji else 0, "n": nama}, ensure_ascii=False)], ["LTRIM", "ntf:log", 0, 39]])
+    except Exception as e:
+        print("NTF log", repr(e))
+    return "gagal" if err else "ok"
+
+
 # ---------------- Handler ----------------
 # ---------------- Kata cari chatbot: impor / ekspor ----------------
 KATA_MAX = max(100, min(20000, int(os.environ.get("KATA_MAX", "5000") or 5000)))
@@ -1082,6 +1147,10 @@ class handler(BaseHTTPRequestHandler):
                 return self.user_hapus(ses, b, ex)
             if path == "/pesan/reaksi" and method == "POST":
                 return self.user_reaksi(ses, b, ex)
+            if path == "/notif" and method == "GET":
+                return self.user_notif(ses, ex)
+            if path.startswith("/notif/") and method == "POST":
+                return self.user_notif_aksi(ses, path[7:], b, ex)
             if path == "/nilai" and method == "POST":
                 return self.user_nilai(ses, b, ex)
             if path == "/permohonan" and method == "GET":
@@ -1280,6 +1349,36 @@ class handler(BaseHTTPRequestHandler):
                             print("WA kirim gagal", repr(e))
         return self.json({"ok": True})
 
+    def ntf_tg_cmd(self, tok, cid, txt):
+        """Perintah /start KODE (menautkan Telegram ke akun pemohon) dan /stop (berhenti diberi tahu). True bila pesan sudah ditangani."""
+        mm = re.match(r"^/start(?:@\w+)?\s+([A-Za-z0-9_-]{6,24})$", txt)
+        try:
+            if mm:
+                if limited("rl:ntftg:%s" % cid, 10, 3600):
+                    return True
+                kk = "ntf:k:" + mm.group(1)
+                pid = db().cmd("GET", kk)
+                if not pid:
+                    BOT.kirim_tg(tok, cid, "Kode tautan tidak berlaku atau sudah kedaluwarsa. Buat kode baru dari aplikasi Takok Pelayanan (menu Tanya, Pemberitahuan).")
+                    return True
+                db().cmd("DEL", kk)
+                s = ntf_sub(pid)
+                s.update({"ch": "tg", "tg": cid})
+                db().pipe([["HSET", "ntf", pid, json.dumps(s)], ["HSET", "ntf:tg", str(cid), pid]])
+                BOT.kirim_tg(tok, cid, "Tersambung. Anda akan diberi tahu di sini setiap admin menjawab pertanyaan Anda. Isi jawaban tetap dibaca di aplikasi. Kirim /stop untuk berhenti.")
+                return True
+            if re.match(r"^/stop(?:@\w+)?$", txt):
+                pid = db().cmd("HGET", "ntf:tg", str(cid))
+                if pid:
+                    s = ntf_sub(pid)
+                    s["ch"] = ""
+                    db().cmd("HSET", "ntf", pid, json.dumps(s))
+                BOT.kirim_tg(tok, cid, "Pemberitahuan dimatikan. Aktifkan lagi kapan saja dari aplikasi.")
+                return True
+        except Exception as e:
+            print("NTF TG", repr(e))
+        return False
+
     def kanal_tg(self, b):
         env = os.environ
         tok, sec = env.get("TG_TOKEN", ""), env.get("TG_SECRET", "")
@@ -1289,6 +1388,8 @@ class handler(BaseHTTPRequestHandler):
             raise HttpError(403, "Rahasia webhook tidak cocok.")
         m = b.get("message") or {}
         cid = (m.get("chat") or {}).get("id")
+        if cid is not None and (m.get("chat") or {}).get("type") == "private" and self.ntf_tg_cmd(tok, cid, (m.get("text") or "").strip()):
+            return self.json({"ok": True})
         if cid is not None and (m.get("chat") or {}).get("type") == "private":
             bal = self.kanal_proses("tg", cid, "%s" % b.get("update_id"), m.get("text") or "")
             if bal:
@@ -1648,6 +1749,59 @@ class handler(BaseHTTPRequestHandler):
             raise HttpError(429, "Anda sudah mengisi survei beberapa kali hari ini. Terima kasih.")
         db().pipe([["RPUSH", "skm", json.dumps({"t": now_ms(), "lokasi": lok, "unit": unit, "zona": zona, "j": j, "saran": clean(b.get("saran", ""), 300)}, ensure_ascii=False)], ["LTRIM", "skm", -5000, -1]])
         self.json({"ok": True}, extra=ex)
+
+    def user_notif(self, ses, ex):
+        pid, env = ses["id"], os.environ
+        s = ntf_sub(pid)
+        pem = parse(db().cmd("HGET", "pemohon", pid), {}) or {}
+        hp = s.get("wa") or pem.get("hp") or ""
+        cf = ntf_cfg()
+        tgok, waok = bool(env.get("TG_TOKEN") and env.get("TG_SECRET")), bool(env.get("WA_TOKEN") and env.get("WA_PHONE_ID"))
+        self.json({"ch": s.get("ch", "") if s.get("ch") in ("wa", "tg") else "", "tg": bool(s.get("tg")), "wa": (hp[:4] + "••••" + hp[-3:]) if len(hp) >= 8 else "",
+                   "ada": {"tg": tgok, "wa": waok}, "aktif": cf["aktif"]}, extra=ex)
+
+    def user_notif_aksi(self, ses, aksi, b, ex):
+        pid, env = ses["id"], os.environ
+        if limited("rl:ntfu:%s" % pid, 20, 3600):
+            raise HttpError(429, "Terlalu sering. Coba lagi nanti.")
+        s = ntf_sub(pid)
+        situs = "https://" + (self.headers.get("Host") or "")
+        if aksi == "atur":
+            ch = str(b.get("ch", ""))
+            if ch not in ("wa", "tg", "off"):
+                raise HttpError(400, "Pilihan tidak valid.")
+            if ch == "wa":
+                if not (env.get("WA_TOKEN") and env.get("WA_PHONE_ID")):
+                    raise HttpError(400, "Pemberitahuan WhatsApp belum disiapkan oleh admin.")
+                no = norm_hp(b.get("wa", "")) if b.get("wa") else (norm_hp((parse(db().cmd("HGET", "pemohon", pid), {}) or {}).get("hp", "")))
+                if not no:
+                    raise HttpError(400, "Nomor WhatsApp tidak valid. Contoh: 08123456789.")
+                s["wa"] = no
+            if ch == "tg" and not s.get("tg"):
+                raise HttpError(400, "Tautkan Telegram dahulu lewat tombol Tautkan.")
+            s["ch"] = "" if ch == "off" else ch
+            db().cmd("HSET", "ntf", pid, json.dumps(s))
+            return self.json({"ok": True, "ch": s["ch"]}, extra=ex)
+        if aksi == "tautkan":
+            tok = env.get("TG_TOKEN", "")
+            if not (tok and env.get("TG_SECRET")):
+                raise HttpError(400, "Telegram belum disiapkan oleh admin.")
+            bot = env.get("TG_BOT", "").lstrip("@") or BOT.tg_me(tok)
+            if not bot:
+                raise HttpError(503, "Bot Telegram tidak bisa dihubungi. Coba lagi nanti.")
+            kode = secrets.token_urlsafe(6)
+            db().cmd("SET", "ntf:k:" + kode, str(pid), "EX", 900)
+            return self.json({"ok": True, "kode": kode, "link": "https://t.me/%s?start=%s" % (bot, kode), "bot": bot}, extra=ex)
+        if aksi == "uji":
+            if limited("rl:ntfuji:%s" % pid, 3, 3600):
+                raise HttpError(429, "Uji kirim maksimal 3 kali per jam.")
+            if s.get("ch") not in ("wa", "tg"):
+                raise HttpError(400, "Pilih Telegram atau WhatsApp dahulu.")
+            st = ntf_kirim(situs, pid, "", "TKT-UJI", uji=True)
+            if st != "ok":
+                raise HttpError(502, "Pesan uji belum terkirim. Pastikan sambungan benar; bila WhatsApp, admin perlu menyiapkan templat pesan.")
+            return self.json({"ok": True}, extra=ex)
+        raise HttpError(404, "Tidak ditemukan.")
 
     def user_kirim(self, ses, b, ex):
         pid, k, isi = ses["id"], str(b.get("kunci", "")), clean(b.get("isi", ""), 800)
@@ -2755,7 +2909,13 @@ class handler(BaseHTTPRequestHandler):
             if lu > la:
                 db().pipe([["RPUSH", "rt", round((now_ms() - lu) / 60000, 1)], ["LTRIM", "rt", -200, -1]])
             tk = add_msg(pid, k, "admin", isi)
-            return self.json({"ok": True, "tk": tk}, extra=ex)
+            nt = ""
+            if b.get("notif", 1) not in (0, "0", False):
+                try:
+                    nt = ntf_kirim("https://" + (self.headers.get("Host") or ""), pid, k, tk)
+                except Exception as e:
+                    print("NTF", repr(e))
+            return self.json({"ok": True, "tk": tk, "notif": nt}, extra=ex)
         if r == "selesai":
             pid, k = int(b.get("pid") or 0), str(b.get("kunci", ""))
             if not valid_key(k):
@@ -2838,6 +2998,34 @@ class handler(BaseHTTPRequestHandler):
                               "aktif": {"wa": cf.get("kanal_wa", "1") != "0", "tg": cf.get("kanal_tg", "1") != "0"}, "url": {"wa": base + "/api/wa", "wa2": base + "/api/app?p=/wa", "tg": base + "/api/tg", "tg2": base + "/api/app?p=/tg"},
                               "n": {c: {"hari": int(n.get("%s:%s" % (c, hari), 0)), "total": int(n.get("%s:total" % c, 0))} for c in ("wa", "tg", "uji")},
                               "log": [x for x in (parse(i) for i in (db().cmd("LRANGE", "kn:log", 0, 14) or [])) if x]}, extra=ex)
+        if r == "notif":
+            env, hari = os.environ, time.strftime("%Y%m%d", wib())
+            n = hall(db().cmd("HGETALL", "ntf:n"))
+            subs = [parse(v, {}) or {} for v in hall(db().cmd("HGETALL", "ntf")).values()]
+            return self.json({"cfg": ntf_cfg(), "teks_awal": NTF_TEKS, "env": {"wa": bool(env.get("WA_TOKEN") and env.get("WA_PHONE_ID")), "tg": bool(env.get("TG_TOKEN") and env.get("TG_SECRET"))},
+                              "n": {"ok": int(n.get("ok", 0)), "gagal": int(n.get("gagal", 0)), "ok_hari": int(n.get("ok:" + hari, 0)), "gagal_hari": int(n.get("gagal:" + hari, 0))},
+                              "pel": {"wa": sum(1 for x in subs if x.get("ch") == "wa"), "tg": sum(1 for x in subs if x.get("ch") == "tg")},
+                              "log": [x for x in (parse(i) for i in (db().cmd("LRANGE", "ntf:log", 0, 14) or [])) if x]}, extra=ex)
+        if r == "notif/simpan":
+            cmds = []
+            if "aktif" in b:
+                cmds.append(["HSET", "cfg", "ntf_aktif", "0" if str(b["aktif"]) in ("0", "False", "false") else "1"])
+            if "tpl" in b:
+                tpl = clean(b.get("tpl", ""), 60)
+                if tpl and not re.match(r"^[a-z0-9_]{1,60}$", tpl):
+                    raise HttpError(400, "Nama templat hanya huruf kecil, angka, dan garis bawah.")
+                cmds.append(["HSET", "cfg", "ntf_wa_tpl", tpl])
+            if "lang" in b:
+                lg = clean(b.get("lang", "id"), 8) or "id"
+                if not re.match(r"^[a-z]{2}(_[A-Z]{2})?$", lg):
+                    raise HttpError(400, "Kode bahasa tidak valid. Contoh: id.")
+                cmds.append(["HSET", "cfg", "ntf_wa_lang", lg])
+            if "teks" in b:
+                tx = clean(b.get("teks", ""), 300)
+                cmds.append(["HSET", "cfg", "ntf_teks", tx if tx else ""])
+            if cmds:
+                db().pipe(cmds)
+            return self.json({"ok": True}, extra=ex)
         if r == "kanal/uji":
             if limited("rl:knuji:%s" % self.ip(), 60, 3600):
                 raise HttpError(429, "Terlalu sering mencoba.")

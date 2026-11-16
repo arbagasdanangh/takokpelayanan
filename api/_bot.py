@@ -178,3 +178,28 @@ def kirim_wa(token, phone_id, ke, teks):
 
 def kirim_tg(token, chat_id, teks):
     return _post("https://api.telegram.org/bot%s/sendMessage" % token, {"chat_id": chat_id, "text": teks[:3500].replace("*", "")}, {})
+
+
+def kirim_wa_tpl(token, phone_id, ke, nama_tpl, bahasa, params):
+    """Pesan templat WhatsApp (boleh dikirim kapan saja, di luar jendela 24 jam). Templat harus sudah disetujui Meta; isi tubuh memakai {{1}}, {{2}}, ... sesuai urutan params."""
+    komp = [{"type": "body", "parameters": [{"type": "text", "text": str(p)[:120]} for p in params]}] if params else []
+    return _post("https://graph.facebook.com/v21.0/%s/messages" % re.sub(r"\D", "", phone_id),
+                 {"messaging_product": "whatsapp", "to": re.sub(r"\D", "", ke), "type": "template", "template": {"name": nama_tpl, "language": {"code": bahasa}, "components": komp}},
+                 {"Authorization": "Bearer " + token})
+
+
+_TGME = {}
+
+
+def tg_me(token):
+    """Nama pengguna bot Telegram (untuk tautan t.me). Disimpan sementara di memori."""
+    if token in _TGME:
+        return _TGME[token]
+    try:
+        with urllib.request.urlopen("https://api.telegram.org/bot%s/getMe" % token, timeout=5) as r:  # noqa: S310
+            u = (json.loads(r.read().decode()).get("result") or {}).get("username", "")
+    except Exception:
+        u = ""
+    if u:
+        _TGME[token] = u
+    return u
