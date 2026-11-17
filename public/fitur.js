@@ -171,18 +171,29 @@ function unduhIcs(o) {
 }
 var BKL = [];
 function namaLoket(o) { return label(o.kunci).split(" - ").slice(1).join(" - ") || lokNama(o.lokasi); }
+function jamWib(ms) { try { return new Date(ms).toLocaleTimeString("id-ID", {hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta"}).replace(".", ":"); } catch (e) { return ""; } }
+/* QR dari nomor tiket antrean: ditunjukkan ke petugas untuk check-in, dipanggil, dan check-out */
+function qrAntrean(o, today) {
+  var t = "";
+  if (o.tiba) t += "<span>Check-in " + jamWib(o.tiba) + "</span>";
+  if (o.mulai) t += "<span>Dilayani " + jamWib(o.mulai) + "</span>";
+  if (o.keluar) t += "<span>Check-out " + jamWib(o.keluar) + (o.mulai ? " (" + Math.max(1, Math.round((o.keluar - o.mulai) / 60000)) + " mnt)" : "") + "</span>";
+  var qr = today && !o.keluar && o.status !== "Batal" && window.TKQR ? '<div class="tk-qr"><div class="tk-qrs" data-qr="' + esc(o.kode) + '">' + TKQR.svg(o.kode, {margin: 4, label: "QR antrean " + o.kode}) + '</div><small>Tunjukkan QR ini ke petugas untuk check-in dan check-out</small></div>' : "";
+  return qr + (t ? '<div class="tk-wkt">' + t + "</div>" : "");
+}
 function tiketHtml(o, hari) {
   var aktif = ["Terjadwal", "Sudah tiba", "Dipanggil"].indexOf(o.status) > -1, today = o.tanggal === hari, btn = "", info = "";
   var d = new Date(o.tanggal + "T00:00:00").toLocaleDateString("id-ID", {weekday: "long", day: "numeric", month: "long", year: "numeric"});
   if (o.status === "Terjadwal" && today) btn += '<button type="button" class="send" data-tiba="' + o.id + '">Saya sudah tiba</button>';
   if (o.status === "Terjadwal" && o.tanggal >= hari) btn += '<button type="button" class="btn" data-bc="' + o.id + '">Batalkan</button>';
+  if (today && !o.keluar && (o.status === "Dipanggil" || o.status === "Hadir")) btn += '<button type="button" class="send" data-keluar="' + o.id + '">Selesai &amp; check-out</button>';
   if (aktif) btn += '<button type="button" class="btn" data-ics="' + o.id + '">Tambah ke kalender</button>';
   btn += '<button type="button" class="btn" data-print="1">Cetak / simpan PDF</button>';
   if (o.status === "Dipanggil") info = '<div class="tk-call">Giliran Anda! Silakan menuju loket.</div>';
   else if (today && aktif && o.depan != null) info = '<div class="tk-depan">Di depan Anda: <b>' + o.depan + '</b> antrean</div>';
   return '<article class="tkt tiket' + (aktif ? '' : ' tk-off') + '"><div class="tk-head"><span>TIKET ANTREAN</span><span>' + esc(lokNama(o.lokasi)) + '</span></div><div class="tk-no">' + esc(o.kode) + '</div><div class="tk-loket">' + esc(namaLoket(o)) + '</div>' +
     '<div class="tk-row"><span>Tanggal</span><b>' + esc(d) + '</b></div><div class="tk-row"><span>Jam</span><b>' + esc(o.jam) + ' WIB</b></div><div class="tk-row"><span>Keperluan</span><b>' + esc(o.keperluan) + '</b></div>' +
-    '<div class="tk-sep"></div><div class="tk-bc">' + barcode(o.kode) + '</div><div class="tk-st">' + bkBdg(o.status) + info + '</div><div class="btns noprint">' + btn + '</div></article>';
+    '<div class="tk-sep"></div><div class="tk-bc">' + barcode(o.kode) + '</div>' + qrAntrean(o, today) + '<div class="tk-st">' + bkBdg(o.status) + info + '</div><div class="btns noprint">' + btn + '</div></article>';
 }
 async function bSaya() {
   var el = $("bsaya");
@@ -277,6 +288,7 @@ async function pnClick(e) {
       toast("Booking berhasil: " + r.booking.map(function (o) { return o.kode; }).join(", ")); if (window.konfeti) window.konfeti(60);
       CART = []; KEP = ""; BJ = ""; rencana(); await slots(); await bSaya(); return;
     }
+    if (t.dataset.keluar) { await api("/api/booking/keluar", {id: t.dataset.keluar}); toast("Check-out berhasil. Terima kasih sudah berkunjung."); await bSaya(); return; }
     if (t.dataset.tiba) { await api("/api/booking/tiba", {id: t.dataset.tiba}); toast("Check-in berhasil. Petugas akan memanggil Anda sesuai urutan."); await bSaya(); return; }
     if (t.dataset.ics) { var bo = BKL.filter(function (x) { return String(x.id) === t.dataset.ics; })[0]; if (bo) unduhIcs(bo); return; }
     if (t.dataset.bc) { await api("/api/booking/batal", {id: t.dataset.bc}); toast("Booking dibatalkan."); await slots(); await bSaya(); return; }
@@ -297,9 +309,9 @@ async function pnClick(e) {
 
 /* ---------- Admin: tab tambahan ---------- */
 function admSup() { return !(ME && ME.level === "loket"); }
-var TAB_LOKET = ["ring", "hr", "inbox", "pmh", "bk", "an", "skm", "lap", "mon", "bt", "mutu"];
+var TAB_LOKET = ["ring", "hr", "inbox", "pmh", "bk", "an", "skm", "lap", "mon", "bt", "mutu", "ck"];
 function admTabs() {
-  $("atabs").innerHTML = [["ring", "Ringkasan"], ["hr", "Hari ini (live)"], ["inbox", "Kotak masuk"], ["pmh", "Permohonan"], ["bk", "Booking"], ["mon", "Monitor"], ["mutu", "Mutu jawaban"], ["an", "Analitik Chat"], ["vs", "Pengunjung"], ["bt", "Berita"], ["skm", "Rekap SKM"], ["kt", "Kata cari chatbot"], ["kam", "Keamanan & biro jasa"], ["lk", "Editor loket"], ["pk", "Asisten Piket"], ["kn", "Kanal WA & Telegram"], ["nt", "Pemberitahuan jawaban"], ["us", "Usulan chatbot"], ["kb", "Data KBLI"], ["iz", "Katalog Perizinan"], ["lap", "Laporan"], ["pem", "Direktori pemohon"], ["log", "Log aktivitas"], ["sh", "Kesehatan sistem"], ["cd", "Cadangan data"], ["ak", "Akun admin"]].filter(function (t) { return admSup() || TAB_LOKET.indexOf(t[0]) > -1; }).map(function (t) {
+  $("atabs").innerHTML = [["ring", "Ringkasan"], ["hr", "Hari ini (live)"], ["inbox", "Kotak masuk"], ["pmh", "Permohonan"], ["bk", "Booking"], ["mon", "Monitor"], ["mutu", "Mutu jawaban"], ["an", "Analitik Chat"], ["vs", "Pengunjung"], ["bt", "Berita"], ["skm", "Rekap SKM"], ["kt", "Kata cari chatbot"], ["kam", "Keamanan & biro jasa"], ["lk", "Editor loket"], ["pk", "Asisten Piket"], ["kn", "Kanal WA & Telegram"], ["nt", "Pemberitahuan jawaban"], ["us", "Usulan chatbot"], ["kb", "Data KBLI"], ["iz", "Katalog Perizinan"], ["lap", "Laporan"], ["pem", "Direktori pemohon"], ["log", "Log aktivitas"], ["sh", "Kesehatan sistem"], ["ck", "Check-in tamu"], ["cd", "Cadangan data"], ["ak", "Akun admin"]].filter(function (t) { return admSup() || TAB_LOKET.indexOf(t[0]) > -1; }).map(function (t) {
     return '<button type="button" class="chip" data-at="' + t[0] + '" aria-pressed="' + (t[0] === AT) + '">' + t[1] + '</button>';
   }).join("");
   $("atabs").onclick = function (e) { var b = e.target.closest("[data-at]"); if (b) admTab(b.dataset.at); };
@@ -317,7 +329,7 @@ async function aX(t) {
   var el = $("a-x");
   el.innerHTML = '<div class="empty">Memuat&hellip;</div>';
   try {
-    if (t === "kam") await window.aKam(el); else if (t === "ring") await aRing(el); else if (t === "pmh") await aPmh(el); else if (t === "bk") await aBk(el); else if (t === "bt") { if (window.aRed) await window.aRed(el); else await aBt(el); } else if (t === "mon") await window.aMon(el); else if (t === "skm") await aSkm(el); else if (t === "kt") { await aKt(el); if (window.AN_KT) { var w = window.AN_KT; window.AN_KT = null; ktAdd(w); } } else if (t === "lk") await window.aLk(el); else if (t === "kb") await window.aKb(el); else if (t === "iz") await window.aIz(el); else if (t === "pk") await window.aPk(el); else if (t === "kn") await window.aKn(el); else if (t === "nt") await window.aNtf(el); else if (t === "mutu") await window.aMutu(el); else if (t === "us") await window.aUsul(el); else if (t === "cd") await window.aCad(el); else if (t === "an") await aAn(el); else if (t === "vs") await window.aVs(el); else if (t === "ak") await window.aAk(el); else if (t === "lap") await window.aLap(el); else if (t === "pem") await window.aPem(el); else if (t === "log") await window.aLog(el); else if (t === "sh") await window.aSh(el); else if (t === "hr") await window.aHr(el);
+    if (t === "kam") await window.aKam(el); else if (t === "ring") await aRing(el); else if (t === "pmh") await aPmh(el); else if (t === "bk") await aBk(el); else if (t === "bt") { if (window.aRed) await window.aRed(el); else await aBt(el); } else if (t === "mon") await window.aMon(el); else if (t === "skm") await aSkm(el); else if (t === "kt") { await aKt(el); if (window.AN_KT) { var w = window.AN_KT; window.AN_KT = null; ktAdd(w); } } else if (t === "lk") await window.aLk(el); else if (t === "kb") await window.aKb(el); else if (t === "iz") await window.aIz(el); else if (t === "pk") await window.aPk(el); else if (t === "kn") await window.aKn(el); else if (t === "nt") await window.aNtf(el); else if (t === "mutu") await window.aMutu(el); else if (t === "us") await window.aUsul(el); else if (t === "ck") await window.aCek(el); else if (t === "cd") await window.aCad(el); else if (t === "an") await aAn(el); else if (t === "vs") await window.aVs(el); else if (t === "ak") await window.aAk(el); else if (t === "lap") await window.aLap(el); else if (t === "pem") await window.aPem(el); else if (t === "log") await window.aLog(el); else if (t === "sh") await window.aSh(el); else if (t === "hr") await window.aHr(el);
   } catch (x) { el.innerHTML = '<div class="empty">' + esc(x.message) + '</div>'; }
 }
 function pkOpts() {
