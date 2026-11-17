@@ -109,7 +109,7 @@ ADM_SUPER = frozenset([
     "berita", "berita/hapus",
     "kata", "kata.xlsx", "kata-templat.xlsx", "kata/impor", "kstat", "kstat/reset", "miss", "miss/hapus",
     "kbli/impor", "kbli/hapus", "izin", "izin/simpan", "izin/cek",
-    "data.xlsx", "audit", "kesehatan", "pemohon", "visitor", "cadangan", "cadangan.json", "cadangan/pulih",
+    "data.xlsx", "audit", "cek/cfg", "kesehatan", "pemohon", "visitor", "cadangan", "cadangan.json", "cadangan/pulih",
 ])
 # Rute admin berupa aksi baca lewat POST atau pemeriksaan: tidak dicatat di Log aktivitas.
 AUDIT_ABAIKAN = frozenset(["kanal/uji", "piket", "kata/impor-cek", "izin/cek"])
@@ -1201,6 +1201,184 @@ def kata_dari_baris(rows):
 
 
 
+# ---------------- Cek-in / cek-out pengunjung (kode QR) ----------------
+CI_HARI_SIMPAN = 100          # hari catatan disimpan lalu terhapus sendiri
+CI_MAKS_BARIS = 1500          # batas baris per hari yang dikirim ke admin
+CI_ID_RE = re.compile(r"^\d{8}[0-9a-f]{8}$")
+
+
+def ci_cfg():
+    c = parse(db().cmd("GET", "cek:cfg"), {}) or {}
+    try:
+        jam = max(1, min(24, int(c.get("jam", 10))))
+    except (TypeError, ValueError):
+        jam = 10
+    try:
+        v = max(1, int(c.get("v", 1)))
+    except (TypeError, ValueError):
+        v = 1
+    return {"aktif": c.get("aktif") is not False, "jam": jam, "v": v}
+
+
+def ci_kode(lok, v):
+    if not SECRET:
+        raise HttpError(500, "SESSION_SECRET belum diisi di pengaturan Vercel.")
+    return hmac.new(SECRET, ("cek|%s|%d" % (lok, v)).encode(), hashlib.sha256).hexdigest()[:12]
+
+
+def ci_k_cek(k, cfg):
+    """Validasi kode dari QR: 'lokasi.kode'. Kembalikan id lokasi atau lempar 404."""
+    k = str(k or "")
+    lok, _, kd = k.rpartition(".")
+    if not lok or lok not in LOKASI or lok_sembunyi(lok) or not hmac.compare_digest(kd, ci_kode(lok, cfg["v"])):
+        raise HttpError(404, "Kode QR tidak berlaku. Mintalah petugas menunjukkan kode yang terbaru.")
+    return lok
+
+
+def ci_hari(ms=None):
+    return time.strftime("%Y%m%d", time.gmtime((ms if ms is not None else now_ms()) / 1000 + 7 * 3600))
+
+
+def ci_tok(cid):
+    if not SECRET:
+        raise HttpError(500, "SESSION_SECRET belum diisi di pengaturan Vercel.")
+    return cid + "." + hmac.new(SECRET, ("cekout|" + cid).encode(), hashlib.sha256).hexdigest()[:16]
+
+
+def ci_tok_id(tok):
+    cid, _, sig = str(tok or "").partition(".")
+    if not CI_ID_RE.match(cid) or not SECRET or not hmac.compare_digest(sig, ci_tok(cid).split(".")[1]):
+        raise HttpError(400, "Tanda masuk tidak valid.")
+    return cid
+
+
+def ci_rec(cid):
+    return parse(db().cmd("HGET", "cek:r:" + cid[:8], cid), None)
+
+
+def ci_simpan(rec, masih_di_dalam):
+    cid = rec["id"]
+    cmds = [["HSET", "cek:r:" + cid[:8], cid, json.dumps(rec, ensure_ascii=False)], ["EXPIRE", "cek:r:" + cid[:8], CI_HARI_SIMPAN * 86400]]
+    cmds.append(["HSET", "cek:in", cid, str(rec["masuk"])] if masih_di_dalam else ["HDEL", "cek:in", cid])
+    db().pipe(cmds)
+
+
+def ci_bersih(cfg):
+    """Keluarkan otomatis pengunjung yang lupa cek-out (melewati batas jam atau sudah ganti hari)."""
+    m = db().cmd("HGETALL", "cek:in") or {}
+    if isinstance(m, list):
+        m = dict(zip(m[0::2], m[1::2]))
+    n, hari = now_ms(), ci_hari()
+    for cid, masuk in list(m.items()):
+        try:
+            masuk = int(masuk)
+        except ValueError:
+            db().cmd("HDEL", "cek:in", cid)
+            continue
+        if cid[:8] != hari or n - masuk > cfg["jam"] * 3600000:
+            rec = ci_rec(cid)
+            if rec and not rec.get("keluar"):
+                rec["keluar"] = min(n, masuk + cfg["jam"] * 3600000)
+                rec["oleh"] = "otomatis"
+                ci_simpan(rec, False)
+            else:
+                db().cmd("HDEL", "cek:in", cid)
+
+
+def ci_publik(rec):
+    return {"id": rec["id"], "lok": rec["lok"], "lokasi": LOKASI.get(rec["lok"], rec["lok"]), "nama": rec["nama"], "n": rec.get("n", 1),
+            "masuk": rec["masuk"], "keluar": rec.get("keluar", 0), "tujuan": rec.get("tujuan", ""), "tujuan_nama": label(rec["tujuan"]) if rec.get("tujuan") else ""}
+
+
+def ci_hp_samar(hp):
+    hp = str(hp or "")
+    return hp[:4] + "xxx" + hp[-3:] if len(hp) >= 8 else ("xxx" if hp else "")
+
+
+def ci_baris_hari(hari):
+    m = db().cmd("HGETALL", "cek:r:" + hari) or {}
+    if isinstance(m, list):
+        m = dict(zip(m[0::2], m[1::2]))
+    out = [parse(v, None) for v in m.values()]
+    return sorted([r for r in out if r], key=lambda r: -r["masuk"])
+
+
+ANT_RE = re.compile(r"^[A-Z]{3}\d{2}-\d{4}-\d{3}$")
+
+
+def ant_cari(kode):
+    """Cari booking (tiket antrean) hari ini dari kodenya, mis. PUS08-1711-003."""
+    kode = str(kode or "").strip().upper()
+    if not ANT_RE.match(kode):
+        raise HttpError(400, "Format nomor antrean tidak dikenali.")
+    hari = time.strftime("%Y-%m-%d", wib())
+    ids = db().cmd("SMEMBERS", "bkd:%s" % hari) or []
+    for x in (db().cmd("HMGET", "bk", *ids) if ids else []):
+        o = bk_norm(parse(x, None)) if x else None
+        if o and o.get("kode") == kode:
+            return o
+    raise HttpError(404, "Antrean %s tidak ditemukan untuk hari ini. Periksa tanggal pada tiket." % kode)
+
+
+def ant_ringkas(o, nama=""):
+    return {"id": o["id"], "kode": o["kode"], "kunci": o["kunci"], "loket": label(o["kunci"]), "jam": o["jam"], "status": o["status"], "keperluan": o.get("keperluan", ""),
+            "tiba": o.get("tiba", 0), "panggil": o.get("panggil", 0), "mulai": o.get("mulai", 0), "keluar": o.get("keluar", 0), "nama": nama}
+
+
+def ant_aksi_tersedia(o):
+    return {"Terjadwal": ["masuk"], "Sudah tiba": ["panggil", "tidak_hadir"], "Dipanggil": ["mulai", "tidak_hadir"], "Hadir": [] if o.get("keluar") else ["keluar"], "Tidak hadir": ["masuk"]}.get(o["status"], [])
+
+
+def ant_terapkan(o, aksi):
+    """Mesin status antrean. Kembalikan (pesan, perintah redis tambahan)."""
+    n, extra = now_ms(), []
+    st = o["status"]
+    if aksi == "auto":
+        aksi = {"Terjadwal": "masuk", "Dipanggil": "mulai", "Hadir": "keluar", "Tidak hadir": "masuk"}.get(st, "")
+        if st == "Hadir" and o.get("keluar"):
+            return "Antrean ini sudah selesai dan sudah check-out.", extra
+        if not aksi:
+            return "Sudah check-in dan menunggu dipanggil.", extra
+    if aksi not in ant_aksi_tersedia(o):
+        raise HttpError(400, "Aksi tidak bisa dilakukan pada status \"%s\"." % st)
+    if aksi == "masuk":
+        o["status"], o["tiba"] = "Sudah tiba", n
+        o.pop("panggil", None); o.pop("mulai", None); o.pop("keluar", None)
+        return "Check-in berhasil. Pemohon masuk antrean.", extra
+    if aksi == "panggil":
+        o["status"], o["panggil"] = "Dipanggil", n
+        extra = [["RPUSH", "layar", json.dumps({"kode": o["kode"], "kunci": o["kunci"], "loket": label(o["kunci"]), "lokasi": o["lokasi"], "waktu": n}, ensure_ascii=False)], ["LTRIM", "layar", -50, -1]]
+        return "Pemohon dipanggil ke loket.", extra
+    if aksi == "mulai":
+        o["status"], o["mulai"] = "Hadir", n
+        return "Layanan dimulai.", extra
+    if aksi == "keluar":
+        o["keluar"] = n
+        return "Check-out berhasil. Layanan selesai.", extra
+    if aksi == "tidak_hadir":
+        o["status"] = "Tidak hadir"
+        return "Ditandai tidak hadir.", extra
+    raise HttpError(400, "Aksi tidak dikenal.")
+
+
+
+def ci_ringkas(rows):
+    n = now_ms()
+    jam = [0] * 24
+    durs, orang, dalam, lokc = [], 0, 0, {}
+    for r in rows:
+        k = int(r.get("n", 1) or 1)
+        orang += k
+        jam[time.gmtime(r["masuk"] / 1000 + 7 * 3600).tm_hour] += k
+        lokc[r["lok"]] = lokc.get(r["lok"], 0) + k
+        if r.get("keluar"):
+            durs.append((r["keluar"] - r["masuk"]) / 60000.0)
+        else:
+            dalam += k
+    return {"kunjungan": len(rows), "orang": orang, "di_dalam": dalam, "rata_menit": round(sum(durs) / len(durs)) if durs else 0, "per_jam": jam,
+            "per_lokasi": [{"lok": k, "nama": LOKASI.get(k, k), "orang": v} for k, v in sorted(lokc.items(), key=lambda x: -x[1])]}
+
+
 class handler(BaseHTTPRequestHandler):
     server_version = "Takok"
     sys_version = ""
@@ -1341,6 +1519,8 @@ class handler(BaseHTTPRequestHandler):
             return self.json({"ok": True})
         if path == "/bot/rating" and method == "POST":
             return self.bot_rating(b)
+        if path.startswith("/cek/"):
+            return self.ci_publik_rute(method, path, q, b)
         if path == "/wa":
             return self.kanal_wa(method, q, b)
         if path == "/tg" and method == "POST":
@@ -1396,6 +1576,8 @@ class handler(BaseHTTPRequestHandler):
                 return self.user_bk_batal(ses, b, ex)
             if path == "/booking/tiba" and method == "POST":
                 return self.user_bk_tiba(ses, b, ex)
+            if path == "/booking/keluar" and method == "POST":
+                return self.user_bk_keluar(ses, b, ex)
             if path == "/skm" and method == "POST":
                 return self.user_skm(ses, b, ex)
         if ses["r"] == "adm" and path.startswith("/admin/"):
@@ -1882,6 +2064,17 @@ class handler(BaseHTTPRequestHandler):
         if t.tm_hour * 60 + t.tm_min < buka:
             raise HttpError(400, "Check-in dibuka 60 menit sebelum jam booking (mulai %02d:%02d)." % (buka // 60, buka % 60))
         o["status"], o["tiba"] = "Sudah tiba", now_ms()
+        db().cmd("HSET", "bk", o["id"], json.dumps(o, ensure_ascii=False))
+        self.json({"ok": True}, extra=ex)
+
+    def user_bk_keluar(self, ses, b, ex):
+        o = bk_norm(parse(db().cmd("HGET", "bk", str(b.get("id", "")))))
+        if not o or o["pid"] != ses["id"] or o["status"] not in ("Dipanggil", "Hadir") or o.get("keluar"):
+            raise HttpError(400, "Antrean ini tidak bisa di-check-out.")
+        n = now_ms()
+        if o["status"] == "Dipanggil":
+            o["status"], o["mulai"] = "Hadir", n
+        o["keluar"] = n
         db().cmd("HSET", "bk", o["id"], json.dumps(o, ensure_ascii=False))
         self.json({"ok": True}, extra=ex)
 
@@ -2523,6 +2716,8 @@ class handler(BaseHTTPRequestHandler):
             except Exception as e:
                 print("CAD", repr(e))
             return self.json({"ok": True, "dipulihkan": pilih}, extra=ex)
+        if r == "cek" or r.startswith("cek/") or r == "cek.csv":
+            return self.ci_admin_rute(method, r, q, b, ex)
         if r == "audit" and method == "GET":
             return self.json({"daftar": [x for x in (parse(v, None) for v in db().cmd("LRANGE", "audit", 0, 299) or []) if isinstance(x, dict)]}, extra=ex)
         if r == "kesehatan" and method == "GET":
@@ -2892,7 +3087,7 @@ class handler(BaseHTTPRequestHandler):
             if not cand:
                 raise HttpError(404, "Tidak ada antrean yang menunggu di loket ini.")
             o = cand[0]
-            o["status"] = "Dipanggil"
+            o["status"], o["panggil"] = "Dipanggil", now_ms()
             p = parse(db().cmd("HGET", "pemohon", o["pid"]), {})
             db().pipe([["HSET", "bk", o["id"], json.dumps(o, ensure_ascii=False)],
                        ["RPUSH", "layar", json.dumps({"kode": o["kode"], "kunci": o["kunci"], "loket": label(o["kunci"]), "lokasi": o["lokasi"], "waktu": now_ms()}, ensure_ascii=False)], ["LTRIM", "layar", -50, -1]])
@@ -2903,6 +3098,12 @@ class handler(BaseHTTPRequestHandler):
                 raise HttpError(400, "Data tidak valid.")
             self.izin(o["kunci"])
             o["status"] = b["status"]
+            if b["status"] == "Sudah tiba" and not o.get("tiba"):
+                o["tiba"] = now_ms()
+            elif b["status"] == "Dipanggil":
+                o["panggil"] = now_ms()
+            elif b["status"] == "Hadir" and not o.get("mulai"):
+                o["mulai"] = now_ms()
             cmds = [["HSET", "bk", o["id"], json.dumps(o, ensure_ascii=False)]]
             if b["status"] == "Dipanggil":
                 cmds += [["RPUSH", "layar", json.dumps({"kode": o["kode"], "kunci": o["kunci"], "loket": label(o["kunci"]), "lokasi": o["lokasi"], "waktu": now_ms()}, ensure_ascii=False)], ["LTRIM", "layar", -50, -1]]
@@ -3383,6 +3584,164 @@ class handler(BaseHTTPRequestHandler):
                 raise HttpError(400, "Kata sandi minimal 8 karakter.")
             db().cmd("HSET", "cfg", "admin_hash", hash_pw(baru))
             return self.json({"ok": True}, extra=self.cookie("", 0))
+        raise HttpError(404, "Tidak ditemukan.")
+
+    # ---- Cek-in / cek-out pengunjung (publik) ----
+    def ci_publik_rute(self, method, path, q, b):
+        cfg = ci_cfg()
+        if path == "/cek/info" and method == "GET":
+            lok = ci_k_cek((q.get("k") or [""])[0], cfg)
+            lk = [{"kunci": e["lokasi"] + "_" + str(e["no"]), "nama": e["nama"]} for e in LOKET.values() if e["lokasi"] == lok and not e.get("sembunyi")]
+            return self.json({"lok": lok, "lokasi": LOKASI[lok], "aktif": cfg["aktif"], "loket": sorted(lk, key=lambda x: x["nama"])}, extra=[("Cache-Control", "no-store")])
+        if path == "/cek/status" and method == "GET":
+            rec = ci_rec(ci_tok_id((q.get("tok") or [""])[0]))
+            return self.json({"ada": bool(rec), "rec": ci_publik(rec) if rec else None}, extra=[("Cache-Control", "no-store")])
+        if path == "/cek/masuk" and method == "POST":
+            lok = ci_k_cek(b.get("k"), cfg)
+            if not cfg["aktif"]:
+                raise HttpError(403, "Cek-in pengunjung sedang dinonaktifkan oleh petugas.")
+            if limited("rl:ci:" + self.ip(), 30, 3600):
+                raise HttpError(429, "Terlalu banyak percobaan. Coba lagi nanti atau mintalah bantuan petugas.")
+            nama = clean(b.get("nama", ""), 60)
+            if len(nama) < 2:
+                raise HttpError(400, "Isi nama Anda (minimal 2 huruf).")
+            hp = str(b.get("hp") or "").strip()
+            if hp:
+                hp = norm_hp(hp)
+                if not hp:
+                    raise HttpError(400, "Nomor HP tidak valid. Kosongkan bila tidak ingin mengisi.")
+            tujuan = str(b.get("tujuan") or "")
+            if tujuan and (tujuan not in LOKET or LOKET[tujuan]["lokasi"] != lok):
+                tujuan = ""
+            try:
+                n = max(1, min(20, int(b.get("n") or 1)))
+            except (TypeError, ValueError):
+                n = 1
+            ci_bersih(cfg)
+            cid = ci_hari() + secrets.token_hex(4)
+            rec = {"id": cid, "lok": lok, "nama": nama, "hp": hp, "tujuan": tujuan, "n": n, "masuk": now_ms(), "keluar": 0, "oleh": ""}
+            ci_simpan(rec, True)
+            return self.json({"ok": True, "tok": ci_tok(cid), "rec": ci_publik(rec)}, extra=[("Cache-Control", "no-store")])
+        if path == "/cek/keluar" and method == "POST":
+            if limited("rl:cio:" + self.ip(), 60, 3600):
+                raise HttpError(429, "Terlalu banyak percobaan.")
+            cid = ci_tok_id(b.get("tok"))
+            rec = ci_rec(cid)
+            if not rec:
+                raise HttpError(404, "Catatan kunjungan tidak ditemukan atau sudah dihapus.")
+            if not rec.get("keluar"):
+                rec["keluar"] = now_ms()
+                rec["oleh"] = "mandiri"
+                ci_simpan(rec, False)
+            return self.json({"ok": True, "rec": ci_publik(rec)}, extra=[("Cache-Control", "no-store")])
+        raise HttpError(404, "Tidak ditemukan.")
+
+    # ---- Cek-in / cek-out pengunjung (admin) ----
+    def ci_admin_rute(self, method, r, q, b, ex):
+        cfg = ci_cfg()
+        sup = self.adm["sup"]
+        if r == "cek" and method == "GET":
+            ci_bersih(cfg)
+            hari = re.sub(r"\D", "", (q.get("d") or [""])[0])[:8]
+            if len(hari) != 8:
+                hari = ci_hari()
+            lokf = (q.get("lok") or [""])[0]
+            rows = ci_baris_hari(hari)
+            if lokf:
+                rows = [x for x in rows if x["lok"] == lokf]
+            dalam_ids = db().cmd("HGETALL", "cek:in") or {}
+            if isinstance(dalam_ids, list):
+                dalam_ids = dict(zip(dalam_ids[0::2], dalam_ids[1::2]))
+            dalam = []
+            for cid in dalam_ids:
+                x = ci_rec(cid)
+                if x and (not lokf or x["lok"] == lokf):
+                    dalam.append(x)
+            dalam.sort(key=lambda x: x["masuk"])
+            def pub(x):
+                d = ci_publik(x)
+                d["hp"] = x.get("hp", "") if sup else ci_hp_samar(x.get("hp", ""))
+                d["oleh"] = x.get("oleh", "")
+                return d
+            kode = [{"lok": k, "nama": LOKASI[k], "k": "%s.%s" % (k, ci_kode(k, cfg["v"]))} for k in LOKASI if not lok_sembunyi(k)] if SECRET else []
+            return self.json({"cfg": cfg, "hari": hari, "ringkas": ci_ringkas(rows), "dalam": [pub(x) for x in dalam[:500]], "rows": [pub(x) for x in rows[:CI_MAKS_BARIS]],
+                              "kode": kode, "sup": sup, "sekarang": now_ms()}, extra=ex)
+        if r == "cek/antrean" and method == "GET":
+            hari = time.strftime("%Y-%m-%d", wib())
+            ids = db().cmd("SMEMBERS", "bkd:%s" % hari) or []
+            rows = [bk_norm(parse(x, None)) for x in (db().cmd("HMGET", "bk", *ids) if ids else []) if x]
+            rows = [o for o in rows if o and o.get("status") != "Batal" and (sup or self.boleh(o["kunci"]))]
+            pids = sorted({str(o["pid"]) for o in rows})
+            pem = dict(zip(pids, db().cmd("HMGET", "pemohon", *pids))) if pids else {}
+            nm = lambda o: (parse(pem.get(str(o["pid"])), {}) or {}).get("nama", "?")
+            urut = {"Dipanggil": 0, "Sudah tiba": 1, "Hadir": 2, "Terjadwal": 3, "Tidak hadir": 4}
+            rows.sort(key=lambda o: (urut.get(o["status"], 9), bool(o.get("keluar")), o["jam"], o["kode"]))
+            tg = [(o["mulai"] - o["tiba"]) / 60000.0 for o in rows if o.get("tiba") and o.get("mulai")]
+            ly = [(o["keluar"] - o["mulai"]) / 60000.0 for o in rows if o.get("mulai") and o.get("keluar")]
+            dalam = [o for o in rows if o.get("tiba") and not o.get("keluar") and o["status"] in ("Sudah tiba", "Dipanggil", "Hadir")]
+            return self.json({"hari": hari, "daftar": [dict(ant_ringkas(o, nm(o)), aksi=ant_aksi_tersedia(o)) for o in rows[:400]],
+                              "ringkas": {"total": len(rows), "menunggu": sum(1 for o in rows if o["status"] in ("Sudah tiba",)), "di_dalam": len(dalam),
+                                          "selesai": sum(1 for o in rows if o.get("keluar")), "rata_tunggu": round(sum(tg) / len(tg)) if tg else 0, "rata_layanan": round(sum(ly) / len(ly)) if ly else 0},
+                              "sekarang": now_ms()}, extra=ex)
+        if r == "cek/antrean" and method == "POST":
+            o = ant_cari(b.get("kode"))
+            self.izin(o["kunci"])
+            if o["tanggal"] != time.strftime("%Y-%m-%d", wib()):
+                raise HttpError(400, "Tiket ini untuk tanggal %s." % o["tanggal"])
+            aksi = str(b.get("aksi") or "auto")
+            pesan, extra = ant_terapkan(o, aksi)
+            db().pipe([["HSET", "bk", o["id"], json.dumps(o, ensure_ascii=False)]] + extra)
+            p = parse(db().cmd("HGET", "pemohon", o["pid"]), {}) or {}
+            return self.json({"ok": True, "pesan": pesan, "antrean": dict(ant_ringkas(o, p.get("nama", "?")), aksi=ant_aksi_tersedia(o))}, extra=ex)
+        if r == "cek/keluar" and method == "POST":
+            cid = str(b.get("id") or "")
+            if not CI_ID_RE.match(cid):
+                raise HttpError(400, "ID tidak valid.")
+            rec = ci_rec(cid)
+            if not rec:
+                raise HttpError(404, "Catatan tidak ditemukan.")
+            if not rec.get("keluar"):
+                rec["keluar"] = now_ms()
+                rec["oleh"] = "admin"
+                ci_simpan(rec, False)
+            return self.json({"ok": True}, extra=ex)
+        if r == "cek/cfg" and method == "POST":
+            c = {"aktif": b.get("aktif") is not False, "jam": cfg["jam"], "v": cfg["v"]}
+            if "jam" in b:
+                try:
+                    c["jam"] = max(1, min(24, int(b["jam"])))
+                except (TypeError, ValueError):
+                    raise HttpError(400, "Batas jam tidak valid.")
+            if b.get("ganti_kode") is True:
+                c["v"] = cfg["v"] + 1
+            db().cmd("SET", "cek:cfg", json.dumps(c))
+            return self.json({"ok": True, "cfg": c}, extra=ex)
+        if r == "cek.csv" and method == "GET":
+            d1 = re.sub(r"\D", "", (q.get("d1") or [""])[0])[:8]
+            d2 = re.sub(r"\D", "", (q.get("d2") or [""])[0])[:8]
+            if len(d1) != 8:
+                d1 = ci_hari()
+            if len(d2) != 8 or d2 < d1:
+                d2 = d1
+            t0 = time.mktime(time.strptime(d1, "%Y%m%d"))
+            hari = []
+            for i in range(31):
+                dd = time.strftime("%Y%m%d", time.gmtime(t0 + i * 86400))
+                if dd > d2:
+                    break
+                hari.append(dd)
+            def c(v):
+                v = "" if v is None else str(v)
+                return "'" + v if v[:1] in ("=", "+", "-", "@", "\t", "\r") else v
+            buf = io.StringIO()
+            w = csv.writer(buf)
+            w.writerow(["Tanggal", "Lokasi", "Nama", "Nomor HP", "Jumlah orang", "Tujuan", "Masuk", "Keluar", "Durasi (menit)", "Keluar oleh"])
+            for dd in reversed(hari):
+                for x in reversed(ci_baris_hari(dd)):
+                    w.writerow([dd[6:8] + "-" + dd[4:6] + "-" + dd[:4], c(LOKASI.get(x["lok"], x["lok"])), c(x["nama"]), c(x.get("hp", "") if sup else ci_hp_samar(x.get("hp", ""))), x.get("n", 1),
+                                c(label(x["tujuan"]) if x.get("tujuan") else ""), time.strftime("%H:%M", time.gmtime(x["masuk"] / 1000 + 7 * 3600)),
+                                time.strftime("%H:%M", time.gmtime(x["keluar"] / 1000 + 7 * 3600)) if x.get("keluar") else "", round((x["keluar"] - x["masuk"]) / 60000) if x.get("keluar") else "", x.get("oleh", "")])
+            return self.out(200, "﻿" + buf.getvalue(), "text/csv; charset=utf-8", [("Content-Disposition", 'attachment; filename="pengunjung-%s.csv"' % d1)] + ex)
         raise HttpError(404, "Tidak ditemukan.")
 
     def rekap(self, ex):
