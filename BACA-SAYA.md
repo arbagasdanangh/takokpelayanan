@@ -731,3 +731,10 @@ Semua data tersimpan di perangkat (kunci `tk_misi`, `tk_cari`, `tk_note`).
 - Tombol **Kartu tiket** pada tiap kartu tiket (buka kartu dulu): membuat gambar PNG 900x520 berisi nomor tiket, loket, status, tanggal, jumlah pesan, dan **barcode Code 39** nomor tiket. Di HP membuka menu bagikan; di desktop mengunduh. Tanpa nama atau data pribadi.
 - Tombol **Ingatkan besok**: mengunduh berkas `.ics` (acara 24 jam lagi, 15 menit, dengan alarm) untuk ditambahkan ke kalender HP/komputer.
 - Diuji Playwright: unduhan PNG dan .ics, isi .ics, tabel pola Code 39 (40 karakter, semua unik, tiap karakter 2 bar lebar + 1 spasi lebar). **Belum diuji dipindai** dengan pemindai barcode sungguhan, dan belum diuji di HP/Vercel asli.
+
+## Versi 73 - Pindai tiket untuk admin dan petugas loket
+- File baru: `pindai.js`, `pindai.css` (front-end saja; memakai rute `/admin/tiket` yang sudah ada, sehingga wewenang loket tetap dihormati). `sw.js` menjadi `takok-v73`.
+- **Pemindai barcode USB/Bluetooth** (mode keyboard): tembak kartu tiket (barcode dari fitur Kartu Tiket v72) dari mana saja di halaman admin, percakapan langsung terbuka. Dibedakan dari ketikan manual lewat kecepatan karakter (<80 ms) lalu Enter.
+- **Tombol "Pindai tiket"** di bawah kolom cari inbox: membuka kamera (BarcodeDetector, Chrome/Edge). Bila peramban tidak mendukung atau izin kamera ditolak, tersedia isian nomor manual.
+- **Riwayat 6 tiket terakhir** yang dibuka (hanya di peramban ini).
+- Diuji Playwright dengan kamera palsu dan BarcodeDetector tiruan. **Belum diuji dengan pemindai fisik, kamera HP, dan barcode hasil cetak sungguhan**; Safari/iOS belum mendukung BarcodeDetector (pakai isian manual).
