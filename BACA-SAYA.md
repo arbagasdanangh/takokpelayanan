@@ -718,3 +718,16 @@ Semua data tersimpan di perangkat (kunci `tk_misi`, `tk_cari`, `tk_note`).
 - **Daftar percakapan** dibatasi 5 per kelompok (Perlu Anda lihat / Menunggu balasan) dengan "Lihat lagi"; batas tinggi yang memotong daftar dihapus.
 - **Chatbot**: perintah baru `/menunggu`, `/balasan`, `/bintang`.
 - Diuji Playwright (layar 430px, 30 tiket dan 30 percakapan tiruan); belum diuji di perangkat/Vercel asli.
+
+## Versi 71 - Perbaikan tombol "Lihat lagi" di desktop + kenyamanan pemohon
+- **Bug diperbaiki**: di desktop tombol "Lihat 5 lagi" tidak bereaksi karena `rapi.js` memicu dirinya sendiri lewat MutationObserver dan mengganti ulang tombol setiap ~40 ms, sehingga klik mouse (tekan lalu lepas) hilang; sentuhan di HP lolos. Kini pembaruan hanya terjadi bila isi berubah, mutasi sendiri diabaikan (`takeRecords`), dan saat diam tidak ada mutasi DOM sama sekali. Diuji dengan klik mouse lambat di layar 1280px.
+- Tombol **"Lihat semua"** untuk tiket dan tiap kelompok percakapan.
+- Kartu tiket: **Catatan pribadi** (tersimpan di perangkat, tidak dikirim ke admin) dan **Ingatkan pegawai** (muncul bila tiket menunggu >24 jam, memakai rute eskalasi yang sudah ada).
+- Baris alat baru di tab Tiket: **Hanya berbintang** dan **Unduh tiket (CSV)**.
+- `sw.js` menjadi `takok-v71`. Belum diuji di perangkat/Vercel asli.
+
+## Versi 72 - Kartu Tiket dan Pengingat kalender (pemohon)
+- File baru: `kartu.js` (front-end saja, tanpa pustaka luar, bekerja offline). `sw.js` menjadi `takok-v72`.
+- Tombol **Kartu tiket** pada tiap kartu tiket (buka kartu dulu): membuat gambar PNG 900x520 berisi nomor tiket, loket, status, tanggal, jumlah pesan, dan **barcode Code 39** nomor tiket. Di HP membuka menu bagikan; di desktop mengunduh. Tanpa nama atau data pribadi.
+- Tombol **Ingatkan besok**: mengunduh berkas `.ics` (acara 24 jam lagi, 15 menit, dengan alarm) untuk ditambahkan ke kalender HP/komputer.
+- Diuji Playwright: unduhan PNG dan .ics, isi .ics, tabel pola Code 39 (40 karakter, semua unik, tiap karakter 2 bar lebar + 1 spasi lebar). **Belum diuji dipindai** dengan pemindai barcode sungguhan, dan belum diuji di HP/Vercel asli.
