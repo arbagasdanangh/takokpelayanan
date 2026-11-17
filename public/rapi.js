@@ -11,7 +11,7 @@ var KS = "tk_rapi", TAB = "tiket", NT = 6, NC = {}, ST = {star: {}};
 try { var z = JSON.parse(localStorage.getItem(KS) || "{}"); if (z && z.star) ST = z; } catch (e) {}
 try { var t0 = sessionStorage.getItem("tk_rapi_tab"); if (t0) TAB = t0; } catch (e) {}
 function simpan() { try { localStorage.setItem(KS, JSON.stringify(ST)); } catch (e) {} }
-var busy = false, tm = 0;
+var BO = false, busy = false, tm = 0, OB = null;
 
 function rapikan() {
   var host = $("v-my"); if (!host || window.S !== "user") return;
@@ -28,9 +28,17 @@ function rapikan() {
     host.dataset.rtab = TAB;
     if (box) tiket(box);
     chat(host);
-  } finally { busy = false; }
+  } finally { busy = false; if (OB) OB.takeRecords(); }
 }
 
+/* Perbarui blok "Lihat lagi" hanya bila isinya berubah, supaya tombol tidak diganti saat diklik. */
+function ubahMore(box, tl, html) {
+  var cur = box ? box.querySelector(":scope > .rp-more") : (tl.nextElementSibling && tl.nextElementSibling.classList.contains("rp-more") ? tl.nextElementSibling : null);
+  if (!html) { if (cur) cur.remove(); return; }
+  if (cur) { if (cur.dataset.h !== html) { cur.dataset.h = html; cur.innerHTML = html; } return; }
+  var m = document.createElement("div"); m.className = "rp-more"; m.dataset.h = html; m.innerHTML = html;
+  if (box) box.appendChild(m); else tl.insertAdjacentElement("afterend", m);
+}
 function tiket(box) {
   var cards = [].slice.call(box.querySelectorAll(".tkcard"));
   if (!cards.length) return;
@@ -39,35 +47,66 @@ function tiket(box) {
     return {c: c, i: i, k: (ST.star[c.dataset.no] ? 0 : 2) + (sel ? 1 : 0)};
   });
   urut.sort(function (a, b) { return a.k - b.k || a.i - b.i; });
-  var ref = box.querySelector(".rp-more"); if (ref) ref.remove();
+  var tl0 = box.querySelector(".rp-tools"), th = '<button type="button" class="chip" data-rp="bo" aria-pressed="' + BO + '">\u2B50 Hanya berbintang</button><button type="button" class="chip" data-rp="csv">\u2B07 Unduh tiket (CSV)</button>';
+  if (!tl0) { tl0 = document.createElement("div"); tl0.className = "rp-tools"; var tf = box.querySelector(".tkf"); if (tf) tf.insertAdjacentElement("afterend", tl0); else box.insertBefore(tl0, box.firstChild); }
+  if (tl0.dataset.h !== th) { tl0.dataset.h = th; tl0.innerHTML = th; }
+  if (BO) urut = urut.filter(function (u) { if (ST.star[u.c.dataset.no]) return true; if (!u.c.hidden) u.c.hidden = true; return false; });
   urut.forEach(function (u, n) {
     var c = u.c;
-    if (c.parentNode === box && box.children[box.children.length - 1] !== c) box.appendChild(c);
+    if (c.parentNode === box) { var kids = [].slice.call(box.querySelectorAll(".tkcard")); if (kids[n] !== c) { var mo = box.querySelector(".rp-more"); box.insertBefore(c, kids[n] || mo || null); } }
     c.classList.add("rp-c");
     if (!c.querySelector(".rp-st")) {
       var b = document.createElement("button"); b.type = "button"; b.className = "rp-st"; b.dataset.no = c.dataset.no; c.querySelector(".tkcard-h").insertBefore(b, c.querySelector(".tkcard-h").firstChild);
     }
     var sb = c.querySelector(".rp-st"), on = !!ST.star[c.dataset.no]; sb.textContent = on ? "★" : "☆"; sb.className = "rp-st" + (on ? " on" : ""); sb.setAttribute("aria-label", on ? "Hapus bintang" : "Beri bintang");
-    c.hidden = n >= NT;
+    decor(c);
+    var hid = n >= NT; if (c.hidden !== hid) c.hidden = hid;
   });
-  var sisa = cards.length - NT;
-  if (sisa > 0) { var m = document.createElement("div"); m.className = "rp-more"; m.innerHTML = '<button type="button" class="btn" data-rp="tmore">Lihat ' + Math.min(sisa, 10) + ' tiket lagi</button><span class="sys">' + NT + ' dari ' + cards.length + '</span>'; box.appendChild(m); }
+  var sisa = urut.length - NT;
+  ubahMore(box, null, sisa > 0 ? '<button type="button" class="btn" data-rp="tmore">Lihat ' + Math.min(sisa, 10) + ' tiket lagi</button><button type="button" class="btn" data-rp="tall">Lihat semua (' + sisa + ')</button><span class="sys">' + NT + ' dari ' + urut.length + '</span>' : "");
 }
 
+function decor(c) {
+  var no = c.dataset.no, t = (window.TKT || []).filter(function (z) { return z.no === no; })[0]; if (!t) return;
+  var act = c.querySelector(".tkact"); if (!act) return;
+  var h = '<button type="button" class="chip" data-rp="cat" data-no="' + no + '">\uD83D\uDCDD Catatan</button>';
+  var tunggu = (t.status === "Diterima" || t.status === "Dibaca admin") && Date.now() - t.buka > 864e5;
+  if (tunggu) h += '<button type="button" class="chip" data-rp="ing" data-key="' + String(t.kunci).replace(/"/g, "") + '">\uD83D\uDD14 Ingatkan pegawai</button>';
+  var sig = h + "|" + (ST.note && ST.note[no] || "");
+  if (act.dataset.rp === sig) return; act.dataset.rp = sig;
+  [].forEach.call(act.querySelectorAll("[data-rp]"), function (x) { x.remove(); });
+  act.insertAdjacentHTML("beforeend", h);
+  var nt = c.querySelector(".rp-note"); if (nt) nt.remove();
+  if (ST.note && ST.note[no]) act.insertAdjacentHTML("beforebegin", '<p class="rp-note">\uD83D\uDCDD ' + String(ST.note[no]).replace(/[&<>"']/g, function (m) { return {"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[m]; }) + '</p>');
+}
+function catat(no) {
+  var v = prompt("Catatan pribadi untuk tiket " + no + " (hanya tersimpan di perangkat ini, tidak dikirim ke admin):", (ST.note && ST.note[no]) || "");
+  if (v === null) return; ST.note = ST.note || {}; v = v.trim().slice(0, 200); if (v) ST.note[no] = v; else delete ST.note[no]; simpan(); rapikan();
+}
+async function ingatkan(b) {
+  b.disabled = true;
+  try { await api("/api/pesan/eskalasi", {kunci: b.dataset.key}); toast("Permintaan diteruskan. Pegawai akan menjawab langsung."); }
+  catch (x) { toast(x.message || "Gagal meneruskan permintaan."); b.disabled = false; }
+}
+function ekspor() {
+  var L = window.TKT || []; if (!L.length) { toast("Belum ada tiket."); return; }
+  var q = function (v) { return '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"'; };
+  var csv = "Nomor tiket,Loket,Status,Dibuat,Jumlah pesan,Catatan\n" + L.map(function (t) { return [t.no, label(t.kunci), t.status, new Date(t.buka).toLocaleString("id-ID"), t.n, (ST.note && ST.note[t.no]) || ""].map(q).join(","); }).join("\n");
+  var a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["\uFEFF" + csv], {type: "text/csv"})); a.download = "tiket-saya.csv"; document.body.appendChild(a); a.click(); a.remove();
+}
 function chat(host) {
   [].forEach.call(host.querySelectorAll("#ml .tl"), function (tl, si) {
     var key = (tl.previousElementSibling && tl.previousElementSibling.textContent || "s" + si).slice(0, 12);
     var n = NC[key] || 5, items = [].slice.call(tl.children).filter(function (x) { return x.classList.contains("ti"); });
-    items.forEach(function (x, i) { x.hidden = i >= n; });
-    var nx = tl.nextElementSibling; if (nx && nx.classList.contains("rp-more")) nx.remove();
-    if (items.length > n) { var m = document.createElement("div"); m.className = "rp-more"; m.innerHTML = '<button type="button" class="btn" data-rp="cmore" data-k="' + key.replace(/"/g, "") + '">Lihat ' + Math.min(10, items.length - n) + ' lagi</button><span class="sys">' + n + ' dari ' + items.length + '</span>'; tl.insertAdjacentElement("afterend", m); }
+    items.forEach(function (x, i) { var hd = i >= n; if (x.hidden !== hd) x.hidden = hd; });
+    ubahMore(null, tl, items.length > n ? '<button type="button" class="btn" data-rp="cmore" data-k="' + key.replace(/"/g, "") + '">Lihat ' + Math.min(10, items.length - n) + ' lagi</button><button type="button" class="btn" data-rp="call" data-k="' + key.replace(/"/g, "") + '">Lihat semua</button><span class="sys">' + n + ' dari ' + items.length + '</span>' : "");
   });
 }
 
 function jadwal() { if (busy) return; clearTimeout(tm); tm = setTimeout(rapikan, 40); }
 function pasang() {
   var host = $("v-my"); if (!host) return;
-  new MutationObserver(function () { if (!busy) jadwal(); }).observe(host, {childList: true, subtree: true});
+  OB = new MutationObserver(function () { if (!busy) jadwal(); }); OB.observe(host, {childList: true, subtree: true});
   jadwal();
 }
 
@@ -77,7 +116,13 @@ document.addEventListener("click", function (e) {
   if (b.classList.contains("rp-st")) { e.stopImmediatePropagation(); e.preventDefault(); var no = b.dataset.no; if (ST.star[no]) delete ST.star[no]; else ST.star[no] = 1; simpan(); rapikan(); return; }
   var a = b.dataset.rp;
   if (a === "tiket" || a === "chat") { TAB = a; try { sessionStorage.setItem("tk_rapi_tab", a); } catch (x) {} var tb = $("v-my").querySelector(".rp-tabs"); if (tb) tb.dataset.h = ""; rapikan(); return; }
+  if (a === "bo") { BO = !BO; NT = 6; rapikan(); return; }
   if (a === "tmore") { NT += 10; rapikan(); return; }
+  if (a === "tall") { NT = 1e9; rapikan(); return; }
+  if (a === "call") { NC[b.dataset.k] = 1e9; rapikan(); return; }
+  if (a === "ing") { ingatkan(b); return; }
+  if (a === "cat") { catat(b.dataset.no); return; }
+  if (a === "csv") { ekspor(); return; }
   if (a === "cmore") { NC[b.dataset.k] = (NC[b.dataset.k] || 5) + 10; rapikan(); return; }
   // kartu tiket: ketuk badan kartu untuk buka/tutup detail
   if (b.classList.contains("rp-c")) { if (e.target.closest("button,a,input")) return; b.classList.toggle("open"); }

@@ -19,3 +19,7 @@
 #v-my .tl{max-height:none;overflow:visible}
 #v-my .tl .ti[hidden]{display:none}
 .tkbox .tkf{position:sticky;top:46px;z-index:4}
+
+.rp-note{margin:4px 0;font-size:.85rem;color:var(--mute);background:var(--accsoft,#eef);padding:4px 8px;border-radius:8px}
+.rp-ex{display:flex;justify-content:flex-end;margin:0 0 6px}
+.rp-tools{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
