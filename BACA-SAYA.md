@@ -804,3 +804,7 @@ Di kartu tiket ada tombol **Ubah jadwal** untuk booking berstatus Terjadwal. Pem
 ## Versi 83: Konfirmasi booking lewat Telegram/WhatsApp
 
 Pemohon yang sudah mengaktifkan notifikasi ("Kabari saya") kini otomatis menerima pesan singkat saat booking dibuat, jadwalnya diubah, atau dibatalkan: loket, tanggal, jam, dan kode antrean. Tidak ada isi percakapan atau data pribadi. Mengikuti saklar notifikasi yang sama (Pemberitahuan jawaban); pemohon tanpa saluran tidak terpengaruh dan kegagalan kirim tidak menggagalkan booking. Teks bebas WhatsApp hanya terkirim dalam jendela 24 jam Meta. Hasil kirim tercatat di log notifikasi (jenis `konfirmasi`). Tidak ada perubahan antarmuka.
+
+## Versi 84: Chatbot bisa mengubah jadwal booking
+
+Di chatbot, pemohon yang sudah masuk cukup menulis "mau ganti jadwal booking", "pindah kunjungan", "undur janji", atau perintah `/ubah` dan `/jadwal`. Asisten menampilkan booking yang akan datang (tanggal, jam, loket, kode, status) dengan tombol **Ubah jadwal** yang membuka dialog pemilihan tanggal dan jam (fitur v82). Booking yang sudah check-in atau sudah 2 kali diubah ditampilkan tanpa tombol, disertai penjelasan. Pemohon yang belum masuk diarahkan masuk dulu. Berkas baru: `bot-jadwal.js`.
