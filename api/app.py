@@ -3090,6 +3090,34 @@ class handler(BaseHTTPRequestHandler):
                               "nilai": {"rata": round(sum(x["n"] for v in nl.values() for x in v) / max(1, sum(len(v) for v in nl.values())), 1) if nl else None, "n": sum(len(v) for v in nl.values())}, "jam": [{"jam": j, "n": n} for j, n in sorted(jam.items())],
                               "total": {"booking": len(rows), "dilayani": dil, "tidak_hadir": sum(1 for o in rows if o["status"] == "Tidak hadir"), "batal": sum(1 for o in rows if o["status"] == "Batal"),
                                         "rata_tunggu": rata(tgs), "rata_layanan": rata(lys), "kehadiran": round(100.0 * dil / hit) if hit else None}}, extra=ex)
+        if r == "siaran" and method in ("GET", "POST"):
+            import datetime as _dt
+            t0 = wib()
+            hari_in = str((q.get("hari") or [""])[0] if method == "GET" else b.get("hari", "")) or "ini"
+            tgl = (_dt.date(t0.tm_year, t0.tm_mon, t0.tm_mday) + _dt.timedelta(days=1 if hari_in == "besok" else 0)).isoformat()
+            ids = db().cmd("SMEMBERS", "bkd:%s" % tgl) or []
+            rows = [bk_norm(parse(x, None)) for x in (db().cmd("HMGET", "bk", *ids) if ids else []) if x]
+            rows = [o for o in rows if o and o["status"] in ("Terjadwal", "Sudah tiba", "Dipanggil") and (self.adm["sup"] or self.boleh(o["kunci"]))]
+            per = {}
+            for o in sorted(rows, key=lambda o: (o["jam"], o["kode"])):
+                per.setdefault(str(o["pid"]), o)
+            sasaran = [(pid, o, ntf_sub(pid).get("ch")) for pid, o in per.items()]
+            bisa = [x for x in sasaran if x[2] in ("wa", "tg")]
+            log = [parse(x, {}) for x in (db().cmd("LRANGE", "siaran:log", 0, 4) or [])]
+            if method == "GET":
+                return self.json({"tanggal": tgl, "hari": "besok" if hari_in == "besok" else "ini", "pemohon": len(sasaran), "bisa": len(bisa), "tanpa": len(sasaran) - len(bisa), "log": log}, extra=ex)
+            pesan = clean(re.sub(r"[{}]", "", str(b.get("pesan", ""))), 200)
+            if len(pesan) < 10:
+                raise HttpError(400, "Pesan minimal 10 huruf.")
+            if limited("rl:siaran:%s" % (self.adm.get("u") or "su"), 5, 3600):
+                raise HttpError(429, "Terlalu banyak siaran. Coba lagi nanti.")
+            situs = "https://" + (self.headers.get("Host") or "")
+            hasil = {"ok": 0, "gagal": 0}
+            for pid, o, ch in bisa[:300]:
+                st = ntf_salur(situs, pid, "Halo {nama}, info layanan: %s" % pesan, "", o["kode"], label(o["kunci"]), jenis="siaran")
+                hasil["ok" if st == "ok" else "gagal"] += 1
+            db().pipe([["LPUSH", "siaran:log", json.dumps({"t": now_ms(), "u": self.adm.get("nm") or self.adm.get("u") or "Superuser", "tgl": tgl, "ok": hasil["ok"], "gagal": hasil["gagal"], "pesan": pesan}, ensure_ascii=False)], ["LTRIM", "siaran:log", 0, 49]])
+            return self.json(dict(hasil, tanpa=len(sasaran) - len(bisa), tanggal=tgl), extra=ex)
         if r == "pengingat" and method in ("GET", "POST"):
             besok, daf = pengingat_daftar(lambda k: self.adm["sup"] or self.boleh(k))
             if method == "GET":
