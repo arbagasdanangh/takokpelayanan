@@ -796,3 +796,11 @@ Endpoint: `GET/POST /api/admin/pengingat`.
 ## Versi 81: Rapikan antrean hari ini
 
 Di tab **Laporan harian** ada kartu "Rapikan antrean hari ini": menandai "Tidak hadir" untuk booking hari ini yang masih Terjadwal (belum check-in) dan jamnya sudah lewat lebih dari toleransi (pilihan 15, 30, 45, 60, 90 menit; bawaan 30). Menampilkan jumlah dan contoh kode sebelum dikonfirmasi; laporan di bawahnya ikut diperbarui. Admin loket hanya memengaruhi loketnya. Booking yang ditandai diberi cap `otomatis` waktu. Endpoint: `GET/POST /api/admin/antrean/rapikan`.
+
+## Versi 82: Ubah jadwal booking (pemohon)
+
+Di kartu tiket ada tombol **Ubah jadwal** untuk booking berstatus Terjadwal. Pemohon memilih tanggal baru (hari kerja, 14 hari ke depan) dan jam yang masih ada kuotanya; loket tetap sama. Aturan: maksimal 2 kali ubah per booking, tidak boleh bentrok dengan booking lain milik pemohon (jam sama atau loket sama pada tanggal itu), kuota slot lama dilepas dan slot baru dipesan atomik, batas 10 perubahan per jam. Kode antrean diganti mengikuti tanggal baru (kode lama disimpan di `kode_lama`) dan penanda pengingat/notifikasi direset. Endpoint: `POST /api/booking/ubah` {id, tanggal, jam}. Berkas baru: `ubah.js`, `ubah.css`.
+
+## Versi 83: Konfirmasi booking lewat Telegram/WhatsApp
+
+Pemohon yang sudah mengaktifkan notifikasi ("Kabari saya") kini otomatis menerima pesan singkat saat booking dibuat, jadwalnya diubah, atau dibatalkan: loket, tanggal, jam, dan kode antrean. Tidak ada isi percakapan atau data pribadi. Mengikuti saklar notifikasi yang sama (Pemberitahuan jawaban); pemohon tanpa saluran tidak terpengaruh dan kegagalan kirim tidak menggagalkan booking. Teks bebas WhatsApp hanya terkirim dalam jendela 24 jam Meta. Hasil kirim tercatat di log notifikasi (jenis `konfirmasi`). Tidak ada perubahan antarmuka.
