@@ -820,3 +820,21 @@ Di chatbot, pemohon yang sudah masuk cukup menulis "mau ganti jadwal booking", "
 - Penyebab yang dikenali (urut prioritas): alamat bukan HTTPS; situs dibuka di dalam bingkai; header Permissions-Policy masih melarang kamera (deploy lama atau cache); dibuka dari dalam aplikasi lain (WhatsApp, Instagram, Facebook, Telegram, LINE, TikTok, WeChat) yang memblokir kamera; izin kamera situs berstatus Blokir di peramban; tidak ada kamera; kamera dipakai aplikasi lain; ditolak walau pengaturan situs wajar (izin aplikasi peramban di Android/iPhone atau kebijakan perangkat).
 - Dialog **Pindai tiket** admin memakai diagnosis yang sama saat kamera gagal dan menautkan ke `/cek-kamera.html`. `putuskan()` di `diag-kamera.js` adalah fungsi murni agar mudah diuji.
 - Diuji di Chromium dengan kamera virtual memakai header dan CSP persis dari `vercel.json`: header lama menghasilkan penyebab "header melarang kamera" (Chrome mencatat `Permissions policy violation`), header baru membuka kamera, izin ditolak dikenali sebagai "diblokir", dan peramban dalam aplikasi terdeteksi.
+
+## Versi 85: Nilai kunjungan + komentar pengunjung
+
+- Pemohon: booking yang sudah dilayani (status Hadir) menampilkan label "★ Beri nilai" di tab Riwayat. Di dalam kartu ada tombol **Nilai kunjungan**: bintang 1 sampai 5 dan komentar singkat (maksimal 200 huruf, boleh kosong). Sekali per booking; setelah itu kartu menampilkan "Penilaian Anda". Penilaian dibaca admin tanpa nama.
+- Admin, tab Laporan harian: KPI **Nilai kunjungan**, kolom Nilai per loket (rata-rata dan jumlah penilai), daftar **Komentar pengunjung** (15 terbaru hari itu, dengan kode dan loket), dan kolom nilai di CSV. Komentar selalu ditampilkan sebagai teks biasa (HTML tidak dijalankan).
+- Endpoint: `POST /api/booking/nilai` {id, nilai, komentar}; penyimpanan di hash Redis `nilkj`.
+- **Perbaikan penting**: `public/sw.js` ternyata kosong (0 byte) sejak v75 (kesalahan saat saya menaikkan nomor versi), sehingga mode offline tidak aktif pada v75 sampai v84. Dipulihkan dari v74 dengan versi cache `takok-v85`. Basis kerja versi ini adalah berkas `takok-vercel-v84-fix-kamera.zip` dari Anda (perbaikan kamera ikut terbawa).
+
+## Versi 86: Laporan rentang tanggal (admin)
+
+Di tab **Laporan harian**, tombol **Rentang tanggal** membuka laporan mingguan/bulanan: pilih tanggal awal dan akhir (maksimal 62 hari) atau tombol cepat 7 hari, 30 hari, Bulan ini. Isinya: total booking, dilayani, tingkat kehadiran, rata-rata tunggu dan layanan, nilai kunjungan, grafik batang booking per hari (booking dan dilayani; tooltip memuat rincian), tabel per loket, Unduh CSV, dan Cetak. Admin loket hanya melihat loketnya. Endpoint: `GET /api/admin/laporan/rentang?dari=YYYY-MM-DD&sampai=YYYY-MM-DD`. Berkas baru: `laporan-rentang.js`. `sw.js` naik ke `takok-v86`.
+
+## Versi 87: Daftar tunggu untuk jam yang penuh
+
+- Pemohon: pada jam berstatus **Penuh** di form booking muncul tombol **Daftar tunggu**. Di tab Booking tampil kartu "Daftar tunggu Anda" (urutan dan tombol Keluar). Batas: 5 jam per pemohon, 30 antrean per jam, hanya untuk jam yang benar-benar penuh dan masih bisa dibooking.
+- Saat sebuah booking dibatalkan atau dipindah (oleh pemohon), sampai 5 orang pertama di daftar tunggu jam itu dikabari lewat Telegram/WhatsApp pilihan mereka ("slot kosong, segera booking"); sistem tidak mengunci slot untuk mereka, siapa cepat dia dapat. Pemohon yang berhasil membooking jam itu otomatis keluar dari daftar. Pemohon tanpa saluran notifikasi hanya melihat daftarnya di aplikasi.
+- Endpoint: `GET /api/booking/tunggu`, `POST /api/booking/tunggu` {kunci, tanggal, jam} (tambah `"batal": true` untuk keluar). Redis: `wl:<slot>` (daftar) dan `wlp:<pid>` (daftar tunggu per pemohon, kedaluwarsa otomatis). Berkas baru: `tunggu.js`; `booking-pro.js` dan `ubah.css` diubah.
+- Catatan: pembatalan oleh admin atau penandaan Tidak hadir belum memicu notifikasi daftar tunggu.
