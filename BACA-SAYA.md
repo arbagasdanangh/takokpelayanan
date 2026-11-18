@@ -808,3 +808,9 @@ Pemohon yang sudah mengaktifkan notifikasi ("Kabari saya") kini otomatis menerim
 ## Versi 84: Chatbot bisa mengubah jadwal booking
 
 Di chatbot, pemohon yang sudah masuk cukup menulis "mau ganti jadwal booking", "pindah kunjungan", "undur janji", atau perintah `/ubah` dan `/jadwal`. Asisten menampilkan booking yang akan datang (tanggal, jam, loket, kode, status) dengan tombol **Ubah jadwal** yang membuka dialog pemilihan tanggal dan jam (fitur v82). Booking yang sudah check-in atau sudah 2 kali diubah ditampilkan tanpa tombol, disertai penjelasan. Pemohon yang belum masuk diarahkan masuk dulu. Berkas baru: `bot-jadwal.js`.
+
+### Perbaikan: kamera pindai tiket tidak bisa dibuka
+- **Penyebab**: header `Permissions-Policy: camera=()` di `vercel.json` (dan `api/app.py`) melarang kamera untuk seluruh situs, sehingga `getUserMedia` selalu ditolak dengan `NotAllowedError` ("Permission denied"), seberapa pun izin yang diberikan pengguna di peramban. Terbukti di Chromium dengan kamera virtual: `camera=()` gagal, `camera=(self)` berhasil.
+- **Perbaikan**: diubah menjadi `camera=(self)` di kedua tempat (hanya halaman dari situs sendiri yang boleh memakai kamera; pihak ketiga tetap dilarang). Perlu **deploy ulang** agar header baru berlaku.
+- **`public/pindai.js`**: pesan galat kini menjelaskan sebabnya (izin ditolak/diblokir, tidak ada kamera, kamera dipakai aplikasi lain, diblokir kebijakan) dan bila kamera belakang tidak tersedia otomatis mencoba kamera lain.
+- Catatan: pindai lewat kamera memakai `BarcodeDetector`, yang belum ada di Safari/iPhone dan Firefox. Di peramban itu dialog tetap tersedia dengan isian nomor tiket manual.
