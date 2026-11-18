@@ -48,6 +48,25 @@
       }).catch(function () { rp.remove(); });
     }
     rpk();
+    var sr = document.createElement("div"); sr.className = "card noprint"; sr.id = "lh-sr"; el.insertBefore(sr, el.querySelector(".kpis"));
+    function srn(hari, teks) {
+      api("/api/admin/siaran?hari=" + (hari || "ini")).then(function (r) {
+        sr.innerHTML = '<b>Siaran ke pemohon</b><p class="sys" style="margin:4px 0 8px">Kirim info singkat (mis. loket tutup lebih awal) ke pemohon yang punya booking aktif <select id="lh-sh" aria-label="Hari">' + [["ini", "hari ini"], ["besok", "besok"]].map(function (x) { return '<option value="' + x[0] + '"' + (x[0] === r.hari ? " selected" : "") + ">" + x[1] + "</option>"; }).join("") + '</select>. ' + r.pemohon + ' pemohon: <b>' + r.bisa + '</b> bisa dikirimi (Telegram/WhatsApp aktif), ' + r.tanpa + ' tidak.</p>' +
+          '<textarea id="lh-st" class="si" maxlength="200" rows="2" style="width:100%" placeholder="Contoh: Loket tutup pukul 14.00 karena rapat. Mohon datang sebelum jam itu." aria-label="Isi siaran">' + e(teks || "") + '</textarea><div class="sys" id="lh-sc" style="text-align:right">0/200</div>' +
+          '<button type="button" class="btn" id="lh-sk"' + (r.bisa ? "" : " disabled") + '>Kirim siaran (' + r.bisa + ')</button>' +
+          ((r.log || []).length ? '<details style="margin-top:8px"><summary class="sys">Siaran terakhir</summary><ul class="bul" style="margin:6px 0 0">' + r.log.map(function (l) { return "<li>" + e(new Date(l.t).toLocaleString("id-ID", {day: "numeric", month: "short", hour: "2-digit", minute: "2-digit"})) + " &middot; " + e(l.u) + " &middot; terkirim " + l.ok + ", gagal " + l.gagal + "<br><small class=\"sys\">" + e(l.pesan) + "</small></li>"; }).join("") + "</ul></details>" : "");
+        var ta = sr.querySelector("#lh-st"), sc = sr.querySelector("#lh-sc");
+        function cnt() { sc.textContent = ta.value.length + "/200"; }
+        ta.oninput = cnt; cnt();
+        sr.querySelector("#lh-sh").onchange = function () { srn(this.value, ta.value); };
+        sr.querySelector("#lh-sk").onclick = function () {
+          var b = this, v = ta.value.trim(); if (v.length < 10) { toast("Pesan minimal 10 huruf."); return; }
+          if (!confirm("Kirim siaran ini ke " + r.bisa + " pemohon?\n\n" + v)) return; b.disabled = true;
+          api("/api/admin/siaran", {hari: sr.querySelector("#lh-sh").value, pesan: v}).then(function (h) { toast("Siaran terkirim " + h.ok + ", gagal " + h.gagal); srn(r.hari, ""); }).catch(function (x) { toast(x.message); b.disabled = false; });
+        };
+      }).catch(function () { sr.remove(); });
+    }
+    srn("ini");
     ing();
     el.querySelector("#lh-d").onchange = function () { if (this.value) window.aLh(el, this.value).catch(function (x) { toast(x.message); }); };
     el.querySelector("#lh-r").onclick = function () { if (window.aLr) window.aLr(el); };
