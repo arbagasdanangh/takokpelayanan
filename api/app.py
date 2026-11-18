@@ -724,6 +724,85 @@ def ntf_kirim(situs, pid, k, tk, uji=False):
     return "gagal" if err else "ok"
 
 
+# ---------------- Pemberitahuan antrean: giliran dipanggil dan "tinggal N antrean" ----------------
+NTF_PNL_TEKS = "Halo {nama}, giliran Anda ({tiket}) sudah dipanggil ke {loket}. Silakan menuju loket sekarang. Takok Pelayanan Suroboyo"
+NTF_HMP_TEKS = "Halo {nama}, tinggal {sisa} antrean lagi sebelum giliran Anda ({tiket}) di {loket}. Mohon bersiap menuju loket. Takok Pelayanan Suroboyo"
+
+
+def ntf_ant_cfg():
+    c = cfg_all()
+    try:
+        h = max(0, min(5, int(c.get("ntf_hampir", "2"))))
+    except (TypeError, ValueError):
+        h = 2
+    return {"pnl": c.get("ntf_pnl", "1") != "0", "pnl_teks": c.get("ntf_pnl_teks") or NTF_PNL_TEKS, "pnl_tpl": clean(c.get("ntf_pnl_tpl", ""), 60),
+            "hampir": h, "hampir_teks": c.get("ntf_hampir_teks") or NTF_HMP_TEKS, "hampir_tpl": clean(c.get("ntf_hampir_tpl", ""), 60)}
+
+
+def ntf_salur(situs, pid, teks, tpl, tk, loket, sisa="", jenis="antrean"):
+    """Kirim pesan singkat ke pemohon lewat saluran pilihannya. Hanya nomor antrean, tanpa isi percakapan. Tidak pernah melempar galat."""
+    try:
+        cf = ntf_cfg()
+        if not cf["aktif"]:
+            return "nonaktif"
+        s = ntf_sub(pid)
+        if s.get("ch") not in ("wa", "tg"):
+            return "tanpa"
+        pem = parse(db().cmd("HGET", "pemohon", pid), {}) or {}
+        nama = (pem.get("nama") or "").split(" ")[0] or "Sahabat"
+        isi = ntf_isi(teks, nama, tk, loket, situs).replace("{sisa}", str(sisa))
+        env, err = os.environ, ""
+        try:
+            if s["ch"] == "tg":
+                tok = env.get("TG_TOKEN", "")
+                if not (tok and s.get("tg")):
+                    raise ValueError("Telegram belum tersambung")
+                BOT.kirim_tg(tok, s["tg"], isi)
+            else:
+                tok, pw = env.get("WA_TOKEN", ""), env.get("WA_PHONE_ID", "")
+                no = s.get("wa") or pem.get("hp") or ""
+                if not (tok and pw and no):
+                    raise ValueError("WhatsApp belum dikonfigurasi")
+                ke = "62" + no[1:] if no.startswith("0") else no
+                if tpl:
+                    BOT.kirim_wa_tpl(tok, pw, ke, tpl, cf["lang"], [nama, tk, loket] if jenis == "panggil" else [nama, str(sisa), tk, loket])
+                else:
+                    BOT.kirim_wa(tok, pw, ke, isi)
+        except Exception as e:
+            err = str(e)[:100]
+        hari = time.strftime("%Y%m%d", wib())
+        db().pipe([["HINCRBY", "ntf:n", "gagal" if err else "ok", 1], ["HINCRBY", "ntf:n", "%s:%s" % ("gagal" if err else "ok", hari), 1],
+                   ["LPUSH", "ntf:log", json.dumps({"t": now_ms(), "ch": s["ch"], "tk": tk, "ok": 0 if err else 1, "e": err, "uji": 0, "n": nama, "j": jenis}, ensure_ascii=False)], ["LTRIM", "ntf:log", 0, 99]])
+        return "gagal" if err else "ok"
+    except Exception as e:
+        print("NTF antrean", repr(e))
+        return "gagal"
+
+
+def ant_beritahu(situs, o):
+    """Dipanggil setelah antrean o berstatus Dipanggil: kabari pemohon yang dipanggil, lalu pemohon yang tinggal N antrean lagi."""
+    hasil = {}
+    try:
+        ac = ntf_ant_cfg()
+        loket = label(o["kunci"])
+        if ac["pnl"]:
+            hasil["panggil"] = "dibatasi" if limited("rl:ntp:%s" % o["id"], 1, 120) else ntf_salur(situs, o["pid"], ac["pnl_teks"], ac["pnl_tpl"], o["kode"], loket, jenis="panggil")
+        if ac["hampir"] > 0:
+            hari = time.strftime("%Y-%m-%d", wib())
+            ids = db().cmd("SMEMBERS", "bkd:%s" % hari) or []
+            rows = [bk_norm(parse(x, None)) for x in (db().cmd("HMGET", "bk", *ids) if ids else []) if x]
+            tunggu = sorted([z for z in rows if z and z["kunci"] == o["kunci"] and z["status"] == "Sudah tiba"], key=lambda z: (z["jam"], z["kode"]))
+            n = ac["hampir"]
+            if len(tunggu) > n:
+                z = tunggu[n]
+                if not z.get("nt2"):
+                    z["nt2"] = 1
+                    db().cmd("HSET", "bk", z["id"], json.dumps(z, ensure_ascii=False))
+                    hasil["hampir"] = ntf_salur(situs, z["pid"], ac["hampir_teks"], ac["hampir_tpl"], z["kode"], loket, sisa=n, jenis="hampir")
+    except Exception as e:
+        print("ANT notif", repr(e))
+    return hasil
+
 
 # ---------------- Mutu jawaban (SLA) dan usulan jawaban chatbot ----------------
 def sla_jam():
@@ -1508,6 +1587,8 @@ class handler(BaseHTTPRequestHandler):
             return self.admin_masuk(b)
         if path == "/layar" and method == "GET":
             return self.layar(q)
+        if path == "/layar/ringkas" and method == "GET":
+            return self.layar_ringkas(q)
         if path == "/bot/miss" and method == "POST":
             return self.bot_miss(b)
         if path == "/game/main" and method == "POST":
@@ -2050,6 +2131,9 @@ class handler(BaseHTTPRequestHandler):
             for o in rows:
                 if o["tanggal"] == hari and o["status"] in aktif:
                     o["depan"] = sum(1 for z in semua if z["kunci"] == o["kunci"] and z["status"] in aktif and z["id"] != o["id"] and (z["jam"], z["kode"]) < (o["jam"], o["kode"]))
+                    dur = [(z["keluar"] - z["mulai"]) / 60000.0 for z in semua if z["kunci"] == o["kunci"] and z.get("mulai") and z.get("keluar")]
+                    o["rata_layan"] = max(1, min(60, round(sum(dur) / len(dur)))) if dur else 0
+                    o["est_menit"] = o["depan"] * (o["rata_layan"] or 8) if o["status"] != "Dipanggil" else 0
         self.json({"daftar": rows}, extra=ex)
 
     def user_bk_tiba(self, ses, b, ex):
@@ -2155,6 +2239,34 @@ class handler(BaseHTTPRequestHandler):
         rows = [parse(x) for x in db().cmd("LRANGE", "layar", 0, -1) or []]
         rows = [o for o in rows if o and (not lok or o["lokasi"] == lok)][-12:][::-1]
         self.json({"daftar": [{"kode": o["kode"], "loket": o["loket"], "lokasi": LOKASI.get(o["lokasi"], ""), "waktu": o["waktu"]} for o in rows]})
+
+    def layar_ringkas(self, q):
+        """Ringkasan publik untuk layar TV: per loket, nomor yang sedang dilayani, jumlah menunggu, perkiraan tunggu. Tanpa nama pemohon."""
+        if limited("rl:layar2:" + self.ip(), 120, 60):
+            raise HttpError(429, "Terlalu sering memuat.")
+        lok = (q.get("lokasi") or [""])[0]
+        hari = time.strftime("%Y-%m-%d", wib())
+        ids = db().cmd("SMEMBERS", "bkd:%s" % hari) or []
+        rows = [bk_norm(parse(x, None)) for x in (db().cmd("HMGET", "bk", *ids) if ids else []) if x]
+        rows = [o for o in rows if o and o.get("status") != "Batal" and (not lok or o["lokasi"] == lok)]
+        per = {}
+        for o in rows:
+            per.setdefault(o["kunci"], []).append(o)
+        out = []
+        for k, L in per.items():
+            sedang = [o for o in L if o["status"] == "Dipanggil" or (o["status"] == "Hadir" and not o.get("keluar"))]
+            sedang.sort(key=lambda o: -(o.get("panggil") or o.get("mulai") or 0))
+            tunggu = sorted([o for o in L if o["status"] == "Sudah tiba"], key=lambda o: (o["jam"], o["kode"]))
+            dur = [(o["keluar"] - o["mulai"]) / 60000.0 for o in L if o.get("mulai") and o.get("keluar")]
+            rata = max(1, min(60, round(sum(dur) / len(dur)))) if dur else 0
+            out.append({"kunci": k, "loket": label(k), "lokasi": LOKASI.get(L[0]["lokasi"], ""), "sedang": sedang[0]["kode"] if sedang else "", "sedang_status": sedang[0]["status"] if sedang else "",
+                        "berikut": tunggu[0]["kode"] if tunggu else "", "menunggu": len(tunggu), "terjadwal": sum(1 for o in L if o["status"] == "Terjadwal"),
+                        "selesai": sum(1 for o in L if o.get("keluar")), "rata_layan": rata, "est_menit": len(tunggu) * (rata or 8)})
+        out.sort(key=lambda x: x["loket"])
+        recent = [parse(x) for x in db().cmd("LRANGE", "layar", 0, -1) or []]
+        recent = [o for o in recent if o and (not lok or o["lokasi"] == lok)][-10:][::-1]
+        self.json({"loket": out, "terbaru": [{"kode": o["kode"], "loket": o["loket"], "waktu": o["waktu"]} for o in recent], "sekarang": now_ms(),
+                   "total": {"menunggu": sum(x["menunggu"] for x in out), "selesai": sum(x["selesai"] for x in out)}}, extra=[("Cache-Control", "no-store")])
 
     # ---- SKM ----
     def user_skm(self, ses, b, ex):
@@ -2716,6 +2828,41 @@ class handler(BaseHTTPRequestHandler):
             except Exception as e:
                 print("CAD", repr(e))
             return self.json({"ok": True, "dipulihkan": pilih}, extra=ex)
+        if r == "laporan/harian" and method == "GET":
+            hari = (q.get("tanggal") or [""])[0] or time.strftime("%Y-%m-%d", wib())
+            try:
+                time.strptime(hari, "%Y-%m-%d")
+            except ValueError:
+                raise HttpError(400, "Tanggal tidak valid.")
+            ids = db().cmd("SMEMBERS", "bkd:%s" % hari) or []
+            rows = [bk_norm(parse(x, None)) for x in (db().cmd("HMGET", "bk", *ids) if ids else []) if x]
+            rows = [o for o in rows if o and (self.adm["sup"] or self.boleh(o["kunci"]))]
+            per = {}
+            for o in rows:
+                per.setdefault(o["kunci"], []).append(o)
+            mnt = lambda a, b2: (b2 - a) / 60000.0
+            rata = lambda v: round(sum(v) / len(v), 1) if v else 0
+            out = []
+            for k, L in per.items():
+                tg = [mnt(o["tiba"], o["mulai"]) for o in L if o.get("tiba") and o.get("mulai") and o["mulai"] >= o["tiba"]]
+                ly = [mnt(o["mulai"], o["keluar"]) for o in L if o.get("mulai") and o.get("keluar") and o["keluar"] >= o["mulai"]]
+                out.append({"kunci": k, "loket": label(k), "total": len(L), "dilayani": sum(1 for o in L if o["status"] == "Hadir"),
+                            "tidak_hadir": sum(1 for o in L if o["status"] == "Tidak hadir"), "batal": sum(1 for o in L if o["status"] == "Batal"),
+                            "belum": sum(1 for o in L if o["status"] in ("Terjadwal", "Sudah tiba", "Dipanggil")),
+                            "rata_tunggu": rata(tg), "rata_layanan": rata(ly), "tunggu_maks": round(max(tg), 1) if tg else 0})
+            out.sort(key=lambda x: x["loket"])
+            jam = {}
+            for o in rows:
+                if o["status"] != "Batal":
+                    jam[o["jam"]] = jam.get(o["jam"], 0) + 1
+            aktif = [o for o in rows if o["status"] != "Batal"]
+            tgs = [mnt(o["tiba"], o["mulai"]) for o in aktif if o.get("tiba") and o.get("mulai") and o["mulai"] >= o["tiba"]]
+            lys = [mnt(o["mulai"], o["keluar"]) for o in aktif if o.get("mulai") and o.get("keluar") and o["keluar"] >= o["mulai"]]
+            dil = sum(1 for o in rows if o["status"] == "Hadir")
+            hit = sum(1 for o in rows if o["status"] in ("Hadir", "Tidak hadir"))
+            return self.json({"tanggal": hari, "loket": out, "jam": [{"jam": j, "n": n} for j, n in sorted(jam.items())],
+                              "total": {"booking": len(rows), "dilayani": dil, "tidak_hadir": sum(1 for o in rows if o["status"] == "Tidak hadir"), "batal": sum(1 for o in rows if o["status"] == "Batal"),
+                                        "rata_tunggu": rata(tgs), "rata_layanan": rata(lys), "kehadiran": round(100.0 * dil / hit) if hit else None}}, extra=ex)
         if r == "cek" or r.startswith("cek/") or r == "cek.csv":
             return self.ci_admin_rute(method, r, q, b, ex)
         if r == "audit" and method == "GET":
@@ -3091,7 +3238,8 @@ class handler(BaseHTTPRequestHandler):
             p = parse(db().cmd("HGET", "pemohon", o["pid"]), {})
             db().pipe([["HSET", "bk", o["id"], json.dumps(o, ensure_ascii=False)],
                        ["RPUSH", "layar", json.dumps({"kode": o["kode"], "kunci": o["kunci"], "loket": label(o["kunci"]), "lokasi": o["lokasi"], "waktu": now_ms()}, ensure_ascii=False)], ["LTRIM", "layar", -50, -1]])
-            return self.json({"ok": True, "kode": o["kode"], "nama": p.get("nama", "?"), "jam": o["jam"]}, extra=ex)
+            nt = ant_beritahu("https://" + (self.headers.get("Host") or ""), o)
+            return self.json({"ok": True, "kode": o["kode"], "nama": p.get("nama", "?"), "jam": o["jam"], "notif": nt.get("panggil", "")}, extra=ex)
         if r == "booking/status":
             o = bk_norm(parse(db().cmd("HGET", "bk", str(b.get("id", "")))))
             if not o or b.get("status") not in ("Terjadwal", "Sudah tiba", "Dipanggil", "Hadir", "Tidak hadir"):
@@ -3108,7 +3256,8 @@ class handler(BaseHTTPRequestHandler):
             if b["status"] == "Dipanggil":
                 cmds += [["RPUSH", "layar", json.dumps({"kode": o["kode"], "kunci": o["kunci"], "loket": label(o["kunci"]), "lokasi": o["lokasi"], "waktu": now_ms()}, ensure_ascii=False)], ["LTRIM", "layar", -50, -1]]
             db().pipe(cmds)
-            return self.json({"ok": True}, extra=ex)
+            nt = ant_beritahu("https://" + (self.headers.get("Host") or ""), o) if b["status"] == "Dipanggil" else {}
+            return self.json({"ok": True, "notif": nt.get("panggil", "")}, extra=ex)
         if r in ("pesan/ubah", "pesan/hapus") and method == "POST":
             try:
                 pid = int(b.get("pid"))
@@ -3531,7 +3680,7 @@ class handler(BaseHTTPRequestHandler):
             env, hari = os.environ, time.strftime("%Y%m%d", wib())
             n = hall(db().cmd("HGETALL", "ntf:n"))
             subs = [parse(v, {}) or {} for v in hall(db().cmd("HGETALL", "ntf")).values()]
-            return self.json({"cfg": ntf_cfg(), "teks_awal": NTF_TEKS, "env": {"wa": bool(env.get("WA_TOKEN") and env.get("WA_PHONE_ID")), "tg": bool(env.get("TG_TOKEN") and env.get("TG_SECRET"))},
+            return self.json({"cfg": ntf_cfg(), "ant": ntf_ant_cfg(), "ant_awal": {"pnl": NTF_PNL_TEKS, "hampir": NTF_HMP_TEKS}, "teks_awal": NTF_TEKS, "env": {"wa": bool(env.get("WA_TOKEN") and env.get("WA_PHONE_ID")), "tg": bool(env.get("TG_TOKEN") and env.get("TG_SECRET"))},
                               "n": {"ok": int(n.get("ok", 0)), "gagal": int(n.get("gagal", 0)), "ok_hari": int(n.get("ok:" + hari, 0)), "gagal_hari": int(n.get("gagal:" + hari, 0))},
                               "pel": {"wa": sum(1 for x in subs if x.get("ch") == "wa"), "tg": sum(1 for x in subs if x.get("ch") == "tg")},
                               "log": [x for x in (parse(i) for i in (db().cmd("LRANGE", "ntf:log", 0, 14) or [])) if x]}, extra=ex)
@@ -3552,6 +3701,22 @@ class handler(BaseHTTPRequestHandler):
             if "teks" in b:
                 tx = clean(b.get("teks", ""), 300)
                 cmds.append(["HSET", "cfg", "ntf_teks", tx if tx else ""])
+            for kk, kb, mx in (("pnl_teks", "ntf_pnl_teks", 300), ("hampir_teks", "ntf_hampir_teks", 300)):
+                if kk in b:
+                    cmds.append(["HSET", "cfg", kb, clean(b.get(kk, ""), mx)])
+            for kk, kb in (("pnl_tpl", "ntf_pnl_tpl"), ("hampir_tpl", "ntf_hampir_tpl")):
+                if kk in b:
+                    v = clean(b.get(kk, ""), 60)
+                    if v and not re.match(r"^[a-z0-9_]{1,60}$", v):
+                        raise HttpError(400, "Nama templat hanya huruf kecil, angka, dan garis bawah.")
+                    cmds.append(["HSET", "cfg", kb, v])
+            if "pnl" in b:
+                cmds.append(["HSET", "cfg", "ntf_pnl", "0" if str(b["pnl"]) in ("0", "False", "false") else "1"])
+            if "hampir" in b:
+                try:
+                    cmds.append(["HSET", "cfg", "ntf_hampir", str(max(0, min(5, int(b["hampir"]))))])
+                except (TypeError, ValueError):
+                    raise HttpError(400, "Jumlah antrean tidak valid (0 sampai 5).")
             if cmds:
                 db().pipe(cmds)
             return self.json({"ok": True}, extra=ex)
@@ -3692,7 +3857,8 @@ class handler(BaseHTTPRequestHandler):
             pesan, extra = ant_terapkan(o, aksi)
             db().pipe([["HSET", "bk", o["id"], json.dumps(o, ensure_ascii=False)]] + extra)
             p = parse(db().cmd("HGET", "pemohon", o["pid"]), {}) or {}
-            return self.json({"ok": True, "pesan": pesan, "antrean": dict(ant_ringkas(o, p.get("nama", "?")), aksi=ant_aksi_tersedia(o))}, extra=ex)
+            nt = ant_beritahu("https://" + (self.headers.get("Host") or ""), o) if aksi == "panggil" else {}
+            return self.json({"ok": True, "pesan": pesan, "notif": nt.get("panggil", ""), "antrean": dict(ant_ringkas(o, p.get("nama", "?")), aksi=ant_aksi_tersedia(o))}, extra=ex)
         if r == "cek/keluar" and method == "POST":
             cid = str(b.get("id") or "")
             if not CI_ID_RE.match(cid):
