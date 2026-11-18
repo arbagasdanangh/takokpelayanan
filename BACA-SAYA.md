@@ -783,3 +783,16 @@ Tab baru **Laporan harian** (grup Layanan harian) untuk superadmin dan admin lok
 - Unduh CSV (pemisah titik koma, bisa dibuka di Excel) dan tombol Cetak.
 - Tunggu = check-in sampai mulai dilayani; layanan = mulai sampai check-out; hanya dihitung bila stempel waktunya lengkap.
 - Endpoint: `GET /api/admin/laporan/harian?tanggal=YYYY-MM-DD`. Berkas baru: `laporan.js`, `laporan.css`.
+
+## Versi 79: Teks berjalan di Layar Antrean
+
+Pengumuman yang diatur superadmin lewat "Atur dinamis" (teks, tipe info/penting, berlaku sampai tanggal) kini tampil sebagai teks berjalan di bawah Layar Antrean (`/?layar=1`). Tipe "penting" berlatar merah. Hilang otomatis setelah tanggal berakhir; diperbarui tiap 5 menit tanpa muat ulang. Pengguna dengan "kurangi gerakan" melihat teks diam. Berkas yang berubah: `layar.js`, `layar.css`.
+
+## Versi 80: Pengingat janji temu besok
+
+Di tab **Laporan harian** ada kartu "Pengingat janji temu besok": menampilkan jumlah booking Terjadwal untuk besok (WIB), yang siap diingatkan, yang sudah diingatkan, dan yang belum mengaktifkan Telegram/WhatsApp. Tombol "Kirim pengingat" mengirim pesan singkat (jam, loket, kode, tautan situs) lewat saluran notifikasi pilihan pemohon. Tiap booking hanya diingatkan sekali. Admin loket hanya mengirim untuk loketnya. Butuh fitur notifikasi aktif (Pemberitahuan jawaban) dan Telegram/WhatsApp tersambung; WhatsApp di luar jendela 24 jam tidak bisa teks bebas.
+Endpoint: `GET/POST /api/admin/pengingat`.
+
+## Versi 81: Rapikan antrean hari ini
+
+Di tab **Laporan harian** ada kartu "Rapikan antrean hari ini": menandai "Tidak hadir" untuk booking hari ini yang masih Terjadwal (belum check-in) dan jamnya sudah lewat lebih dari toleransi (pilihan 15, 30, 45, 60, 90 menit; bawaan 30). Menampilkan jumlah dan contoh kode sebelum dikonfirmasi; laporan di bawahnya ikut diperbarui. Admin loket hanya memengaruhi loketnya. Booking yang ditandai diberi cap `otomatis` waktu. Endpoint: `GET/POST /api/admin/antrean/rapikan`.
