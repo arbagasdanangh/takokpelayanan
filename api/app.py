@@ -795,6 +795,19 @@ def pengingat_daftar(adm_ok):
     return besok, out
 
 
+def bk_kabari(situs, o, kejadian):
+    """Konfirmasi singkat ke pemohon (Telegram/WhatsApp pilihannya) saat booking dibuat, dipindah, atau dibatalkan. Tidak pernah melempar galat."""
+    try:
+        tgl = time.strftime("%d-%m-%Y", time.strptime(o["tanggal"], "%Y-%m-%d"))
+        awal = {"baru": "booking Anda dikonfirmasi", "ubah": "jadwal booking Anda diubah", "batal": "booking Anda dibatalkan"}[kejadian]
+        akhir = " Tunjukkan kode ini saat check-in." if kejadian != "batal" else ""
+        teks = "Halo {nama}, %s: {loket}, %s jam %s WIB, kode {tiket}.%s" % (awal, tgl, o["jam"], akhir)
+        return ntf_salur(situs, str(o["pid"]), teks, "", o["kode"], label(o["kunci"]), jenis="konfirmasi")
+    except Exception as e:
+        print("BK kabari", repr(e))
+        return "gagal"
+
+
 def ant_beritahu(situs, o):
     """Dipanggil setelah antrean o berstatus Dipanggil: kabari pemohon yang dipanggil, lalu pemohon yang tinggal N antrean lagi."""
     hasil = {}
@@ -1669,6 +1682,8 @@ class handler(BaseHTTPRequestHandler):
                 return self.user_bk(ses, ex)
             if path == "/booking" and method == "POST":
                 return self.user_bk_baru(ses, b, ex)
+            if path == "/booking/ubah" and method == "POST":
+                return self.user_bk_ubah(ses, b, ex)
             if path == "/booking/batal" and method == "POST":
                 return self.user_bk_batal(ses, b, ex)
             if path == "/booking/tiba" and method == "POST":
@@ -2236,7 +2251,46 @@ class handler(BaseHTTPRequestHandler):
             o = {"id": bid, "pid": pid, "kunci": k, "lokasi": lok, "tanggal": tgl, "jam": j, "keperluan": kep, "kode": kode, "status": "Terjadwal", "dibuat": now_ms(), "dek": 1}
             db().pipe([["HSET", "bk", bid, json.dumps(o, ensure_ascii=False)], ["SADD", "bk:%s" % pid, bid], ["SADD", "bkd:%s" % tgl, bid]])
             hasil.append(o)
+        situs = "https://" + (self.headers.get("Host") or "")
+        for o in hasil:
+            bk_kabari(situs, o, "baru")
         self.json({"ok": True, "booking": hasil}, extra=ex)
+
+    def user_bk_ubah(self, ses, b, ex):
+        """Pindahkan jadwal booking Terjadwal ke tanggal/jam lain di loket yang sama. Kode antrean diganti mengikuti tanggal baru."""
+        pid, bid = ses["id"], str(b.get("id", ""))
+        tgl, j = str(b.get("tanggal", "")), str(b.get("jam", ""))
+        if limited("rl:bkubah:%s" % pid, 10, 3600):
+            raise HttpError(429, "Terlalu sering mengubah jadwal. Coba lagi nanti.")
+        o = bk_norm(parse(db().cmd("HGET", "bk", bid)))
+        if not o or str(o["pid"]) != str(pid) or o["status"] != "Terjadwal":
+            raise HttpError(400, "Booking tidak bisa diubah jadwalnya.")
+        if j not in SLOTS:
+            raise HttpError(400, "Jam tidak valid.")
+        if (o["tanggal"], o["jam"]) == (tgl, j):
+            raise HttpError(400, "Jadwal baru sama dengan jadwal sekarang.")
+        if int(o.get("ubah", 0)) >= 2:
+            raise HttpError(400, "Jadwal booking ini sudah diubah 2 kali. Batalkan dan buat booking baru.")
+        cek_tanggal(tgl, j)
+        ids = db().cmd("SMEMBERS", "bk:%s" % pid) or []
+        mine = [bk_norm(parse(x)) for x in (db().cmd("HMGET", "bk", *ids) if ids else []) if x]
+        for z in mine:
+            if z and str(z["id"]) != bid and z["status"] in ("Terjadwal", "Sudah tiba", "Dipanggil") and z["tanggal"] == tgl and (z["jam"] == j or z["kunci"] == o["kunci"]):
+                raise HttpError(400, "Anda sudah punya booking lain di waktu atau loket itu pada tanggal tersebut.")
+        kuota = int(db().cmd("HGET", "cfg", "kuota") or 10)
+        sk_baru = "bks:%s|%s|%s" % (o["lokasi"] if str(o["kunci"]).endswith("_0") else o["kunci"], tgl, j)
+        if int(db().cmd("INCR", sk_baru)) > kuota:
+            db().cmd("DECR", sk_baru)
+            raise HttpError(409, "Jam %s sudah penuh. Pilih jam lain." % j)
+        lama_tgl, sk_lama = o["tanggal"], slot_key(o)
+        lok, no = o["kunci"].rsplit("_", 1)
+        urut = int(db().cmd("INCR", "bkn:%s|%s" % (o["kunci"], tgl)))
+        o.update({"tanggal": tgl, "jam": j, "kode": "%s%02d-%s-%03d" % (lok[:3].upper(), int(no), tgl[8:10] + tgl[5:7], urut), "ubah": int(o.get("ubah", 0)) + 1, "kode_lama": o["kode"]})
+        for k in ("ing", "nt2"):
+            o.pop(k, None)
+        db().pipe([["HSET", "bk", bid, json.dumps(o, ensure_ascii=False)], ["DECR", sk_lama], ["SREM", "bkd:%s" % lama_tgl, bid], ["SADD", "bkd:%s" % tgl, bid]])
+        bk_kabari("https://" + (self.headers.get("Host") or ""), o, "ubah")
+        self.json({"ok": True, "booking": o}, extra=ex)
 
     def user_bk_batal(self, ses, b, ex):
         bid = str(b.get("id", ""))
@@ -2245,6 +2299,7 @@ class handler(BaseHTTPRequestHandler):
             raise HttpError(400, "Booking tidak bisa dibatalkan.")
         o["status"] = "Batal"
         db().pipe([["HSET", "bk", bid, json.dumps(o, ensure_ascii=False)], ["DECR", slot_key(o)]])
+        bk_kabari("https://" + (self.headers.get("Host") or ""), o, "batal")
         self.json({"ok": True}, extra=ex)
 
     # ---- layar antrean (publik, tanpa data pribadi) ----
