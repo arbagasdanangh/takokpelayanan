@@ -1507,7 +1507,7 @@ class handler(BaseHTTPRequestHandler):
         self.send_header("Referrer-Policy", "no-referrer")
         self.send_header("Content-Security-Policy", CSP)
         self.send_header("X-Frame-Options", "DENY")
-        self.send_header("Permissions-Policy", "camera=(), microphone=(self), geolocation=(), payment=(), usb=(), interest-cohort=()")
+        self.send_header("Permissions-Policy", "camera=(self), microphone=(self), geolocation=(), payment=(), usb=(), interest-cohort=()")
         self.send_header("Cross-Origin-Opener-Policy", "same-origin")
         self.send_header("Cross-Origin-Resource-Policy", "same-origin")
         if not any(k.lower() == "cache-control" for k, _ in extra):
