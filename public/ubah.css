@@ -1,0 +1,4 @@
+.ub-box{max-width:520px}
+.ub-days,.ub-slots{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.ub-days .chip[aria-checked=true],.ub-slots .chip[aria-pressed=true]{background:var(--pri,#1d4ed8);color:#fff}
+.ub-slots .chip:disabled{opacity:.45;text-decoration:line-through}
