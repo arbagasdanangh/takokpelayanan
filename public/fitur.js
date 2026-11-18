@@ -133,6 +133,7 @@ function rencana() {
     return '<div class="rc"><span><b>' + c.jam + '</b> &middot; ' + esc(label(c.kunci)) + '</span><button type="button" class="btn" data-rm="' + CART.indexOf(c) + '" aria-label="Hapus">Hapus</button></div>';
   }).join("") + '<textarea class="si" id="bk2" rows="2" maxlength="200" placeholder="Keperluan kunjungan (mis. mengurus BPJS dan pajak)" aria-label="Keperluan">' + esc(KEP) + '</textarea><label class="bk-dek"><input type="checkbox" id="bkdek"' + (DEK ? " checked" : "") + '> Saya mengurus untuk diri sendiri, keluarga, atau usaha sendiri, dan <b>tidak menerima bayaran</b> dari pemohon lain (biro jasa/calo).</label><button type="button" class="send" id="bgo">Buat ' + CART.length + ' booking</button>';
 }
+window.TKSLOTS = function () { return slots(); };
 async function slots() {
   var box = $("bj");
   if (!box) return;
@@ -185,6 +186,7 @@ function tiketHtml(o, hari) {
   var aktif = ["Terjadwal", "Sudah tiba", "Dipanggil"].indexOf(o.status) > -1, today = o.tanggal === hari, btn = "", info = "";
   var d = new Date(o.tanggal + "T00:00:00").toLocaleDateString("id-ID", {weekday: "long", day: "numeric", month: "long", year: "numeric"});
   if (o.status === "Terjadwal" && today) btn += '<button type="button" class="send" data-tiba="' + o.id + '">Saya sudah tiba</button>';
+  if (o.status === "Terjadwal" && o.tanggal >= hari && (o.ubah || 0) < 2) btn += '<button type="button" class="btn" data-ub="' + o.id + '">Ubah jadwal</button>';
   if (o.status === "Terjadwal" && o.tanggal >= hari) btn += '<button type="button" class="btn" data-bc="' + o.id + '">Batalkan</button>';
   if (today && !o.keluar && (o.status === "Dipanggil" || o.status === "Hadir")) btn += '<button type="button" class="send" data-keluar="' + o.id + '">Selesai &amp; check-out</button>';
   if (aktif) btn += '<button type="button" class="btn" data-ics="' + o.id + '">Tambah ke kalender</button>';
