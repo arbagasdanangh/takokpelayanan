@@ -779,6 +779,22 @@ def ntf_salur(situs, pid, teks, tpl, tk, loket, sisa="", jenis="antrean"):
         return "gagal"
 
 
+def pengingat_daftar(adm_ok):
+    """Booking Terjadwal untuk besok yang boleh dikelola admin ini, dengan status saluran notifikasi pemohon."""
+    import datetime as _dt
+    t = wib()
+    besok = (_dt.date(t.tm_year, t.tm_mon, t.tm_mday) + _dt.timedelta(days=1)).isoformat()
+    ids = db().cmd("SMEMBERS", "bkd:%s" % besok) or []
+    rows = [bk_norm(parse(x, None)) for x in (db().cmd("HMGET", "bk", *ids) if ids else []) if x]
+    rows = [o for o in rows if o and o["status"] == "Terjadwal" and adm_ok(o["kunci"])]
+    rows.sort(key=lambda o: (o["jam"], o["kode"]))
+    out = []
+    for o in rows:
+        ch = ntf_sub(str(o["pid"])).get("ch")
+        out.append((o, ch if ch in ("wa", "tg") else ""))
+    return besok, out
+
+
 def ant_beritahu(situs, o):
     """Dipanggil setelah antrean o berstatus Dipanggil: kabari pemohon yang dipanggil, lalu pemohon yang tinggal N antrean lagi."""
     hasil = {}
@@ -2863,6 +2879,48 @@ class handler(BaseHTTPRequestHandler):
             return self.json({"tanggal": hari, "loket": out, "jam": [{"jam": j, "n": n} for j, n in sorted(jam.items())],
                               "total": {"booking": len(rows), "dilayani": dil, "tidak_hadir": sum(1 for o in rows if o["status"] == "Tidak hadir"), "batal": sum(1 for o in rows if o["status"] == "Batal"),
                                         "rata_tunggu": rata(tgs), "rata_layanan": rata(lys), "kehadiran": round(100.0 * dil / hit) if hit else None}}, extra=ex)
+        if r == "pengingat" and method in ("GET", "POST"):
+            besok, daf = pengingat_daftar(lambda k: self.adm["sup"] or self.boleh(k))
+            if method == "GET":
+                return self.json({"tanggal": besok, "total": len(daf), "bisa": sum(1 for o, c in daf if c and not o.get("ing")), "sudah": sum(1 for o, c in daf if o.get("ing")),
+                                  "tanpa": sum(1 for o, c in daf if not c)}, extra=ex)
+            situs = "https://" + (self.headers.get("Host") or "")
+            hasil = {"ok": 0, "gagal": 0, "lewat": 0}
+            for o, c in daf[:300]:
+                if not c or o.get("ing"):
+                    hasil["lewat"] += 1
+                    continue
+                teks = "Halo {nama}, pengingat: janji temu Anda besok jam %s di {loket} (kode {tiket}). Buka {situs} bila perlu mengubah atau membatalkan." % o["jam"]
+                st = ntf_salur(situs, str(o["pid"]), teks, "", o["kode"], label(o["kunci"]), jenis="pengingat")
+                if st == "ok":
+                    o["ing"] = 1
+                    db().cmd("HSET", "bk", o["id"], json.dumps(o, ensure_ascii=False))
+                    hasil["ok"] += 1
+                else:
+                    hasil["gagal" if st == "gagal" else "lewat"] += 1
+            return self.json(dict(hasil, tanggal=besok), extra=ex)
+        if r == "antrean/rapikan" and method in ("GET", "POST"):
+            try:
+                tol = max(15, min(180, int(((q.get("tol") or [""])[0] if method == "GET" else b.get("tol")) or 30)))
+            except (ValueError, TypeError):
+                tol = 30
+            t = wib()
+            menit, hari = t.tm_hour * 60 + t.tm_min, time.strftime("%Y-%m-%d", t)
+            ids = db().cmd("SMEMBERS", "bkd:%s" % hari) or []
+            rows = [bk_norm(parse(x, None)) for x in (db().cmd("HMGET", "bk", *ids) if ids else []) if x]
+            def lewat(o):
+                try:
+                    return o["status"] == "Terjadwal" and int(o["jam"][:2]) * 60 + int(o["jam"][3:5]) + tol <= menit
+                except (ValueError, KeyError):
+                    return False
+            tg = [o for o in rows if o and lewat(o) and (self.adm["sup"] or self.boleh(o["kunci"]))]
+            if method == "GET":
+                return self.json({"tol": tol, "jumlah": len(tg), "contoh": [{"kode": o["kode"], "jam": o["jam"]} for o in sorted(tg, key=lambda o: o["jam"])[:5]]}, extra=ex)
+            for o in tg:
+                o["status"], o["otomatis"] = "Tidak hadir", now_ms()
+            if tg:
+                db().pipe([["HSET", "bk", o["id"], json.dumps(o, ensure_ascii=False)] for o in tg])
+            return self.json({"ditandai": len(tg), "tol": tol}, extra=ex)
         if r == "cek" or r.startswith("cek/") or r == "cek.csv":
             return self.ci_admin_rute(method, r, q, b, ex)
         if r == "audit" and method == "GET":
