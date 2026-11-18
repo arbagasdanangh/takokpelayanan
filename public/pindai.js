@@ -38,6 +38,19 @@ document.addEventListener("keydown", function (e) {
 
 /* 2) kamera */
 var kam = null;
+function pesanKam(x) {
+  var n = x && x.name;
+  if (n === "NotAllowedError" || n === "PermissionDeniedError") return "Izin kamera ditolak atau diblokir. Ketuk ikon gembok di peramban, izinkan Kamera untuk situs ini, lalu coba lagi.";
+  if (n === "NotFoundError" || n === "DevicesNotFoundError") return "Perangkat ini tidak punya kamera yang bisa dipakai.";
+  if (n === "NotReadableError" || n === "TrackStartError") return "Kamera sedang dipakai aplikasi lain. Tutup aplikasi itu lalu coba lagi.";
+  if (n === "SecurityError") return "Kamera diblokir oleh kebijakan keamanan halaman.";
+  return "Kamera tidak bisa dibuka (" + (n || "galat tidak dikenal") + ").";
+}
+async function ambilKamera() {
+  var md = navigator.mediaDevices;
+  try { return await md.getUserMedia({video: {facingMode: {ideal: "environment"}}, audio: false}); }
+  catch (x) { if (x && (x.name === "OverconstrainedError" || x.name === "NotFoundError" || x.name === "AbortError")) return await md.getUserMedia({video: true, audio: false}); throw x; }
+}
 function tutupKam() { if (!kam) return; kam.stop = true; try { kam.stream && kam.stream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {} kam.el.remove(); kam = null; }
 async function pindai() {
   if (kam) return;
@@ -50,14 +63,14 @@ async function pindai() {
   if (!ok) { inp.focus(); return; }
   try {
     var det = new window.BarcodeDetector({formats: ["code_39", "qr_code"]}), v = el.querySelector("video");
-    kam.stream = await navigator.mediaDevices.getUserMedia({video: {facingMode: {ideal: "environment"}}, audio: false}); v.srcObject = kam.stream; await v.play();
+    kam.stream = await ambilKamera(); v.srcObject = kam.stream; await v.play();
     var cur = kam, loop = async function () {
       if (!kam || kam !== cur || cur.stop) return;
       try { var h = await det.detect(v); for (var i = 0; i < h.length; i++) { var n = norm(h[i].rawValue); if (RX.test(n) || RXA.test(n)) { tutupKam(); buka(n); return; } } } catch (e) {}
       setTimeout(loop, 250);
     };
     loop();
-  } catch (x) { var s = el.querySelector("#pd-s"); if (s) s.textContent = "Kamera tidak bisa dibuka (" + (x.name || "izin ditolak") + "). Ketik nomor tiket di bawah."; inp.focus(); }
+  } catch (x) { var s = el.querySelector("#pd-s"); if (s) s.textContent = pesanKam(x) + " Atau ketik nomor tiket di bawah."; inp.focus(); }
 }
 document.addEventListener("click", function (e) {
   var b = e.target.closest && e.target.closest("[data-pd]"); if (!b) return;
