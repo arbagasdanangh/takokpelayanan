@@ -35,6 +35,19 @@
         };
       }).catch(function () { pg.remove(); });
     }
+    var rp = document.createElement("div"); rp.className = "card noprint"; rp.id = "lh-rp"; el.insertBefore(rp, el.querySelector(".kpis"));
+    function rpk() {
+      var tol = (rp.querySelector("#lh-tol") || {}).value || 30;
+      api("/api/admin/antrean/rapikan?tol=" + encodeURIComponent(tol)).then(function (r) {
+        rp.innerHTML = '<b>Rapikan antrean hari ini</b><p class="sys" style="margin:4px 0 8px">Tandai "Tidak hadir" untuk booking yang belum check-in dan jamnya sudah lewat lebih dari <select id="lh-tol" aria-label="Toleransi menit">' + [15, 30, 45, 60, 90].map(function (m) { return '<option value="' + m + '"' + (m === r.tol ? " selected" : "") + ">" + m + "</option>"; }).join("") + '</select> menit. Ada <b>' + r.jumlah + '</b> booking' + (r.contoh.length ? " (mis. " + r.contoh.map(function (c) { return e(c.kode) + " jam " + e(c.jam); }).join(", ") + ")" : "") + '.</p><button type="button" class="btn" id="lh-rk"' + (r.jumlah ? "" : " disabled") + '>Tandai tidak hadir (' + r.jumlah + ')</button>';
+        rp.querySelector("#lh-tol").onchange = rpk;
+        rp.querySelector("#lh-rk").onclick = function () {
+          if (!confirm("Tandai " + r.jumlah + " booking sebagai Tidak hadir?")) return; this.disabled = true;
+          api("/api/admin/antrean/rapikan", {tol: r.tol}).then(function (h) { toast(h.ditandai + " booking ditandai tidak hadir"); window.aLh(el, j.tanggal).catch(function () {}); }).catch(function (x) { toast(x.message); rpk(); });
+        };
+      }).catch(function () { rp.remove(); });
+    }
+    rpk();
     ing();
     el.querySelector("#lh-d").onchange = function () { if (this.value) window.aLh(el, this.value).catch(function (x) { toast(x.message); }); };
     el.querySelector("#lh-p").onclick = function () { window.print(); };
