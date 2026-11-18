@@ -35,7 +35,7 @@ function baris(o, buka) {
   }
   return '<div class="bkr st-' + o.status.toLowerCase().replace(/\s+/g, "-") + (buka ? " on" : "") + '"><button type="button" class="bkr-h" data-bx="' + esc(o.id) + '" aria-expanded="' + !!buka + '">' +
     '<span class="bkr-d"><b>' + d.getDate() + '</b><small>' + d.toLocaleDateString("id-ID", {month: "short"}) + '</small></span>' +
-    '<span class="bkr-m"><b>' + esc(o.jam) + ' &middot; ' + esc(namaLoket(o)) + '</b><small>' + esc(lokNama(o.lokasi)) + ' &middot; ' + esc(o.kode) + '</small></span>' + bkBdg(o.status) + '<span class="bkr-c" aria-hidden="true">▾</span></button>' + isi + '</div>';
+    '<span class="bkr-m"><b>' + esc(o.jam) + ' &middot; ' + esc(namaLoket(o)) + '</b><small>' + esc(lokNama(o.lokasi)) + ' &middot; ' + esc(o.kode) + '</small></span>' + bkBdg(o.status) + (o.status === "Hadir" && !o.nilai_kj ? '<span class="bkr-nl">\u2605 Beri nilai</span>' : '') + '<span class="bkr-c" aria-hidden="true">▾</span></button>' + isi + '</div>';
 }
 function daftarHtml() {
   var G = kelompok(), src = BX.tab === "aktif" ? G.akt : G.rw, f = src.filter(function (o) { return cocok(o, BX.q); }), tampil = f.slice(0, BX.n), g = {}, urutT = [];

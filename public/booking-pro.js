@@ -44,7 +44,8 @@ async function slotsBaru() {
       if (lewat(t, s.jam)) { st = "lewat"; tx = "Sudah lewat"; dis = true; } else if (!s.sisa) { st = "penuh"; tx = "Penuh"; dis = true; }
       else if (bk) { st = "bentrok"; tx = "Sudah ada booking"; dis = true; } else if (bentrok(k, t, s.jam)) { st = "bentrok"; tx = "Jam dipakai booking lain"; dis = true; }
       else cl = r >= .7 ? " sepi" : r <= .3 ? " ramai" : "";
-      return '<button type="button" class="chip bp-slot ' + st + cl + (best && best.jam === s.jam && !dis ? " terbaik" : "") + '" data-j="' + s.jam + '" aria-pressed="' + (window.BJ === s.jam) + '"' + (dis ? " disabled" : "") + '><b>' + s.jam + '</b><small>' + tx + '</small><i style="--w:' + (dis ? 0 : Math.round(r * 100)) + '%" aria-hidden="true"></i></button>';
+      var btn = '<button type="button" class="chip bp-slot ' + st + cl + (best && best.jam === s.jam && !dis ? " terbaik" : "") + '" data-j="' + s.jam + '" aria-pressed="' + (window.BJ === s.jam) + '"' + (dis ? " disabled" : "") + '><b>' + s.jam + '</b><small>' + tx + '</small><i style="--w:' + (dis ? 0 : Math.round(r * 100)) + '%" aria-hidden="true"></i></button>';
+      return st === "penuh" && window.S === "user" ? '<div class="bp-cell">' + btn + '<button type="button" class="chip bp-wl" data-wl="' + k + "|" + t + "|" + s.jam + '" aria-label="Daftar tunggu jam ' + s.jam + '">Daftar tunggu</button></div>' : btn;
     }).join("");
     var msg;
     if (bk) msg = '<span class="bp-w">Anda sudah punya booking di loket ini pada ' + E(tglPendek(t).p) + ' (kode ' + E(bk.kode) + ', jam ' + E(bk.jam) + '). Pilih tanggal lain.</span>';
