@@ -8,7 +8,7 @@
   var sec = document.createElement("section"); sec.className = "lp"; sec.id = "layar";
   sec.innerHTML = '<div class="lp-h"><b>Antrean Pelayanan</b><div class="lp-ctl"><select id="lps" aria-label="Lokasi"><option value="">Semua lokasi</option></select><button type="button" id="lpu">Aktifkan suara</button><button type="button" id="lpf">Layar penuh</button></div><div class="lp-jam" id="lpj"></div></div>' +
     '<div class="lp-main"><div class="lp-now" id="lpn" aria-live="assertive"><small>Sedang dipanggil</small><div class="lp-no" id="lpno">&ndash;</div><div class="lp-lk" id="lplk">Menunggu panggilan</div><ul class="lp-rec" id="lprec"></ul></div><div class="lp-side" id="lpside"></div></div>' +
-    '<div class="lp-ft"><span id="lpt"></span><span class="lp-qr" id="lpq"></span></div>';
+    '<div class="lp-tk" id="lpk" hidden></div><div class="lp-ft"><span id="lpt"></span><span class="lp-qr" id="lpq"></span></div>';
   document.body.appendChild(sec);
   document.title = "Layar Antrean";
   var lok = qs.get("lokasi") || "", suara = false, last = "", ctx = null;
@@ -20,10 +20,19 @@
     $("lpj").innerHTML = pad(d.getHours()) + "." + pad(d.getMinutes()) + "<small>" + HR[d.getDay()] + ", " + d.getDate() + "/" + (d.getMonth() + 1) + "/" + d.getFullYear() + " WIB</small>";
   }
   jam(); setInterval(jam, 15000);
-  (window.api ? api("/api/info") : Promise.reject()).then(function (j) {
+  function tiker(j) {
+    var a = (j.dinamis && j.dinamis.pengumuman) || {}, t = String(a.teks || "").trim(), h = new Date(Date.now() + 7 * 36e5).toISOString().slice(0, 10), b = $("lpk");
+    if (!t || (a.sampai && h > a.sampai)) { b.hidden = true; b.innerHTML = ""; return; }
+    var x = (a.tipe === "penting" ? "PENTING: " : "INFO: ") + t;
+    b.hidden = false; b.className = "lp-tk" + (a.tipe === "penting" ? " pen" : ""); b.innerHTML = '<div class="lp-tr" style="animation-duration:' + Math.max(15, Math.round(x.length * 0.28)) + 's"><span>' + e(x) + '</span><span aria-hidden="true">' + e(x) + '</span></div>';
+  }
+  function info() { return (window.api ? api("/api/info") : Promise.reject()).then(function (j) {
+    tiker(j);
+    if ($("lps").options.length > 1) return;
     $("lps").innerHTML = '<option value="">Semua lokasi</option>' + j.lokasi.map(function (l) { return '<option value="' + e(l.id) + '">' + e(l.nama) + '</option>'; }).join("");
     $("lps").value = lok;
-  }).catch(function () {});
+  }).catch(function () {}); }
+  info(); setInterval(info, 300000);
   $("lps").onchange = function () { lok = this.value; last = ""; muat(); };
   $("lpf").onclick = function () { try { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen(); } catch (x) {} };
   $("lpu").onclick = function () { suara = !suara; this.textContent = suara ? "Suara aktif" : "Aktifkan suara"; if (suara) { chime(); ucap("Suara antrean aktif"); } };

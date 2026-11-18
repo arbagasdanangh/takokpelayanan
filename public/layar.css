@@ -28,3 +28,9 @@
 .lp-qr svg{width:84px;height:84px;background:#fff;border-radius:8px;padding:4px}
 .lp-kos{text-align:center;padding:20px;opacity:.8}
 body:has(.lp)>*:not(.lp):not(script):not(style){display:none!important}
+.lp-tk{background:rgba(255,255,255,.12);border-radius:12px;overflow:hidden;white-space:nowrap;font-size:clamp(1rem,1.9vw,1.6rem);padding:8px 0}
+.lp-tk.pen{background:#b91c1c}
+.lp-tr{display:inline-flex;animation:lptk linear infinite}
+.lp-tr span{padding-right:4rem}
+@keyframes lptk{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@media(prefers-reduced-motion:reduce){.lp-tr{animation:none}.lp-tr span+span{display:none}.lp-tk{white-space:normal;padding:8px 12px}}
