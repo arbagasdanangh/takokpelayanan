@@ -753,3 +753,33 @@ Koreksi arah dari v74: QR utama kini dibuat dari **nomor tiket antrean (booking)
 - **Tab "Check-in tamu"** kini diawali kartu **Antrean hari ini**: jumlah antrean, menunggu, di dalam, selesai, **rata-rata lama tunggu** dan **rata-rata lama layanan**, tabel antrean dengan tombol aksi, diperbarui otomatis tiap 20 detik.
 - Backend: stempel waktu `tiba`, `panggil`, `mulai`, `keluar` pada booking (juga terisi bila petugas memakai tombol lama di tab Booking); rute `/admin/cek/antrean` (GET daftar, POST pindai/aksi) dan `/booking/keluar` (pemohon). Tidak ada migrasi data; booking lama tetap berfungsi.
 - Diuji: backend dengan Redis lokal (seluruh urutan status, aksi tidak sah ditolak, nomor salah format/tidak ada), UI Playwright (admin: ketik nomor, pemindai keyboard, kartu hasil; pemohon: tiket dengan QR dan tombol check-out), dan QR di tiket yang tampil di layar **terbaca kembali** oleh OpenCV sebagai nomor antrean yang benar. **Belum diuji**: kamera HP, pemindai fisik, printer, dan Vercel asli. Cache: `fitur.js`, `percantik.js`, `pindai.js` dinaikkan ke `?v=75`, `sw.js` menjadi `takok-v75`.
+
+## Versi 76 - Pemberitahuan antrean (Telegram/WhatsApp) dan perkiraan waktu dipanggil
+- **Dipanggil -> pemohon dikabari.** Saat petugas menekan Panggil (lewat pindai QR, tombol "Panggil berikutnya", atau tab Booking), pemohon yang mengaktifkan Telegram/WhatsApp di kartu "Kabari saya" menerima pesan: "giliran Anda (nomor) sudah dipanggil ke (loket)". Kartu hasil pindai petugas menampilkan status pengiriman (terkirim / gagal / pemohon belum mengaktifkan), sehingga petugas tahu perlu memanggil langsung atau tidak.
+- **"Tinggal N antrean lagi."** Setelah satu antrean dipanggil, pemohon yang sudah check-in dan berada N antrean di belakang (bawaan N = 2, atur 0-5) dikabari sekali agar bersiap. Tidak dikirim berulang (tanda `nt2` pada booking).
+- **Pengaturan (superadmin)**: tab "Pemberitahuan jawaban" kini memiliki kartu "Pemberitahuan antrean": saklar dipanggil, jumlah antrean sebelum giliran, isi pesan (variabel {nama} {tiket} {loket} {situs} {sisa}), nama templat WhatsApp untuk tiap jenis (dipanggil: nama, tiket, loket; hampir: nama, sisa, tiket, loket). Saklar utama pemberitahuan tetap berlaku untuk semuanya.
+- **Privasi dan batasan**: pesan hanya memuat nomor antrean dan nama loket. Pengiriman ganda untuk antrean yang sama dibatasi 1 kali per 2 menit. Kegagalan kirim tidak menggagalkan pemanggilan dan tercatat di log pemberitahuan (kolom jenis `panggil`/`hampir`). Pesan WhatsApp di luar jendela 24 jam butuh templat Meta yang disetujui.
+- **Perkiraan waktu dipanggil** pada tiket antrean pemohon (yang sudah check-in): "sekitar pukul HH:MM (± N menit)", dihitung dari jumlah antrean di depan dikali rata-rata lama layanan loket itu hari ini (dari stempel waktu mulai/selesai); sebelum ada data dipakai 8 menit per antrean dan diberi label "perkiraan awal".
+- Diuji: backend dengan Redis lokal dan pengirim Telegram tiruan (pesan panggil dan "tinggal 2 antrean" sampai ke penerima yang benar; pemohon tanpa saluran ditandai "tanpa"; validasi templat dan jumlah; log), UI Playwright (kartu hasil pindai menampilkan status kirim; tiga varian teks perkiraan). **Belum diuji**: pengiriman ke Telegram/WhatsApp sungguhan (sandbox tanpa internet), perhitungan rata-rata layanan dengan data nyata, dan Vercel asli. Cache dinaikkan ke `?v=76`, `sw.js` menjadi `takok-v76`.
+
+## Versi 77: Layar Antrean Pro
+
+Alamat `/?layar=1` (opsional `&lokasi=ID`) kini menampilkan layar TV yang lebih lengkap:
+
+- Nomor yang sedang dipanggil dibuat besar, dengan kilatan dan bunyi lonceng saat ada panggilan baru; suara bisa diaktifkan (ucapan nomor + loket).
+- Panel per loket: nomor yang sedang dilayani, jumlah menunggu, nomor berikutnya, perkiraan tunggu (jumlah menunggu x rata-rata layanan hari ini; bila belum ada data dipakai 8 menit) dan rata-rata layanan.
+- Jam WIB, tanggal, total menunggu/selesai, tombol layar penuh, pilihan lokasi, dan QR menuju situs untuk membuat janji temu.
+- Pembaruan otomatis tiap 5 detik. Hanya memuat nomor antrean dan nama loket, tanpa nama pemohon.
+- Tampilan lama masih ada di `/?layar=klasik`.
+- Endpoint baru publik `GET /api/layar/ringkas` (dibatasi 120 permintaan/menit per IP).
+- Berkas baru: `layar.js`, `layar.css`.
+
+## Versi 78: Laporan Harian Antrean (admin)
+
+Tab baru **Laporan harian** (grup Layanan harian) untuk superadmin dan admin loket (admin loket hanya melihat loketnya):
+
+- Pilih tanggal (bawaan hari ini): total booking, dilayani, tingkat kehadiran (dilayani dibanding dilayani + tidak hadir), rata-rata tunggu dan layanan, batal.
+- Tabel per loket (total, dilayani, tidak hadir, batal, belum selesai, rata tunggu, rata layanan, tunggu terlama) dan grafik booking per jam dengan jam puncak.
+- Unduh CSV (pemisah titik koma, bisa dibuka di Excel) dan tombol Cetak.
+- Tunggu = check-in sampai mulai dilayani; layanan = mulai sampai check-out; hanya dihitung bila stempel waktunya lengkap.
+- Endpoint: `GET /api/admin/laporan/harian?tanggal=YYYY-MM-DD`. Berkas baru: `laporan.js`, `laporan.css`.
