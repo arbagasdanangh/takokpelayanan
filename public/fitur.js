@@ -190,7 +190,7 @@ function tiketHtml(o, hari) {
   if (aktif) btn += '<button type="button" class="btn" data-ics="' + o.id + '">Tambah ke kalender</button>';
   btn += '<button type="button" class="btn" data-print="1">Cetak / simpan PDF</button>';
   if (o.status === "Dipanggil") info = '<div class="tk-call">Giliran Anda! Silakan menuju loket.</div>';
-  else if (today && aktif && o.depan != null) info = '<div class="tk-depan">Di depan Anda: <b>' + o.depan + '</b> antrean</div>';
+  else if (today && aktif && o.depan != null) info = '<div class="tk-depan">Di depan Anda: <b>' + o.depan + '</b> antrean' + (o.status === "Sudah tiba" && o.est_menit != null ? '<br><small>Perkiraan dipanggil sekitar pukul <b>' + jamWib(Date.now() + o.est_menit * 60000) + '</b> (' + (o.est_menit ? "\u00b1" + o.est_menit + " menit" : "segera") + (o.rata_layan ? ", rata-rata layanan " + o.rata_layan + " mnt" : ", perkiraan awal") + ')</small>' : "") + '</div>';
   return '<article class="tkt tiket' + (aktif ? '' : ' tk-off') + '"><div class="tk-head"><span>TIKET ANTREAN</span><span>' + esc(lokNama(o.lokasi)) + '</span></div><div class="tk-no">' + esc(o.kode) + '</div><div class="tk-loket">' + esc(namaLoket(o)) + '</div>' +
     '<div class="tk-row"><span>Tanggal</span><b>' + esc(d) + '</b></div><div class="tk-row"><span>Jam</span><b>' + esc(o.jam) + ' WIB</b></div><div class="tk-row"><span>Keperluan</span><b>' + esc(o.keperluan) + '</b></div>' +
     '<div class="tk-sep"></div><div class="tk-bc">' + barcode(o.kode) + '</div>' + qrAntrean(o, today) + '<div class="tk-st">' + bkBdg(o.status) + info + '</div><div class="btns noprint">' + btn + '</div></article>';
@@ -309,9 +309,9 @@ async function pnClick(e) {
 
 /* ---------- Admin: tab tambahan ---------- */
 function admSup() { return !(ME && ME.level === "loket"); }
-var TAB_LOKET = ["ring", "hr", "inbox", "pmh", "bk", "an", "skm", "lap", "mon", "bt", "mutu", "ck"];
+var TAB_LOKET = ["ring", "hr", "inbox", "pmh", "bk", "an", "skm", "lap", "mon", "bt", "mutu", "ck", "lh"];
 function admTabs() {
-  $("atabs").innerHTML = [["ring", "Ringkasan"], ["hr", "Hari ini (live)"], ["inbox", "Kotak masuk"], ["pmh", "Permohonan"], ["bk", "Booking"], ["mon", "Monitor"], ["mutu", "Mutu jawaban"], ["an", "Analitik Chat"], ["vs", "Pengunjung"], ["bt", "Berita"], ["skm", "Rekap SKM"], ["kt", "Kata cari chatbot"], ["kam", "Keamanan & biro jasa"], ["lk", "Editor loket"], ["pk", "Asisten Piket"], ["kn", "Kanal WA & Telegram"], ["nt", "Pemberitahuan jawaban"], ["us", "Usulan chatbot"], ["kb", "Data KBLI"], ["iz", "Katalog Perizinan"], ["lap", "Laporan"], ["pem", "Direktori pemohon"], ["log", "Log aktivitas"], ["sh", "Kesehatan sistem"], ["ck", "Check-in tamu"], ["cd", "Cadangan data"], ["ak", "Akun admin"]].filter(function (t) { return admSup() || TAB_LOKET.indexOf(t[0]) > -1; }).map(function (t) {
+  $("atabs").innerHTML = [["ring", "Ringkasan"], ["hr", "Hari ini (live)"], ["inbox", "Kotak masuk"], ["pmh", "Permohonan"], ["bk", "Booking"], ["mon", "Monitor"], ["mutu", "Mutu jawaban"], ["an", "Analitik Chat"], ["vs", "Pengunjung"], ["bt", "Berita"], ["skm", "Rekap SKM"], ["kt", "Kata cari chatbot"], ["kam", "Keamanan & biro jasa"], ["lk", "Editor loket"], ["pk", "Asisten Piket"], ["kn", "Kanal WA & Telegram"], ["nt", "Pemberitahuan jawaban"], ["us", "Usulan chatbot"], ["kb", "Data KBLI"], ["iz", "Katalog Perizinan"], ["lap", "Laporan"], ["pem", "Direktori pemohon"], ["log", "Log aktivitas"], ["sh", "Kesehatan sistem"], ["ck", "Check-in tamu"], ["lh", "Laporan harian"], ["cd", "Cadangan data"], ["ak", "Akun admin"]].filter(function (t) { return admSup() || TAB_LOKET.indexOf(t[0]) > -1; }).map(function (t) {
     return '<button type="button" class="chip" data-at="' + t[0] + '" aria-pressed="' + (t[0] === AT) + '">' + t[1] + '</button>';
   }).join("");
   $("atabs").onclick = function (e) { var b = e.target.closest("[data-at]"); if (b) admTab(b.dataset.at); };
@@ -329,7 +329,7 @@ async function aX(t) {
   var el = $("a-x");
   el.innerHTML = '<div class="empty">Memuat&hellip;</div>';
   try {
-    if (t === "kam") await window.aKam(el); else if (t === "ring") await aRing(el); else if (t === "pmh") await aPmh(el); else if (t === "bk") await aBk(el); else if (t === "bt") { if (window.aRed) await window.aRed(el); else await aBt(el); } else if (t === "mon") await window.aMon(el); else if (t === "skm") await aSkm(el); else if (t === "kt") { await aKt(el); if (window.AN_KT) { var w = window.AN_KT; window.AN_KT = null; ktAdd(w); } } else if (t === "lk") await window.aLk(el); else if (t === "kb") await window.aKb(el); else if (t === "iz") await window.aIz(el); else if (t === "pk") await window.aPk(el); else if (t === "kn") await window.aKn(el); else if (t === "nt") await window.aNtf(el); else if (t === "mutu") await window.aMutu(el); else if (t === "us") await window.aUsul(el); else if (t === "ck") await window.aCek(el); else if (t === "cd") await window.aCad(el); else if (t === "an") await aAn(el); else if (t === "vs") await window.aVs(el); else if (t === "ak") await window.aAk(el); else if (t === "lap") await window.aLap(el); else if (t === "pem") await window.aPem(el); else if (t === "log") await window.aLog(el); else if (t === "sh") await window.aSh(el); else if (t === "hr") await window.aHr(el);
+    if (t === "kam") await window.aKam(el); else if (t === "ring") await aRing(el); else if (t === "pmh") await aPmh(el); else if (t === "bk") await aBk(el); else if (t === "bt") { if (window.aRed) await window.aRed(el); else await aBt(el); } else if (t === "mon") await window.aMon(el); else if (t === "skm") await aSkm(el); else if (t === "kt") { await aKt(el); if (window.AN_KT) { var w = window.AN_KT; window.AN_KT = null; ktAdd(w); } } else if (t === "lk") await window.aLk(el); else if (t === "kb") await window.aKb(el); else if (t === "iz") await window.aIz(el); else if (t === "pk") await window.aPk(el); else if (t === "kn") await window.aKn(el); else if (t === "nt") await window.aNtf(el); else if (t === "mutu") await window.aMutu(el); else if (t === "us") await window.aUsul(el); else if (t === "ck") await window.aCek(el); else if (t === "lh") await window.aLh(el); else if (t === "cd") await window.aCad(el); else if (t === "an") await aAn(el); else if (t === "vs") await window.aVs(el); else if (t === "ak") await window.aAk(el); else if (t === "lap") await window.aLap(el); else if (t === "pem") await window.aPem(el); else if (t === "log") await window.aLog(el); else if (t === "sh") await window.aSh(el); else if (t === "hr") await window.aHr(el);
   } catch (x) { el.innerHTML = '<div class="empty">' + esc(x.message) + '</div>'; }
 }
 function pkOpts() {
@@ -456,7 +456,7 @@ $("v-adm").addEventListener("change", function (e) { if (e.target.id === "bd") a
 /* ---------- Layar antrean (buka dengan /?layar=1) ---------- */
 (function () {
   var qs = new URLSearchParams(location.search);
-  if (!qs.has("layar")) return;
+  if (!qs.has("layar") || qs.get("layar") !== "klasik") return;
   document.querySelector("main").hidden = true;
   var ft = document.querySelector(".foot"); if (ft) ft.hidden = true;
   var sec = document.createElement("section");

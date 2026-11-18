@@ -13,11 +13,12 @@ function stat(a) { return a.keluar ? "Selesai" : a.status; }
 var ov = null, boxEl = null, tmr = 0;
 
 function tutup() { if (ov) { ov.remove(); ov = null; } }
-function tampil(a, pesan, galat) {
+var NT = {ok: "Pemohon sudah dikabari lewat Telegram/WhatsApp.", gagal: "Pemberitahuan ke pemohon gagal terkirim. Panggil langsung di loket.", tanpa: "Pemohon belum mengaktifkan pemberitahuan. Panggil lewat layar antrean.", dibatasi: "Pemberitahuan baru saja dikirim.", nonaktif: ""};
+function tampil(a, pesan, galat, notif) {
   tutup(); ov = document.createElement("div"); ov.className = "an-ov"; ov.setAttribute("role", "dialog"); ov.setAttribute("aria-modal", "true");
   var tl = [["Check-in", a && a.tiba], ["Dipanggil", a && a.panggil], ["Dilayani", a && a.mulai], ["Check-out", a && a.keluar]].filter(function (x) { return x[1]; }).map(function (x) { return "<span>" + x[0] + " <b>" + jam(x[1]) + "</b></span>"; }).join("");
   var tbl = a ? (a.aksi || []).map(function (k, i) { return '<button type="button" class="btn' + (i === 0 ? " send" : "") + '" data-an="' + k + '" data-kode="' + esc2(a.kode) + '">' + AKSI[k] + '</button>'; }).join("") : "";
-  ov.innerHTML = '<div class="an-box"><div class="an-ic ' + (galat ? "x" : "ok") + '">' + (galat ? "!" : "✓") + '</div><p class="an-ps">' + esc2(pesan) + '</p>'
+  ov.innerHTML = '<div class="an-box"><div class="an-ic ' + (galat ? "x" : "ok") + '">' + (galat ? "!" : "✓") + '</div><p class="an-ps">' + esc2(pesan) + '</p>' + (notif && NT[notif] ? '<p class="an-nt an-nt-' + notif + '">' + esc2(NT[notif]) + '</p>' : "")
     + (a ? '<div class="an-no">' + esc2(a.kode) + '</div><p class="an-nm"><b>' + esc2(a.nama) + '</b><br>' + esc2(a.loket) + ' &middot; jam ' + esc2(a.jam) + '</p><p class="an-st" style="background:' + (a.keluar ? "#0f766e" : WARNA[a.status] || "#64748b") + '">' + esc2(stat(a)) + '</p>' + (a.keperluan ? '<p class="sys">' + esc2(a.keperluan) + '</p>' : "")
       + (tl ? '<div class="an-tl">' + tl + '</div>' : "") + (a.mulai && a.keluar ? '<p class="sys">Lama tunggu ' + mnt(a.tiba, a.mulai) + ' &middot; lama layanan ' + mnt(a.mulai, a.keluar) + '</p>' : "")
       + (tbl ? '<div class="an-bt">' + tbl + '</div>' : "") : "") + '<button type="button" class="btn" data-an="tutup">Tutup</button></div>';
@@ -25,7 +26,7 @@ function tampil(a, pesan, galat) {
   var f = ov.querySelector(".send") || ov.querySelector("button"); if (f) f.focus();
 }
 async function scan(kode, aksi) {
-  try { var j = await api("/api/admin/cek/antrean", {kode: kode, aksi: aksi || "auto"}); tampil(j.antrean, j.pesan, false); refresh(); try { navigator.vibrate && navigator.vibrate(60); } catch (e) {} return j; }
+  try { var j = await api("/api/admin/cek/antrean", {kode: kode, aksi: aksi || "auto"}); tampil(j.antrean, j.pesan, false, j.notif); refresh(); try { navigator.vibrate && navigator.vibrate(60); } catch (e) {} return j; }
   catch (x) { tampil(null, x.message || "Gagal memproses antrean.", true); }
 }
 
