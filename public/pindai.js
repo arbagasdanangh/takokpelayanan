@@ -70,7 +70,8 @@ async function pindai() {
       setTimeout(loop, 250);
     };
     loop();
-  } catch (x) { var s = el.querySelector("#pd-s"); if (s) s.textContent = pesanKam(x) + " Atau ketik nomor tiket di bawah."; inp.focus(); }
+  } catch (x) { var s = el.querySelector("#pd-s"); if (s) s.textContent = pesanKam(x) + " Atau ketik nomor tiket di bawah."; inp.focus();
+    if (window.DiagKamera && s) DiagKamera.jalankan(x).then(function (d) { if (s.isConnected) s.innerHTML = "<b>" + esc2(d.judul) + "</b><br>" + d.langkah.map(esc2).join("<br>") + '<br><a href="/cek-kamera.html" target="_blank" rel="noopener">Cek kamera lengkap</a> atau ketik nomor tiket di bawah.'; }).catch(function () {}); }
 }
 document.addEventListener("click", function (e) {
   var b = e.target.closest && e.target.closest("[data-pd]"); if (!b) return;
