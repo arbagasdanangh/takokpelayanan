@@ -8,3 +8,21 @@
 .bkr-nl{font-size:.72rem;font-weight:700;color:#b45309;background:#fef3c7;border-radius:999px;padding:2px 8px;white-space:nowrap}
 .bp-wl{font-size:.78rem}.wl-box{margin:8px 0}
 .bp-cell{display:flex;flex-direction:column;gap:4px}.bp-cell .bp-wl{font-size:.74rem;padding:4px 8px;border-radius:10px;justify-content:center}
+.tg-bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0}
+.tg-bar label{display:flex;gap:4px;align-items:center;margin:0}
+.tg-bar input[type=date]{margin:0;width:auto;max-width:150px;padding:4px 6px}
+.tg-bar .chip[aria-pressed=true]{background:var(--pri,#1d4ed8);color:#fff}
+/* v91 Riwayat Saya */
+.rw-d{font-size:.92rem;margin:14px 0 6px;color:var(--mut,#64748b)}
+.rw-i{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;margin:0 0 6px;border:1px solid var(--bd,#e2e8f0);border-radius:12px;background:var(--card,#fff)}
+.rw-i>div{flex:1;min-width:0}.rw-i b{display:block;overflow-wrap:anywhere}.rw-i small,.rw-i span:not(.rw-ic){display:block;font-size:.82rem;color:var(--mut,#64748b);overflow-wrap:anywhere}
+.rw-ic{font-size:1.2rem}.rw-i em{font-style:normal;font-size:.78rem;font-weight:600;white-space:nowrap}
+.rp-tg{margin:6px 0}
+/* v92 Libur & tutup */
+.lb-f{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px;margin:8px 0}.lb-f label{display:flex;flex-direction:column;gap:4px;font-size:.85rem}
+.lb-i{display:flex;gap:10px;align-items:flex-start;justify-content:space-between;margin:0 0 8px}.lb-i>div{flex:1;min-width:0}.lb-i b{display:block}.lb-i span{display:block;overflow-wrap:anywhere}.lb-w{color:#b45309;font-weight:600;font-size:.84rem;margin-top:4px}
+.lb-ban{border-left:4px solid #d97706;margin:8px 0;padding:8px 12px;border-radius:10px;background:var(--card,#fff);font-size:.86rem}
+.bp-d[disabled]{opacity:.4;text-decoration:line-through;cursor:not-allowed}
+/* v93 Tanya Jawab Publik */
+.qa-i summary{cursor:pointer;list-style:none}.qa-i summary b{display:block;overflow-wrap:anywhere}.qa-i summary small,.qa-s small{display:block;color:var(--mut,#64748b);font-size:.8rem}
+.qa-a{margin-top:8px}.qa-a .chip{margin-top:8px}.qa-ad label{display:flex;flex-direction:column;gap:4px;font-size:.85rem;margin:8px 0}.qa-s{margin:0 0 8px}

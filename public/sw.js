@@ -1,8 +1,8 @@
-/* Service worker Takok (v88). Sengaja sederhana dan aman:
+/* Service worker Takok (v93). Sengaja sederhana dan aman:
    - Tidak pernah mengintersep /api/ atau permintaan lintas-origin, dan tidak menyentuh metode selain GET.
    - Jaringan lebih dulu: pengguna selalu mendapat versi terbaru; cache hanya dipakai bila jaringan gagal (offline).
    - Saat offline dan membuka halaman, tampil cangkang terakhir yang tersimpan atau /offline.html. */
-const V = "takok-v88";
+const V = "takok-v93";
 self.addEventListener("install", function (e) {
   self.skipWaiting();
   e.waitUntil(caches.open(V).then(function (c) { return c.addAll(["/offline.html"]); }).catch(function () {}));

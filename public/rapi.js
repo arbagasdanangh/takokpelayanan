@@ -11,7 +11,7 @@ var KS = "tk_rapi", TAB = "tiket", NT = 6, NC = {}, ST = {star: {}};
 try { var z = JSON.parse(localStorage.getItem(KS) || "{}"); if (z && z.star) ST = z; } catch (e) {}
 try { var t0 = sessionStorage.getItem("tk_rapi_tab"); if (t0) TAB = t0; } catch (e) {}
 function simpan() { try { localStorage.setItem(KS, JSON.stringify(ST)); } catch (e) {} }
-var BO = false, busy = false, tm = 0, OB = null;
+var RTG = window.TKTGL ? TKTGL.baru() : {}, BO = false, busy = false, tm = 0, OB = null;
 
 function rapikan() {
   var host = $("v-my"); if (!host || window.S !== "user") return;
@@ -51,6 +51,19 @@ function tiket(box) {
   if (!tl0) { tl0 = document.createElement("div"); tl0.className = "rp-tools"; var tf = box.querySelector(".tkf"); if (tf) tf.insertAdjacentElement("afterend", tl0); else box.insertBefore(tl0, box.firstChild); }
   if (tl0.dataset.h !== th) { tl0.dataset.h = th; tl0.innerHTML = th; }
   if (BO) urut = urut.filter(function (u) { if (ST.star[u.c.dataset.no]) return true; if (!u.c.hidden) u.c.hidden = true; return false; });
+  var tgb = box.querySelector(".rp-tg");
+  if (window.TKTGL) {
+    if (!tgb) {
+      tgb = document.createElement("div"); tgb.className = "rp-tg"; tgb.innerHTML = TKTGL.bar(RTG, "rp") + '<p class="sys" id="rp-tn"></p>';
+      tl0.insertAdjacentElement("afterend", tgb); TKTGL.pasang(tgb, RTG, function () { NT = 6; rapikan(); });
+    }
+    if (TKTGL.aktif(RTG)) {
+      var tm0 = {}; (window.TKT || []).forEach(function (t) { tm0[t.no] = t.buka; });
+      var tot = urut.length;
+      urut = urut.filter(function (u) { if (TKTGL.ok(RTG, tm0[u.c.dataset.no])) return true; if (!u.c.hidden) u.c.hidden = true; return false; });
+      tgb.querySelector("#rp-tn").textContent = "Menampilkan " + urut.length + " dari " + tot + " tiket (" + TKTGL.ket(RTG) + ")";
+    } else tgb.querySelector("#rp-tn").textContent = "";
+  }
   urut.forEach(function (u, n) {
     var c = u.c;
     if (c.parentNode === box) { var kids = [].slice.call(box.querySelectorAll(".tkcard")); if (kids[n] !== c) { var mo = box.querySelector(".rp-more"); box.insertBefore(c, kids[n] || mo || null); } }
