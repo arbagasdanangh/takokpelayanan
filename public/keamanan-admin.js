@@ -14,15 +14,21 @@ function baris(x) {
     '<div class="btns"><button type="button" class="btn" data-kam="pantau" data-p="' + x.pid + '">Pantau</button><button type="button" class="btn" data-kam="bj" data-p="' + x.pid + '">Tandai biro jasa (blokir booking)</button><button type="button" class="btn" data-kam="bukan" data-p="' + x.pid + '">Bukan biro jasa</button>' + (x.status ? '<button type="button" class="btn" data-kam="" data-p="' + x.pid + '">Hapus tanda</button>' : '') + '</div></div>';
 }
 window.aKam = async function (el) {
-  var j = await api("/api/admin/keamanan"), n = j.n || {}, tot = Object.keys(n).reduce(function (a, k) { return a + n[k]; }, 0);
+  var KTG = window.TKTGL ? TKTGL.baru() : {}, j = await api("/api/admin/keamanan"), n = j.n || {}, tot = Object.keys(n).reduce(function (a, k) { return a + n[k]; }, 0);
   el.innerHTML = '<div class="card"><h3>Keamanan dan pencegahan penyalahgunaan</h3>' +
     '<p class="sys">Aplikasi menyaring teks berpola kode (XSS, SQL/NoSQL/Redis injection, perintah, path traversal) pada pendaftaran, chat, booking, dan permohonan. Jaringan yang 4 kali mencoba dalam 10 menit diblokir 30 menit. Tampilan sudah di-escape, CSP ketat, dan ekspor Excel/CSV aman dari injeksi rumus.</p>' +
     '<div class="hint">' + (tot ? Object.keys(n).map(function (k) { return '<span class="chip">' + esc(k) + ': ' + n[k] + '</span>'; }).join("") : '<span class="sys">Belum ada percobaan serangan tercatat.</span>') + '</div></div>' +
     '<div class="card"><h3>Indikasi biro jasa / calo (' + j.bj.length + ')</h3>' +
     '<p class="sys">Skor dihitung dari pola pemakaian (banyak booking dan permohonan, banyak akun dari jaringan sama, ajakan bayaran atau menyebut jasa berbayar di chat). <b>Ini indikasi untuk ditinjau, bukan putusan.</b> Periksa dulu sebelum menandai; yang ditandai "biro jasa" tidak bisa membuat booking baru dan dapat menghubungi admin bila keliru. Pemohon wajib mencentang pernyataan tidak menerima bayaran saat booking.</p></div>' +
     (j.bj.length ? j.bj.map(baris).join("") : '<div class="empty">Belum ada akun dengan indikasi biro jasa.</div>') +
-    '<div class="card"><h3>Log percobaan serangan (100 terakhir)</h3>' + (j.log.length ? '<div class="kam-t"><table><thead><tr><th>Waktu</th><th>Jenis</th><th>Bagian</th><th>Pemohon</th><th>Jaringan</th><th>Cuplikan</th></tr></thead><tbody>' +
-      j.log.map(function (x) { return '<tr><td>' + esc(tgl(x.t)) + '</td><td>' + esc(x.jenis) + '</td><td>' + esc(x.rute) + '</td><td>' + esc(x.pid || "-") + '</td><td>' + esc(x.ip) + '</td><td>' + esc(x.cup) + '</td></tr>'; }).join("") + '</tbody></table></div>' : '<p class="sys">Kosong.</p>') + '</div>';
+    '<div class="card" id="kam-lg"><h3>Log percobaan serangan (100 terakhir)</h3>' + (j.log.length ? (window.TKTGL ? TKTGL.bar(KTG, "kam") : "") + '<p class="sys" id="kam-n"></p><div id="kam-lb"></div>' : '<p class="sys">Kosong.</p>') + '</div>';
+  function kamGambar() {
+    var lb = el.querySelector("#kam-lb"); if (!lb) return;
+    var D = j.log.filter(function (x) { return !window.TKTGL || TKTGL.ok(KTG, x.t); });
+    el.querySelector("#kam-n").textContent = window.TKTGL && TKTGL.aktif(KTG) ? "Menampilkan " + D.length + " dari " + j.log.length + " (" + TKTGL.ket(KTG) + ")" : "";
+    lb.innerHTML = D.length ? '<div class="kam-t"><table><thead><tr><th>Waktu</th><th>Jenis</th><th>Bagian</th><th>Pemohon</th><th>Jaringan</th><th>Cuplikan</th></tr></thead><tbody>' + D.map(function (x) { return '<tr><td>' + esc(tgl(x.t)) + '</td><td>' + esc(x.jenis) + '</td><td>' + esc(x.rute) + '</td><td>' + esc(x.pid || "-") + '</td><td>' + esc(x.ip) + '</td><td>' + esc(x.cup) + '</td></tr>'; }).join("") + '</tbody></table></div>' : '<p class="sys">Tidak ada log pada rentang tanggal ini.</p>';
+  }
+  if (j.log.length) { if (window.TKTGL) TKTGL.pasang(el.querySelector("#kam-lg"), KTG, kamGambar); kamGambar(); }
   el.onclick = async function (e) {
     var b = e.target.closest("[data-kam]"); if (!b) return;
     var st = b.dataset.kam, cat = "";

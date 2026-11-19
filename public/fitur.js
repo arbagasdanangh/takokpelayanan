@@ -51,7 +51,7 @@ async function panel(p) {
   var el = $("v-pn");
   el.innerHTML = back() + '<div class="empty">Memuat&hellip;</div>';
   try {
-    if (p === "pmh") await pPmh(el); else if (p === "bk") await pBk(el); else if (p === "skm") pSkm(el);
+    if (p === "pmh") await pPmh(el); else if (p === "bk") await pBk(el); else if (p === "skm") pSkm(el); else if (p === "qa" && window.pQa) await window.pQa(el); else if (p === "rw" && window.pRw) await window.pRw(el);
   } catch (x) { el.innerHTML = back() + '<div class="empty">' + esc(x.message) + '</div>'; }
 }
 $("v-pn").addEventListener("click", function (e) {
@@ -86,23 +86,38 @@ function pmhCheck(arr) {
 
 /* ---------- Pemohon: Status Permohonan ---------- */
 async function pPmh(el) {
-  var j = await api("/api/permohonan");
-  el.innerHTML = back() + '<h2 class="sec">Status Permohonan</h2>' + (j.daftar.length ? j.daftar.map(function (o) {
+  var j = await api("/api/permohonan"), PG = window.TKTGL ? TKTGL.baru() : {};
+  function pgGambar() {
+    var D = j.daftar.filter(function (o) { return !window.TKTGL || TKTGL.ok(PG, o.ubah || o.dibuat); }), n = el.querySelector("#pp-n"), l = el.querySelector("#pp-l");
+    if (n) n.textContent = window.TKTGL && TKTGL.aktif(PG) ? "Menampilkan " + D.length + " dari " + j.daftar.length + " permohonan (" + TKTGL.ket(PG) + ")" : j.daftar.length + " permohonan";
+    if (l) l.innerHTML = D.length ? D.map(pgKartu).join("") : '<div class="empty">Tidak ada permohonan pada rentang tanggal ini.</div>';
+  }
+  function pgKartu(o) {
     return '<article class="card" style="margin:0 0 10px"><b>' + esc(o.jenis) + '</b><div class="sys">No. ' + esc(o.nomor || "-") + ' &middot; diperbarui ' + fmt(o.ubah) + '</div><div>' + bdg(o.status) + '</div><ol class="tlx">' +
       o.riwayat.slice().reverse().map(function (r) { return '<li><b>' + esc(r.status) + '</b> <small class="sys">' + fmt(r.waktu) + '</small>' + (r.catatan ? '<br>' + esc(r.catatan) : '') + '</li>'; }).join("") + '</ol></article>';
-  }).join("") : '<div class="empty">Belum ada permohonan yang dicatat. Admin mencatat permohonan Anda setelah diajukan di loket.</div>') +
+  }
+  el.innerHTML = back() + '<h2 class="sec">Status Permohonan</h2>' + (j.daftar.length ? (window.TKTGL ? TKTGL.bar(PG, "pp") : "") + '<p class="sys" id="pp-n"></p><div id="pp-l"></div>' : '<div class="empty">Belum ada permohonan yang dicatat. Admin mencatat permohonan Anda setelah diajukan di loket.</div>') +
     '<p class="sys">Status diperbarui manual oleh petugas PTSP, bukan otomatis dari OSS atau SSW.</p>';
+  if (j.daftar.length) { if (window.TKTGL) TKTGL.pasang(el, PG, pgGambar); pgGambar(); }
 }
 
 /* ---------- Pemohon: Booking Kunjungan (per loket / instansi) ---------- */
 var CART = [], CART_TGL = "", KEP = "", DEK = false, BSEEN = null;
 var BK_WARNA = {"Terjadwal": "#2563eb", "Sudah tiba": "#0d9488", "Dipanggil": "#d97706", "Hadir": "#15803d", "Tidak hadir": "#dc2626", "Batal": "#64748b"};
 function bkBdg(st) { return '<span class="bdg" style="background:' + (BK_WARNA[st] || "#64748b") + '">' + esc(st) + '</span>'; }
+var LIBURG = {}, LIBURL = [];
+function libBan() {
+  var D = LIBURL.filter(function (x) { return x.tgl <= iso(wibDate(14)); });
+  if (!D.length) return "";
+  return '<div class="lb-ban" role="note"><b>Libur / layanan tutup:</b><br>' + D.slice(0, 6).map(function (x) {
+    return esc(new Date(x.tgl + "T12:00:00+07:00").toLocaleDateString("id-ID", {weekday: "short", day: "numeric", month: "short", timeZone: "Asia/Jakarta"})) + " &middot; " + (x.kunci === "*" ? "semua loket" : esc(label(x.kunci))) + " &middot; " + esc(x.ket);
+  }).join("<br>") + (D.length > 6 ? "<br>dan " + (D.length - 6) + " lainnya" : "") + '</div>';
+}
 function tglOpts() {
   var o = "";
   for (var i = 0; i <= 14; i++) {
     var d = wibDate(i);
-    if (d.getDay() >= 1 && d.getDay() <= 5) o += '<option value="' + iso(d) + '">' + d.toLocaleDateString("id-ID", {weekday: "long", day: "numeric", month: "long"}) + '</option>';
+    if (d.getDay() >= 1 && d.getDay() <= 5) o += '<option value="' + iso(d) + '"' + (LIBURG[iso(d)] ? " disabled" : "") + '>' + d.toLocaleDateString("id-ID", {weekday: "long", day: "numeric", month: "long"}) + (LIBURG[iso(d)] ? " (tutup: " + esc(LIBURG[iso(d)]) + ")" : "") + '</option>';
   }
   return o;
 }
@@ -116,8 +131,9 @@ function loketOpts(lok) {
   return out + (pz !== null ? "</optgroup>" : "");
 }
 async function pBk(el) {
-  CART = []; BJ = ""; KEP = "";
-  el.innerHTML = back() + '<h2 class="sec">Booking Kunjungan</h2><p class="sys" style="margin:0 0 8px">Setiap loket atau instansi punya jadwal dan kuota sendiri. Anda bisa menyusun beberapa tujuan dalam satu kunjungan.</p><div class="card"><select class="si" id="bl" aria-label="Lokasi">' +
+  CART = []; BJ = ""; KEP = ""; LIBURG = {}; LIBURL = [];
+  try { LIBURL = (await api("/api/libur")).daftar || []; LIBURL.forEach(function (x) { if (x.kunci === "*") LIBURG[x.tgl] = x.ket; }); } catch (e) {}
+  el.innerHTML = back() + '<h2 class="sec">Booking Kunjungan</h2>' + libBan() + '<p class="sys" style="margin:0 0 8px">Setiap loket atau instansi punya jadwal dan kuota sendiri. Anda bisa menyusun beberapa tujuan dalam satu kunjungan.</p><div class="card"><select class="si" id="bl" aria-label="Lokasi">' +
     LOCS.map(function (l) { return '<option value="' + esc(l.id) + '">' + esc(l.nm) + '</option>'; }).join("") +
     '</select><select class="si" id="bk3" aria-label="Loket atau instansi tujuan"></select><select class="si" id="bt2" aria-label="Tanggal">' + tglOpts() + '</select><div class="hint" id="bj" role="group" aria-label="Jam"></div><p class="sys" id="brek" style="margin:0"></p>' +
     '<button type="button" class="btn" id="badd">+ Tambah ke rencana kunjungan</button></div><div class="card" id="brenc" style="margin-top:10px"></div><h2 class="sec">Booking saya</h2><div id="bsaya"></div>';
@@ -312,9 +328,9 @@ async function pnClick(e) {
 
 /* ---------- Admin: tab tambahan ---------- */
 function admSup() { return !(ME && ME.level === "loket"); }
-var TAB_LOKET = ["ring", "hr", "inbox", "pmh", "bk", "an", "skm", "lap", "mon", "bt", "mutu", "ck", "lh"];
+var TAB_LOKET = ["ring", "hr", "inbox", "pmh", "bk", "an", "skm", "lap", "mon", "bt", "mutu", "ck", "lh", "op", "lb", "qa"];
 function admTabs() {
-  $("atabs").innerHTML = [["ring", "Ringkasan"], ["hr", "Hari ini (live)"], ["inbox", "Kotak masuk"], ["pmh", "Permohonan"], ["bk", "Booking"], ["mon", "Monitor"], ["mutu", "Mutu jawaban"], ["an", "Analitik Chat"], ["vs", "Pengunjung"], ["bt", "Berita"], ["skm", "Rekap SKM"], ["kt", "Kata cari chatbot"], ["kam", "Keamanan & biro jasa"], ["lk", "Editor loket"], ["pk", "Asisten Piket"], ["kn", "Kanal WA & Telegram"], ["nt", "Pemberitahuan jawaban"], ["us", "Usulan chatbot"], ["kb", "Data KBLI"], ["iz", "Katalog Perizinan"], ["lap", "Laporan"], ["pem", "Direktori pemohon"], ["log", "Log aktivitas"], ["sh", "Kesehatan sistem"], ["ck", "Check-in tamu"], ["lh", "Laporan harian"], ["cd", "Cadangan data"], ["ak", "Akun admin"]].filter(function (t) { return admSup() || TAB_LOKET.indexOf(t[0]) > -1; }).map(function (t) {
+  $("atabs").innerHTML = [["ring", "Ringkasan"], ["hr", "Hari ini (live)"], ["inbox", "Kotak masuk"], ["pmh", "Permohonan"], ["bk", "Booking"], ["mon", "Monitor"], ["mutu", "Mutu jawaban"], ["an", "Analitik Chat"], ["vs", "Pengunjung"], ["bt", "Berita"], ["skm", "Rekap SKM"], ["kt", "Kata cari chatbot"], ["kam", "Keamanan & biro jasa"], ["lk", "Editor loket"], ["pk", "Asisten Piket"], ["kn", "Kanal WA & Telegram"], ["nt", "Pemberitahuan jawaban"], ["us", "Usulan chatbot"], ["kb", "Data KBLI"], ["iz", "Katalog Perizinan"], ["lap", "Laporan"], ["pem", "Direktori pemohon"], ["log", "Log aktivitas"], ["sh", "Kesehatan sistem"], ["ck", "Check-in tamu"], ["lh", "Laporan harian"], ["op", "Operasional"], ["lb", "Libur & tutup"], ["qa", "Tanya jawab publik"], ["cd", "Cadangan data"], ["ak", "Akun admin"]].filter(function (t) { return admSup() || TAB_LOKET.indexOf(t[0]) > -1; }).map(function (t) {
     return '<button type="button" class="chip" data-at="' + t[0] + '" aria-pressed="' + (t[0] === AT) + '">' + t[1] + '</button>';
   }).join("");
   $("atabs").onclick = function (e) { var b = e.target.closest("[data-at]"); if (b) admTab(b.dataset.at); };
@@ -332,7 +348,7 @@ async function aX(t) {
   var el = $("a-x");
   el.innerHTML = '<div class="empty">Memuat&hellip;</div>';
   try {
-    if (t === "kam") await window.aKam(el); else if (t === "ring") await aRing(el); else if (t === "pmh") await aPmh(el); else if (t === "bk") await aBk(el); else if (t === "bt") { if (window.aRed) await window.aRed(el); else await aBt(el); } else if (t === "mon") await window.aMon(el); else if (t === "skm") await aSkm(el); else if (t === "kt") { await aKt(el); if (window.AN_KT) { var w = window.AN_KT; window.AN_KT = null; ktAdd(w); } } else if (t === "lk") await window.aLk(el); else if (t === "kb") await window.aKb(el); else if (t === "iz") await window.aIz(el); else if (t === "pk") await window.aPk(el); else if (t === "kn") await window.aKn(el); else if (t === "nt") await window.aNtf(el); else if (t === "mutu") await window.aMutu(el); else if (t === "us") await window.aUsul(el); else if (t === "ck") await window.aCek(el); else if (t === "lh") await window.aLh(el); else if (t === "cd") await window.aCad(el); else if (t === "an") await aAn(el); else if (t === "vs") await window.aVs(el); else if (t === "ak") await window.aAk(el); else if (t === "lap") await window.aLap(el); else if (t === "pem") await window.aPem(el); else if (t === "log") await window.aLog(el); else if (t === "sh") await window.aSh(el); else if (t === "hr") await window.aHr(el);
+    if (t === "qa") await window.aQa(el); else if (t === "lb") await window.aLb(el); else if (t === "kam") await window.aKam(el); else if (t === "ring") await aRing(el); else if (t === "pmh") await aPmh(el); else if (t === "bk") await aBk(el); else if (t === "bt") { if (window.aRed) await window.aRed(el); else await aBt(el); } else if (t === "mon") await window.aMon(el); else if (t === "skm") await aSkm(el); else if (t === "kt") { await aKt(el); if (window.AN_KT) { var w = window.AN_KT; window.AN_KT = null; ktAdd(w); } } else if (t === "lk") await window.aLk(el); else if (t === "kb") await window.aKb(el); else if (t === "iz") await window.aIz(el); else if (t === "pk") await window.aPk(el); else if (t === "kn") await window.aKn(el); else if (t === "nt") await window.aNtf(el); else if (t === "mutu") await window.aMutu(el); else if (t === "us") await window.aUsul(el); else if (t === "ck") await window.aCek(el); else if (t === "lh") await window.aLh(el); else if (t === "op") await window.aOp(el); else if (t === "cd") await window.aCad(el); else if (t === "an") await aAn(el); else if (t === "vs") await window.aVs(el); else if (t === "ak") await window.aAk(el); else if (t === "lap") await window.aLap(el); else if (t === "pem") await window.aPem(el); else if (t === "log") await window.aLog(el); else if (t === "sh") await window.aSh(el); else if (t === "hr") await window.aHr(el);
   } catch (x) { el.innerHTML = '<div class="empty">' + esc(x.message) + '</div>'; }
 }
 function pkOpts() {
@@ -345,13 +361,21 @@ function pkOpts() {
   });
   return (admSup() ? '<option value="">(Tanpa loket tertentu)</option>' : "") + L.join("");
 }
+var PMH_TG = null;
 async function aPmh(el) {
-  var j = await api("/api/admin/permohonan"), opt = function (s) { return j.status.map(function (x) { return '<option' + (x === s ? ' selected' : '') + '>' + x + '</option>'; }).join(""); };
+  var TG = PMH_TG || (PMH_TG = window.TKTGL ? TKTGL.baru() : {}), j = await api("/api/admin/permohonan"), opt = function (s) { return j.status.map(function (x) { return '<option' + (x === s ? ' selected' : '') + '>' + x + '</option>'; }).join(""); };
   el.innerHTML = '<h2 class="sec">Catat permohonan pemohon</h2><div class="card"><input class="si" id="ph" placeholder="Nomor HP pemohon (terdaftar di aplikasi)" inputmode="tel" maxlength="16"><select class="si" id="pk" aria-label="Loket yang menangani">' + pkOpts() + '</select><input class="si" id="pj" placeholder="Jenis permohonan (mis. Pengajuan NIB)" maxlength="100"><input class="si" id="pn2" placeholder="Nomor permohonan / registrasi (opsional)" maxlength="40"><select class="si" id="ps">' + opt("Diterima") + '</select><input class="si" id="pc" placeholder="Catatan untuk pemohon (opsional)" maxlength="200"><button type="button" class="send" id="pbaru">Catat</button></div>' +
-    '<h2 class="sec">Permohonan terbaru</h2>' + (j.daftar.length ? j.daftar.map(function (o) {
+    '<h2 class="sec">Permohonan terbaru</h2>' + (window.TKTGL ? TKTGL.bar(TG, "pmh") : "") + '<p class="sys" id="pmh-n"></p><div id="pmh-l"></div>';
+  function gambar() {
+    var D = j.daftar.filter(function (o) { return !window.TKTGL || TKTGL.ok(TG, o.dibuat || o.ubah); });
+    var n = el.querySelector("#pmh-n"); if (n) n.textContent = "Menampilkan " + D.length + " dari " + j.daftar.length + " permohonan (" + (window.TKTGL ? TKTGL.ket(TG) : "semua tanggal") + ").";
+    el.querySelector("#pmh-l").innerHTML = D.length ? D.map(function (o) {
       return '<article class="card" style="margin:0 0 8px"><b>' + esc(o.jenis) + '</b><div class="sys">' + esc(o.nama) + ' &middot; ' + esc(o.hp) + ' &middot; No. ' + esc(o.nomor || "-") + (o.loket ? ' &middot; ' + esc(o.loket) : '') + '</div><div>' + bdg(o.status) + '</div>' +
         '<select class="si" data-ps="' + o.id + '">' + opt(o.status) + '</select><input class="si" data-pc="' + o.id + '" placeholder="Catatan perubahan" maxlength="200"><div class="btns"><button type="button" class="send" data-pu="' + o.id + '">Perbarui</button><button type="button" class="btn" data-pd="' + o.id + '">Hapus</button></div></article>';
-    }).join("") : '<div class="empty">Belum ada permohonan.</div>');
+    }).join("") : '<div class="empty">' + (j.daftar.length ? "Tidak ada permohonan pada tanggal ini." : "Belum ada permohonan.") + '</div>';
+  }
+  if (window.TKTGL) TKTGL.pasang(el, TG, gambar);
+  gambar();
 }
 async function aRing(el) {
   var j = await api("/api/admin/ringkasan"), mx = Math.max.apply(null, j.booking_7hari.map(function (x) { return x.n; }).concat([1])), bs = j.booking_hari_ini.status;

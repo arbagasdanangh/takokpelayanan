@@ -58,10 +58,13 @@ window.ajariBot = async function (sel) {
 };
 
 /* ---------- Superadmin: usulan chatbot ---------- */
+var UTG = window.TKTGL ? TKTGL.baru() : {};
 window.aUsul = async function (el) {
-  var j = await api("/api/admin/usulan/daftar", {});
+  var j = await api("/api/admin/usulan/daftar", {}), UD = j.daftar.filter(function (u) { return !window.TKTGL || TKTGL.ok(UTG, u.waktu); });
   el.innerHTML = '<h2 class="sec">Usulan jawaban chatbot</h2><p class="sys">Usulan dari admin loket yang diambil dari percakapan nyata. Periksa, ubah bila perlu, lalu terima agar chatbot ikut menjawabnya.</p>' +
-    (j.daftar.length ? j.daftar.map(function (u) { return '<div class="card mu-u" data-id="' + u.id + '"><small class="sys">' + esc2(u.oleh) + ' · ' + tgl(u.waktu) + (u.tl ? " · " + esc2(u.tl) : "") + '</small><label>Kata kunci<input class="mu-k" value="' + esc2(u.k.join(", ")) + '"></label><label>Jawaban<textarea class="mu-j" rows="4" maxlength="1500">' + esc2(u.j) + '</textarea></label><div class="btns"><button type="button" class="send" data-ua="terima">Terima</button><button type="button" class="btn" data-ua="tolak">Tolak</button></div></div>'; }).join("") : '<div class="empty">Tidak ada usulan baru.</div>');
+    (j.daftar.length && window.TKTGL ? TKTGL.bar(UTG, "us") + '<p class="sys">' + (TKTGL.aktif(UTG) ? "Menampilkan " + UD.length + " dari " + j.daftar.length + " usulan (" + TKTGL.ket(UTG) + ")" : j.daftar.length + " usulan") + '</p>' : "") +
+    (UD.length ? UD.map(function (u) { return '<div class="card mu-u" data-id="' + u.id + '"><small class="sys">' + esc2(u.oleh) + ' · ' + tgl(u.waktu) + (u.tl ? " · " + esc2(u.tl) : "") + '</small><label>Kata kunci<input class="mu-k" value="' + esc2(u.k.join(", ")) + '"></label><label>Jawaban<textarea class="mu-j" rows="4" maxlength="1500">' + esc2(u.j) + '</textarea></label><div class="btns"><button type="button" class="send" data-ua="terima">Terima</button><button type="button" class="btn" data-ua="tolak">Tolak</button></div></div>'; }).join("") : '<div class="empty">' + (j.daftar.length ? "Tidak ada usulan pada rentang tanggal ini." : "Tidak ada usulan baru.") + '</div>');
+  if (window.TKTGL) TKTGL.pasang(el, UTG, function () { window.aUsul(el); });
   var ms = []; try { ms = (await api("/api/admin/miss")).daftar.slice(0, 10); } catch (e) {}
   if (ms.length) {
     var bx = document.createElement("div"); bx.className = "card"; bx.innerHTML = '<b>Pertanyaan yang belum terjawab chatbot</b><p class="sys">Paling sering ditanyakan warga tetapi tidak ada aturannya. Tekan untuk membuat jawabannya.</p><div class="mu-q">' + ms.map(function (m, i) { return '<div><b>' + esc2(m.q) + '</b><span>' + m.n + ' kali</span><button type="button" class="btn" data-mq="' + i + '" style="grid-row:1/3;grid-column:2;align-self:center">Buat jawaban</button></div>'; }).join("") + '</div>';

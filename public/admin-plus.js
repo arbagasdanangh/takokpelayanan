@@ -49,8 +49,9 @@ window.aLap = async function (el) {
 
 /* ---------- Direktori pemohon ---------- */
 var PEM = [], PQ = "", PN = 40;
+var PTG = window.TKTGL ? TKTGL.baru() : {};
 function pemDraw(el) {
-  var q = PQ.toLowerCase(), d = PEM.filter(function (x) { return !q || (x.nama + " " + x.hp + " " + x.email).toLowerCase().indexOf(q) > -1; }), box = el.querySelector("#pem-l");
+  var q = PQ.toLowerCase(), d = PEM.filter(function (x) { return (!q || (x.nama + " " + x.hp + " " + x.email).toLowerCase().indexOf(q) > -1) && (!window.TKTGL || TKTGL.ok(PTG, x.dibuat)); }), box = el.querySelector("#pem-l");
   el.querySelector("#pem-n").textContent = d.length + " dari " + PEM.length + " pemohon";
   box.innerHTML = d.slice(0, PN).map(function (x) {
     var wa = x.hp ? "https://wa.me/62" + String(x.hp).slice(1) : "";
@@ -62,10 +63,11 @@ function pemDraw(el) {
 window.aPem = async function (el) {
   var j = await api("/api/admin/pemohon"); PEM = j.daftar; PQ = ""; PN = 40;
   el.innerHTML = '<h2 class="sec">Direktori pemohon</h2><p class="sys">Pemohon yang terdaftar di aplikasi. Data pribadi: pakai hanya untuk keperluan layanan. PIN tidak pernah ditampilkan.</p>' +
-    '<div class="hint"><input class="si" id="pem-q" type="search" placeholder="Cari nama, nomor HP, atau email..." maxlength="60" style="flex:1;margin:0"><button type="button" class="btn" id="pem-x">Unduh CSV</button></div><p class="sys" id="pem-n"></p><div id="pem-l"></div>';
+    '<div class="hint"><input class="si" id="pem-q" type="search" placeholder="Cari nama, nomor HP, atau email..." maxlength="60" style="flex:1;margin:0"><button type="button" class="btn" id="pem-x">Unduh CSV</button></div>' + (window.TKTGL ? TKTGL.bar(PTG, "pem") : "") + '<p class="sys" id="pem-n"></p><div id="pem-l"></div>';
   $a("pem-q").oninput = function () { PQ = this.value; PN = 40; pemDraw(el); };
-  $a("pem-x").onclick = function () { unduh("pemohon-takok.csv", [["ID", "Nama", "HP", "Email", "Terdaftar"]].concat(PEM.map(function (x) { return [x.id, x.nama, x.hp, x.email, tgl(x.dibuat)]; }))); };
+  $a("pem-x").onclick = function () { unduh("pemohon-takok.csv", [["ID", "Nama", "HP", "Email", "Terdaftar"]].concat(PEM.filter(function (x) { return !window.TKTGL || TKTGL.ok(PTG, x.dibuat); }).map(function (x) { return [x.id, x.nama, x.hp, x.email, tgl(x.dibuat)]; }))); };
   el.querySelector("#pem-l").onclick = function (e) { var b = e.target.closest("[data-pc]"); if (b) { try { navigator.clipboard.writeText(b.dataset.pc).then(function () { toast("Nomor disalin."); }); } catch (x) {} } };
+  if (window.TKTGL) TKTGL.pasang(el, PTG, function () { PN = 40; pemDraw(el); });
   pemDraw(el);
 };
 
@@ -73,17 +75,18 @@ window.aPem = async function (el) {
 var LABEL = {"pengaturan": "Mengubah pengaturan", "password": "Mengganti kata sandi", "balas": "Membalas pemohon", "selesai": "Menandai selesai", "hapus": "Menghapus percakapan", "catatan": "Menyimpan catatan", "templat": "Menyimpan templat jawaban",
   "akun/simpan": "Menyimpan akun admin", "akun/hapus": "Menghapus akun admin", "loket/simpan": "Menyimpan loket", "loket/massal": "Impor/ubah loket massal", "loket/reset": "Mengatur ulang loket", "loket/hapus": "Menghapus loket", "lokasi/simpan": "Menyimpan lokasi", "lokasi/hapus": "Menghapus lokasi", "lokasi/urutan": "Mengubah urutan lokasi",
   "kata": "Menyimpan aturan Kata cari", "kata/impor": "Impor aturan Kata cari", "kbli/impor": "Impor data KBLI", "kbli/hapus": "Menghapus data KBLI", "izin/simpan": "Menyimpan Katalog Perizinan", "berita": "Menyimpan berita", "berita/hapus": "Menghapus berita", "bj/tandai": "Menandai pemohon (keamanan)", "permohonan": "Mencatat permohonan", "permohonan/ubah": "Memperbarui permohonan", "permohonan/hapus": "Menghapus permohonan", "booking/ubah": "Mengubah booking"};
-var LOGF = "";
+var LOGF = "", LTG = window.TKTGL ? TKTGL.baru() : {};
 window.aLog = async function (el) {
   var j = await api("/api/admin/audit"), D = j.daftar;
   var us = {}; D.forEach(function (x) { us[x.u] = 1; });
   el.innerHTML = '<h2 class="sec">Log aktivitas admin</h2><p class="sys">Mencatat 300 aksi terakhir (siapa, apa, kapan). Isi pesan dan data pribadi tidak dicatat.</p>' +
     '<div class="hint"><select class="si" id="log-u" aria-label="Saring pengguna" style="margin:0;width:auto"><option value="">Semua pengguna</option>' + Object.keys(us).map(function (u) { return '<option value="' + E(u) + '"' + (u === LOGF ? " selected" : "") + '>' + E(u) + '</option>'; }).join("") + '</select><button type="button" class="btn" id="log-x">Unduh CSV</button></div><div id="log-l"></div>';
   function gambar() {
-    var d = D.filter(function (x) { return !LOGF || x.u === LOGF; });
+    var d = D.filter(function (x) { return (!LOGF || x.u === LOGF) && (!window.TKTGL || TKTGL.ok(LTG, x.t)); });
     $a("log-l").innerHTML = d.length ? '<div style="overflow-x:auto"><table class="tb"><tr><th>Waktu</th><th>Pengguna</th><th>Aksi</th><th>Sasaran</th></tr>' + d.map(function (x) { return '<tr><td>' + E(tgl(x.t)) + '</td><td>' + E(x.nm || x.u) + ' <small class="sys">@' + E(x.u) + '</small></td><td>' + E(LABEL[x.r] || x.r) + '</td><td><small>' + E(x.x || "") + '</small></td></tr>'; }).join("") + '</table></div>' : '<div class="empty">Belum ada aktivitas tercatat.</div>';
   }
   $a("log-u").onchange = function () { LOGF = this.value; gambar(); };
+  if (window.TKTGL) { var lb = document.createElement("div"); lb.innerHTML = TKTGL.bar(LTG, "log"); $a("log-u").parentNode.parentNode.insertBefore(lb, $a("log-u").parentNode.nextSibling); TKTGL.pasang(lb, LTG, gambar); }
   $a("log-x").onclick = function () { unduh("log-aktivitas.csv", [["Waktu", "Pengguna", "Nama", "Aksi", "Rute", "Sasaran"]].concat(D.map(function (x) { return [tgl(x.t), x.u, x.nm, LABEL[x.r] || x.r, x.r, x.x]; }))); };
   gambar();
 };

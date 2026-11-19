@@ -24,50 +24,6 @@
         ((j.komentar || []).length ? '<h3 class="dh">Komentar pengunjung</h3><div class="card"><ul class="bul" style="margin:0">' + j.komentar.map(function (k) { return '<li><b>' + "\u2605".repeat(k.nilai) + "\u2606".repeat(5 - k.nilai) + '</b> ' + e(k.teks) + ' <small class="sys">' + e(k.kode) + ' &middot; ' + e(k.loket) + '</small></li>'; }).join("") + '</ul></div>' : '') + '<h3 class="dh">Booking per jam' + (puncak ? ' (puncak ' + e(puncak.jam) + ', ' + puncak.n + ' booking)' : '') + '</h3><div class="card"><div class="lh-bar" role="img" aria-label="Grafik booking per jam">' +
         j.jam.map(function (x) { return '<div><b>' + x.n + '</b><i style="height:' + Math.round(x.n / mx * 85) + '%"></i><span>' + e(x.jam) + '</span></div>'; }).join("") + '</div></div>'
         : '<div class="empty">Tidak ada booking pada tanggal ini.</div>');
-    var pg = document.createElement("div"); pg.className = "card noprint"; pg.id = "lh-ing"; el.insertBefore(pg, el.querySelector(".kpis"));
-    function ing() {
-      api("/api/admin/pengingat").then(function (r) {
-        var tgl = new Date(r.tanggal + "T00:00:00").toLocaleDateString("id-ID", {weekday: "long", day: "numeric", month: "long"});
-        pg.innerHTML = '<b>Pengingat janji temu besok (' + e(tgl) + ')</b><p class="sys" style="margin:4px 0 8px">' + r.total + ' booking terjadwal: <b>' + r.bisa + '</b> siap diingatkan, ' + r.sudah + ' sudah diingatkan, ' + r.tanpa + ' belum mengaktifkan Telegram/WhatsApp. Pesan hanya memuat jam, loket, dan kode.</p><button type="button" class="btn" id="lh-ik"' + (r.bisa ? "" : " disabled") + '>Kirim pengingat (' + r.bisa + ')</button>';
-        pg.querySelector("#lh-ik").onclick = function () {
-          var b = this; if (!confirm("Kirim pengingat ke " + r.bisa + " pemohon?")) return; b.disabled = true;
-          api("/api/admin/pengingat", {}).then(function (h) { toast("Terkirim " + h.ok + ", gagal " + h.gagal + ", dilewati " + h.lewat); ing(); }).catch(function (x) { toast(x.message); ing(); });
-        };
-      }).catch(function () { pg.remove(); });
-    }
-    var rp = document.createElement("div"); rp.className = "card noprint"; rp.id = "lh-rp"; el.insertBefore(rp, el.querySelector(".kpis"));
-    function rpk() {
-      var tol = (rp.querySelector("#lh-tol") || {}).value || 30;
-      api("/api/admin/antrean/rapikan?tol=" + encodeURIComponent(tol)).then(function (r) {
-        rp.innerHTML = '<b>Rapikan antrean hari ini</b><p class="sys" style="margin:4px 0 8px">Tandai "Tidak hadir" untuk booking yang belum check-in dan jamnya sudah lewat lebih dari <select id="lh-tol" aria-label="Toleransi menit">' + [15, 30, 45, 60, 90].map(function (m) { return '<option value="' + m + '"' + (m === r.tol ? " selected" : "") + ">" + m + "</option>"; }).join("") + '</select> menit. Ada <b>' + r.jumlah + '</b> booking' + (r.contoh.length ? " (mis. " + r.contoh.map(function (c) { return e(c.kode) + " jam " + e(c.jam); }).join(", ") + ")" : "") + '.</p><button type="button" class="btn" id="lh-rk"' + (r.jumlah ? "" : " disabled") + '>Tandai tidak hadir (' + r.jumlah + ')</button>';
-        rp.querySelector("#lh-tol").onchange = rpk;
-        rp.querySelector("#lh-rk").onclick = function () {
-          if (!confirm("Tandai " + r.jumlah + " booking sebagai Tidak hadir?")) return; this.disabled = true;
-          api("/api/admin/antrean/rapikan", {tol: r.tol}).then(function (h) { toast(h.ditandai + " booking ditandai tidak hadir"); window.aLh(el, j.tanggal).catch(function () {}); }).catch(function (x) { toast(x.message); rpk(); });
-        };
-      }).catch(function () { rp.remove(); });
-    }
-    rpk();
-    var sr = document.createElement("div"); sr.className = "card noprint"; sr.id = "lh-sr"; el.insertBefore(sr, el.querySelector(".kpis"));
-    function srn(hari, teks) {
-      api("/api/admin/siaran?hari=" + (hari || "ini")).then(function (r) {
-        sr.innerHTML = '<b>Siaran ke pemohon</b><p class="sys" style="margin:4px 0 8px">Kirim info singkat (mis. loket tutup lebih awal) ke pemohon yang punya booking aktif <select id="lh-sh" aria-label="Hari">' + [["ini", "hari ini"], ["besok", "besok"]].map(function (x) { return '<option value="' + x[0] + '"' + (x[0] === r.hari ? " selected" : "") + ">" + x[1] + "</option>"; }).join("") + '</select>. ' + r.pemohon + ' pemohon: <b>' + r.bisa + '</b> bisa dikirimi (Telegram/WhatsApp aktif), ' + r.tanpa + ' tidak.</p>' +
-          '<textarea id="lh-st" class="si" maxlength="200" rows="2" style="width:100%" placeholder="Contoh: Loket tutup pukul 14.00 karena rapat. Mohon datang sebelum jam itu." aria-label="Isi siaran">' + e(teks || "") + '</textarea><div class="sys" id="lh-sc" style="text-align:right">0/200</div>' +
-          '<button type="button" class="btn" id="lh-sk"' + (r.bisa ? "" : " disabled") + '>Kirim siaran (' + r.bisa + ')</button>' +
-          ((r.log || []).length ? '<details style="margin-top:8px"><summary class="sys">Siaran terakhir</summary><ul class="bul" style="margin:6px 0 0">' + r.log.map(function (l) { return "<li>" + e(new Date(l.t).toLocaleString("id-ID", {day: "numeric", month: "short", hour: "2-digit", minute: "2-digit"})) + " &middot; " + e(l.u) + " &middot; terkirim " + l.ok + ", gagal " + l.gagal + "<br><small class=\"sys\">" + e(l.pesan) + "</small></li>"; }).join("") + "</ul></details>" : "");
-        var ta = sr.querySelector("#lh-st"), sc = sr.querySelector("#lh-sc");
-        function cnt() { sc.textContent = ta.value.length + "/200"; }
-        ta.oninput = cnt; cnt();
-        sr.querySelector("#lh-sh").onchange = function () { srn(this.value, ta.value); };
-        sr.querySelector("#lh-sk").onclick = function () {
-          var b = this, v = ta.value.trim(); if (v.length < 10) { toast("Pesan minimal 10 huruf."); return; }
-          if (!confirm("Kirim siaran ini ke " + r.bisa + " pemohon?\n\n" + v)) return; b.disabled = true;
-          api("/api/admin/siaran", {hari: sr.querySelector("#lh-sh").value, pesan: v}).then(function (h) { toast("Siaran terkirim " + h.ok + ", gagal " + h.gagal); srn(r.hari, ""); }).catch(function (x) { toast(x.message); b.disabled = false; });
-        };
-      }).catch(function () { sr.remove(); });
-    }
-    srn("ini");
-    ing();
     el.querySelector("#lh-d").onchange = function () { if (this.value) window.aLh(el, this.value).catch(function (x) { toast(x.message); }); };
     el.querySelector("#lh-r").onclick = function () { if (window.aLr) window.aLr(el); };
     el.querySelector("#lh-p").onclick = function () { window.print(); };

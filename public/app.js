@@ -155,16 +155,16 @@ $("th").onclick=function(){var r=document.documentElement,dk=r.getAttribute("dat
 $("lc").onclick=function(e){var b=e.target.closest("[data-l]");if(!b)return;LOC=b.dataset.l;ZN="Semua";qv="";$("q").value="";lc();render()};
 $("nb").onclick=function(){try{Notification.requestPermission().then(function(){ui()})}catch(x){err("Browser tidak mengizinkan notifikasi di halaman ini.")}};
 /* ---- Pemohon ---- */
-var MYF="all";
+var MYF="all",MYTG=window.TKTGL?TKTGL.baru():{};
 function myList(){var el=$("v-my");var by=lastBy(),ks=Object.keys(by).sort(function(a,b){return by[b].ts-by[a].ts});
  var nb=ks.filter(function(k){return by[k].by==="admin"}).length,nw=ks.length-nb;
- var fh=ks.length?'<div class="hint" id="myf" role="group" aria-label="Saring percakapan">'+[["all","Semua ("+ks.length+")"],["rep","Ada balasan ("+nb+")"],["wait","Menunggu ("+nw+")"]].map(function(x){return '<button type="button" class="chip" data-myf="'+x[0]+'" aria-pressed="'+(MYF===x[0])+'">'+x[1]+'</button>'}).join("")+'</div><input class="si" id="mys" type="search" placeholder="Cari percakapan atau nomor tiket" aria-label="Cari percakapan" autocomplete="off">':"";
+ var fh=ks.length?'<div class="hint" id="myf" role="group" aria-label="Saring percakapan">'+[["all","Semua ("+ks.length+")"],["rep","Ada balasan ("+nb+")"],["wait","Menunggu ("+nw+")"]].map(function(x){return '<button type="button" class="chip" data-myf="'+x[0]+'" aria-pressed="'+(MYF===x[0])+'">'+x[1]+'</button>'}).join("")+'</div>'+(window.TKTGL?TKTGL.bar(MYTG,"my"):"")+'<input class="si" id="mys" type="search" placeholder="Cari percakapan atau nomor tiket" aria-label="Cari percakapan" autocomplete="off">':"";
  el.innerHTML='<h3 style="margin:16px 0 8px;font-size:1rem">Percakapan saya</h3>'+fh+(ks.length?'<div id="ml"></div>':'<div class="empty">Anda belum memulai percakapan. Buka sebuah loket lalu tulis pertanyaan Anda.</div>');
  var q=($("mys")||{}).value||"";
  function draw(){var ml=$("ml");if(!ml)return;ml.innerHTML="";q=($("mys")||{}).value||"";q=q.toLowerCase();
   var sec=[["rep","Perlu Anda lihat","Ada balasan baru dari pegawai atau Asisten Piket"],["wait","Menunggu balasan","Pertanyaan sudah terkirim"]];
   sec.forEach(function(sc){if(MYF!=="all"&&MYF!==sc[0])return;
-   var list=ks.filter(function(k){return (by[k].by==="admin")===(sc[0]==="rep")}).filter(function(k){return !q||(label(k)+" "+by[k].text+" "+(by[k].tk||"")).toLowerCase().indexOf(q)>-1});
+   var list=ks.filter(function(k){return (by[k].by==="admin")===(sc[0]==="rep")}).filter(function(k){return !window.TKTGL||TKTGL.ok(MYTG,by[k].ts)}).filter(function(k){return !q||(label(k)+" "+by[k].text+" "+(by[k].tk||"")).toLowerCase().indexOf(q)>-1});
    if(!list.length)return;
    var h=document.createElement("div");h.className="mysec";h.innerHTML='<b>'+sc[1]+' <i>'+list.length+'</i></b><small>'+sc[2]+'</small>';ml.appendChild(h);
    var box=document.createElement("div");box.className="tl";ml.appendChild(box);
@@ -172,7 +172,7 @@ function myList(){var el=$("v-my");var by=lastBy(),ks=Object.keys(by).sort(funct
     var em=document.createElement("em");em.textContent=m.by==="admin"?(m.bot?"Jawaban otomatis":"Ada balasan"):waitTxt(Date.now()-m.ts);b.appendChild(em);if(m.tk){var t2=document.createElement("small");t2.textContent=m.tk;b.appendChild(t2)}
     b.onclick=function(){openKey(k)};box.appendChild(b)});});
   if(!ml.children.length)ml.innerHTML='<div class="empty">Tidak ada percakapan yang cocok.</div>'}
- draw();var mi=$("mys");if(mi)mi.oninput=draw;var mf=$("myf");if(mf)mf.onclick=function(e){var b=e.target.closest("[data-myf]");if(!b)return;MYF=b.dataset.myf;[].forEach.call(mf.children,function(c){c.setAttribute("aria-pressed",c===b)});draw()};title()}
+ draw();if(window.TKTGL)TKTGL.pasang(el,MYTG,draw);var mi=$("mys");if(mi)mi.oninput=draw;var mf=$("myf");if(mf)mf.onclick=function(e){var b=e.target.closest("[data-myf]");if(!b)return;MYF=b.dataset.myf;[].forEach.call(mf.children,function(c){c.setAttribute("aria-pressed",c===b)});draw()};title()}
 $("list").addEventListener("click",async function(e){err("");
  var qq=e.target.closest("[data-qq]");if(qq){var t0=qq.closest(".qa").querySelector("textarea");t0.value=qq.dataset.qq;t0.focus();t0.dispatchEvent(new Event("input",{bubbles:true}));return}
  var eb=e.target.closest('[data-act="esc"]');
@@ -203,6 +203,7 @@ function admOk(x,hari){
  if(AF.loc!=="all"&&x.kunci.indexOf(AF.loc+"_")!==0)return false;
  if(AF.tp&&(x.meta.topik||[]).indexOf(AF.tp)<0)return false;
  if(AF.sn!==""&&String(x.meta.senti)!==AF.sn)return false;
+ if(window.TKTGL&&AF.tg&&!TKTGL.ok(AF.tg,x.lu))return false;
  if(AF.q&&(x.nama+" "+x.hp+" "+x.email+" "+((x.tag&&x.tag.pic)||"")+" "+(x.tk||"")).toLowerCase().indexOf(AF.q)<0)return false;
  return true}
 function admList(){var el=$("al");if(!el||S!=="adm")return;title();var all=T,now=Date.now(),hari=iso(wibDate(0));

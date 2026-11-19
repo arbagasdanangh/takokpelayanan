@@ -60,7 +60,7 @@ if (document.readyState === "loading") document.addEventListener("DOMContentLoad
 
 /* ---------- Superadmin ---------- */
 window.aNtf = async function (el) {
-  var j = await api("/api/admin/notif", {}), c = j.cfg;
+  var j = await api("/api/admin/notif", {}), c = j.cfg, NTG = window.TKTGL ? TKTGL.baru() : {};
   var siap = function (ok, t) { return '<span class="stp ' + (ok ? "st-ok" : "st-w") + '">' + (ok ? "Siap" : "Belum") + '</span> ' + t; };
   el.innerHTML = '<h2 class="sec">Pemberitahuan jawaban admin</h2><p class="sys">Saat admin menjawab pertanyaan, pemohon yang mengaktifkannya otomatis diberi tahu lewat Telegram atau WhatsApp. Pesan hanya berisi nomor tiket dan ajakan membuka aplikasi, tidak memuat isi jawaban. Maksimal satu pemberitahuan per percakapan tiap 10 menit.</p>' +
     '<div class="card"><label><input type="checkbox" id="nt-on"' + (c.aktif ? " checked" : "") + '> Pemberitahuan otomatis aktif</label>' +
@@ -71,8 +71,15 @@ window.aNtf = async function (el) {
     '<b style="display:block;margin-top:10px">Templat WhatsApp (disarankan)</b><div class="sys">WhatsApp hanya mengizinkan pesan bebas dalam 24 jam setelah warga menulis. Agar pemberitahuan sampai kapan pun, buat templat kategori <i>Utility</i> di Meta Business Manager dengan isi mirip: <code>Halo {{1}}, pertanyaan Anda ({{2}}) di {{3}} sudah dijawab admin. Buka aplikasi Takok Pelayanan Suroboyo, menu Tanya, untuk membacanya.</code> Setelah disetujui, isi nama templat di bawah. Kosongkan bila belum punya (pesan biasa dipakai).</div>' +
     '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px"><input id="nt-tpl" placeholder="nama_templat" value="' + esc2(c.tpl) + '" maxlength="60" style="flex:2;min-width:160px"><input id="nt-lg" placeholder="id" value="' + esc2(c.lang) + '" maxlength="8" style="flex:1;min-width:70px"></div>' +
     '<div class="btns"><button type="button" class="send" id="nt-sv">Simpan</button></div></div>' +
-    '<div class="card"><b>Pemberitahuan terakhir</b>' + (j.log.length ? '<table class="tb" style="width:100%;font-size:.85rem"><tr><th>Waktu</th><th>Kanal</th><th>Tiket</th><th>Penerima</th><th></th></tr>' + j.log.map(function (x) { return '<tr><td>' + tgl(x.t) + '</td><td>' + (x.ch === "tg" ? "Telegram" : "WhatsApp") + '</td><td>' + esc2(x.tk) + (x.uji ? " (uji)" : "") + '</td><td>' + esc2(x.n || "") + '</td><td>' + (x.ok ? "✔" : '<span title="' + esc2(x.e) + '">✖</span>') + '</td></tr>'; }).join("") + '</table>' : '<div class="empty">Belum ada pemberitahuan.</div>') + '</div>' +
+    '<div class="card" id="nt-log"><b>Pemberitahuan terakhir</b>' + (j.log.length ? (window.TKTGL ? TKTGL.bar(NTG, "nt") : "") + '<p class="sys" id="nt-n"></p><div id="nt-lb"></div>' : '<div class="empty">Belum ada pemberitahuan.</div>') + '</div>' +
     '<details class="card"><summary><b>Cara kerja untuk warga</b></summary><ol><li>Warga membuka <b>Percakapan saya</b>, memilih Telegram atau WhatsApp pada kartu pemberitahuan.</li><li>Telegram: tekan tautan, lalu <b>Start</b> di bot. WhatsApp: memakai nomor yang didaftarkan di akun mereka.</li><li>Tiap admin menjawab, pesan singkat dikirim otomatis. Warga bisa kirim <code>/stop</code> di Telegram untuk berhenti.</li></ol></details>';
+  function ntGambar() {
+    var lb = el.querySelector("#nt-lb"); if (!lb) return;
+    var D = j.log.filter(function (x) { return !window.TKTGL || TKTGL.ok(NTG, x.t); });
+    el.querySelector("#nt-n").textContent = window.TKTGL && TKTGL.aktif(NTG) ? "Menampilkan " + D.length + " dari " + j.log.length + " (" + TKTGL.ket(NTG) + ")" : j.log.length + " pemberitahuan terakhir";
+    lb.innerHTML = D.length ? '<table class="tb" style="width:100%;font-size:.85rem"><tr><th>Waktu</th><th>Kanal</th><th>Tiket</th><th>Penerima</th><th></th></tr>' + D.map(function (x) { return '<tr><td>' + tgl(x.t) + '</td><td>' + (x.ch === "tg" ? "Telegram" : "WhatsApp") + '</td><td>' + esc2(x.tk) + (x.uji ? " (uji)" : "") + '</td><td>' + esc2(x.n || "") + '</td><td>' + (x.ok ? "\u2714" : '<span title="' + esc2(x.e) + '">\u2716</span>') + '</td></tr>'; }).join("") + '</table>' : '<div class="empty">Tidak ada pemberitahuan pada rentang tanggal ini.</div>';
+  }
+  if (j.log.length) { if (window.TKTGL) TKTGL.pasang(el.querySelector("#nt-log"), NTG, ntGambar); ntGambar(); }
   var ac = j.ant, aw = j.ant_awal, sel = [0, 1, 2, 3, 4, 5].map(function (v) { return '<option value="' + v + '"' + (ac.hampir === v ? " selected" : "") + '>' + (v ? v + " antrean lagi" : "Nonaktif") + '</option>'; }).join("");
   el.insertAdjacentHTML("beforeend", '<div class="card" id="nt-ant"><b>Pemberitahuan antrean (booking)</b><div class="sys">Dikirim ke pemohon yang mengaktifkan Telegram/WhatsApp. Hanya berisi nomor antrean dan nama loket. Gunakan {nama}, {tiket}, {loket}, {situs}, dan {sisa} (khusus pesan "hampir giliran").</div>'
     + '<label style="display:block;margin-top:8px"><input type="checkbox" id="na-p"' + (ac.pnl ? " checked" : "") + '> Kabari saat giliran <b>dipanggil</b></label><textarea id="na-pt" rows="2" maxlength="300" style="width:100%">' + esc2(ac.pnl_teks) + '</textarea>'

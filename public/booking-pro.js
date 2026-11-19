@@ -60,8 +60,8 @@ function stripTanggal() {
   var sel = $("bt2"); if (!sel) return; var st = $("bp-days"), h = nowW().t;
   if (!st) { st = D.createElement("div"); st.id = "bp-days"; st.className = "bp-days"; st.setAttribute("role", "radiogroup"); st.setAttribute("aria-label", "Pilih tanggal"); sel.parentNode.insertBefore(st, sel); sel.classList.add("bp-hide"); }
   var o = [].map.call(sel.options, function (x) { return x.value; });
-  st.innerHTML = o.map(function (t) { var d = tglPendek(t), b = Math.round((new Date(t + "T00:00:00") - new Date(h + "T00:00:00")) / 864e5);
-    return '<button type="button" class="bp-d" role="radio" aria-checked="' + (sel.value === t) + '" data-bpd="' + t + '" aria-label="' + E(d.p) + '"><small>' + (b === 0 ? "Hari ini" : b === 1 ? "Besok" : d.w) + '</small><b>' + d.n + '</b><small>' + d.b + '</small><i class="bp-dot" aria-hidden="true"></i></button>'; }).join("");
+  st.innerHTML = o.map(function (t) { var dis = !!(sel.querySelector('option[value="' + t + '"]') || {}).disabled, d = tglPendek(t), b = Math.round((new Date(t + "T00:00:00") - new Date(h + "T00:00:00")) / 864e5);
+    return '<button type="button" class="bp-d" role="radio" aria-checked="' + (sel.value === t) + '" data-bpd="' + t + '"' + (dis ? ' disabled title="Layanan tutup"' : '') + ' aria-label="' + E(d.p) + (dis ? ' (tutup)' : '') + '"><small>' + (b === 0 ? "Hari ini" : b === 1 ? "Besok" : d.w) + '</small><b>' + d.n + '</b><small>' + d.b + '</small><i class="bp-dot" aria-hidden="true"></i></button>'; }).join("");
   var a = st.querySelector('[aria-checked="true"]'); if (a && a.scrollIntoView) { try { st.scrollTo({left: a.offsetLeft - 20}); } catch (e) {} }
 }
 function titik(k, t) {

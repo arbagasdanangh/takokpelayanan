@@ -37,11 +37,12 @@ function baris(o, buka) {
     '<span class="bkr-d"><b>' + d.getDate() + '</b><small>' + d.toLocaleDateString("id-ID", {month: "short"}) + '</small></span>' +
     '<span class="bkr-m"><b>' + esc(o.jam) + ' &middot; ' + esc(namaLoket(o)) + '</b><small>' + esc(lokNama(o.lokasi)) + ' &middot; ' + esc(o.kode) + '</small></span>' + bkBdg(o.status) + (o.status === "Hadir" && !o.nilai_kj ? '<span class="bkr-nl">\u2605 Beri nilai</span>' : '') + '<span class="bkr-c" aria-hidden="true">▾</span></button>' + isi + '</div>';
 }
+var BXG = window.TKTGL ? TKTGL.baru() : {};
 function daftarHtml() {
-  var G = kelompok(), src = BX.tab === "aktif" ? G.akt : G.rw, f = src.filter(function (o) { return cocok(o, BX.q); }), tampil = f.slice(0, BX.n), g = {}, urutT = [];
+  var G = kelompok(), src = BX.tab === "aktif" ? G.akt : G.rw, f = src.filter(function (o) { return cocok(o, BX.q) && (!window.TKTGL || TKTGL.ok(BXG, TKTGL.ms(o.tanggal))); }), tampil = f.slice(0, BX.n), g = {}, urutT = [];
   if (BX.awal && BX.tab === "aktif" && G.akt.length) { BX.open[G.akt[0].id] = true; }
   BX.awal = false;
-  if (!f.length) return '<div class="empty">' + (BX.q ? 'Tidak ada kunjungan yang cocok dengan "' + esc(BX.q) + '".' : BX.tab === "aktif" ? "Tidak ada kunjungan aktif. Buat booking baru di atas." : "Belum ada riwayat kunjungan.") + '</div>';
+  if (!f.length) return '<div class="empty">' + (BX.q ? 'Tidak ada kunjungan yang cocok dengan "' + esc(BX.q) + '".' : (window.TKTGL && TKTGL.aktif(BXG)) ? "Tidak ada kunjungan pada " + TKTGL.ket(BXG) + "." : BX.tab === "aktif" ? "Tidak ada kunjungan aktif. Buat booking baru di atas." : "Belum ada riwayat kunjungan.") + '</div>';
   tampil.forEach(function (o) { if (!g[o.tanggal]) { g[o.tanggal] = []; urutT.push(o.tanggal); } g[o.tanggal].push(o); });
   return urutT.map(function (t) {
     return '<h3 class="dh bkx-dh' + (t === hari() ? " ini" : "") + '">' + esc(tglLabel(t)) + ' <small>' + g[t].length + ' kunjungan</small></h3>' + g[t].map(function (o) { return baris(o, !!BX.open[o.id]); }).join("");
@@ -56,7 +57,8 @@ function ringkas() {
 function gambar(penuh) {
   var el = $("bsaya"); if (!el) return;
   if (penuh || !$("bkx-l")) {
-    el.innerHTML = '<div id="bkx-s"></div><input class="si bkx-q" id="bkx-q" type="search" placeholder="Cari kode, loket, tanggal, atau keperluan" aria-label="Cari kunjungan" value="' + esc(BX.q) + '"><div id="bkx-l"></div>';
+    el.innerHTML = '<div id="bkx-s"></div><input class="si bkx-q" id="bkx-q" type="search" placeholder="Cari kode, loket, tanggal, atau keperluan" aria-label="Cari kunjungan" value="' + esc(BX.q) + '"><div id="bkx-tg"></div><div id="bkx-l"></div>';
+    if (window.TKTGL) { var tb = $("bkx-tg"); tb.innerHTML = TKTGL.bar(BXG, "bkx"); TKTGL.pasang(tb, BXG, function () { BX.n = 10; gambar(); }); }
     if (!el.dataset.bxon) {
       el.dataset.bxon = "1";
       el.addEventListener("click", function (e) {

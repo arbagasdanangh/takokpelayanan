@@ -40,7 +40,15 @@ window.admList = function () {
   rapikanTunda();
   asliList();               // hitung statistik, filter, urutan, kotak massal
   var kids = [].slice.call(el.querySelectorAll(".tiw"));
-  var sig = [AF.st, AF.loc, AF.q, AF.tp, AF.sn, AF.so].join("|");
+  if (window.TKTGL) {
+    if (!AF.tg) AF.tg = TKTGL.baru();
+    var afx = $("af");
+    if (afx && !$("tg-inbox")) {
+      var wr = document.createElement("div"); wr.id = "tg-inbox"; wr.innerHTML = TKTGL.bar(AF.tg, "inbox"); afx.parentNode.insertBefore(wr, afx);
+      TKTGL.pasang(wr, AF.tg, function () { window.admList(); });
+    }
+  }
+  var sig = [AF.st, AF.loc, AF.q, AF.tp, AF.sn, AF.so, AF.tg && AF.tg.a, AF.tg && AF.tg.b].join("|");
   if (sig !== sigF) { sigF = sig; tampil = UKUR; }
   var total = kids.length, now = Date.now();
   // chip tambahan
