@@ -841,4 +841,50 @@ Di tab **Laporan harian**, tombol **Rentang tanggal** membuka laporan mingguan/b
 
 ## Versi 88: Siaran ke pemohon (admin)
 
-Di tab **Laporan harian** ada kartu **Siaran ke pemohon**: admin menulis info singkat (10 sampai 200 huruf, mis. "Loket tutup pukul 14.00") dan mengirimnya ke semua pemohon yang punya booking aktif hari ini atau besok, lewat Telegram/WhatsApp pilihan mereka. Kartu menampilkan jumlah pemohon, yang bisa dikirimi, dan yang belum mengaktifkan notifikasi; ada konfirmasi sebelum kirim dan daftar 5 siaran terakhir (waktu, pengirim, terkirim/gagal). Tiap pemohon menerima satu pesan walau punya beberapa booking. Admin loket hanya menjangkau pemohon di loketnya; batas 5 siaran per jam per akun; tanda kurung kurawal dibuang dari teks. Pesan memakai "Halo {nama}, info layanan: ...". Teks bebas WhatsApp terbatas jendela 24 jam Meta. Endpoint: `GET/POST /api/admin/siaran`; riwayat di Redis `siaran:log`.
+Di tab **Operasional** (sejak v89; sebelumnya di Laporan harian) ada kartu **Siaran ke pemohon**: admin menulis info singkat (10 sampai 200 huruf, mis. "Loket tutup pukul 14.00") dan mengirimnya ke semua pemohon yang punya booking aktif hari ini atau besok, lewat Telegram/WhatsApp pilihan mereka. Kartu menampilkan jumlah pemohon, yang bisa dikirimi, dan yang belum mengaktifkan notifikasi; ada konfirmasi sebelum kirim dan daftar 5 siaran terakhir (waktu, pengirim, terkirim/gagal). Tiap pemohon menerima satu pesan walau punya beberapa booking. Admin loket hanya menjangkau pemohon di loketnya; batas 5 siaran per jam per akun; tanda kurung kurawal dibuang dari teks. Pesan memakai "Halo {nama}, info layanan: ...". Teks bebas WhatsApp terbatas jendela 24 jam Meta. Endpoint: `GET/POST /api/admin/siaran`; riwayat di Redis `siaran:log`.
+
+## Versi 89: Tab Operasional + Catatan serah terima
+
+- **Tab baru Operasional** (grup Layanan harian, tersedia juga untuk admin loket). Tiga kartu aksi yang tadinya menumpuk di Laporan harian dipindah ke sini: Pengingat janji temu besok (v80), Rapikan antrean hari ini (v81), dan Siaran ke pemohon (v88). Tab **Laporan harian** kini hanya berisi laporan (KPI, tabel per loket, grafik, komentar pengunjung, CSV, cetak, rentang tanggal).
+- **Fitur baru: Catatan serah terima.** Petugas menulis catatan (5 sampai 300 huruf) untuk rekan atau shift berikutnya, mis. kendala atau pekerjaan yang harus dilanjutkan. Setiap catatan menampilkan waktu, penulis, dan bisa ditandai **selesai** (dengan siapa yang menyelesaikan, bisa dibuka lagi) oleh siapa pun yang berhak melihatnya; **hapus** hanya oleh penulis atau superuser. Catatan terbaru di atas, ringkasan "n belum selesai", disimpan maksimal 200 catatan. Admin loket hanya melihat catatan umum dan catatan loketnya. Batas 30 catatan per jam per akun; teks tampil sebagai teks biasa.
+- Endpoint: `GET/POST /api/admin/serah` (aksi `tambah`, `selesai`, `hapus`); Redis `serah` dan `serah:idx`. Berkas baru: `operasional.js`; diubah: `laporan.js`, `fitur.js`, `percantik.js`. `sw.js` naik ke `takok-v89`.
+
+## Versi 90 — Pilihan tanggal di daftar data
+
+Komponen filter tanggal bersama (`public/tgl.js`): chip Semua / Hari ini / 7 hari / 30 hari + dua kolom tanggal (zona WIB).
+
+Sekarang ada filter tanggal di:
+- Kotak masuk admin (berdasarkan pesan terakhir pemohon)
+- Permohonan (Direktori) dan Direktori pemohon
+- Log aktivitas (hanya 300 entri terakhir yang dimuat)
+- Operasional: Riwayat siaran, Catatan serah terima
+- Booking pemohon: tab Aktif dan Riwayat
+
+Sudah punya tanggal sebelumnya: Booking admin, Check-in, Laporan harian/rentang, Rencana.
+Belum dicakup: "Percakapan saya" pemohon, Mutu, Rekap SKM, Monitor, Analitik, Pengunjung, Laporan `lap`.
+Belum diuji: tampilan HP, peran admin loket, Vercel asli.
+
+## Versi 91 — Riwayat Saya + filter tanggal lanjutan
+
+Fitur baru pemohon: **Riwayat Saya** (tile di beranda, `public/riwayat.js`): linimasa gabungan tiket, permohonan, dan booking, dikelompokkan per hari, dengan filter jenis, filter tanggal, dan unduh CSV.
+
+Filter tanggal ditambahkan di:
+- Pemohon: Status Permohonan, daftar Tiket, Percakapan saya
+- Admin: Pemberitahuan jawaban (log), Usulan chatbot, Keamanan (log serangan)
+
+Belum diberi filter: Mutu (agregat), Monitor, Analitik, Pengunjung dan Laporan (sudah punya pilihan hari/rentang sendiri), Rekap SKM.
+Catatan teknis: ID `nt-lg` sudah dipakai input lain di tab Pemberitahuan, jadi log memakai `nt-log`.
+
+## Versi 92 — Libur & tutup layanan
+
+Admin: tab baru **Libur & tutup** (`public/libur.js`). Tandai tanggal libur/tutup untuk semua loket (superadmin) atau satu loket (admin loket sesuai izin), dengan alasan. Daftar bisa disaring: Mendatang / Sudah lewat / Semua + pilih bulan. Tiap tanggal menampilkan jumlah booking aktif yang terdampak (tidak dibatalkan otomatis; kabari lewat Siaran di Operasional).
+Server: `cek_tanggal` kini menolak booking baru, ubah jadwal, dan daftar tunggu pada tanggal libur (pesan menyebut alasan). Rute: admin `libur`, `libur/simpan`, `libur/hapus`; pemohon `GET /libur`. Redis: hash `libur` (`tgl|kunci` -> JSON, maks 500).
+Pemohon: halaman Booking menampilkan banner libur, dan tanggal libur semua-loket dinonaktifkan di pilihan tanggal. Libur per loket hanya tampil di banner; penolakan terjadi di server.
+Belum diuji: admin berperan loket, tampilan HP tab admin, Vercel asli.
+
+## Versi 93 — Tanya Jawab Publik
+
+Pemohon (tile "Tanya Jawab Publik", `public/qa.js`): cari jawaban yang sudah diterbitkan, filter tanggal, tandai "Membantu" (bisa dibatalkan), ajukan pertanyaan anonim (min. 10 huruf, maks. 5 per hari), lihat status pertanyaan sendiri.
+Admin: tab **Tanya jawab publik** (grup Konten dan chatbot, terbuka untuk semua admin): saring status Baru/Terbit/Ditolak/Semua + tanggal, edit pertanyaan (agar data pribadi bisa dibuang), isi jawaban, Terbitkan/Simpan, Tolak, Hapus.
+Server: pemohon `GET /qa`, `POST /qa/tanya`, `POST /qa/vote`; admin `qa`, `qa/jawab`, `qa/tolak`, `qa/hapus`. Redis: hash `qa`, counter `qa:n`, set `qavote` per pertanyaan `qav:{id}`. Maks 1500 pertanyaan.
+Belum ada: notifikasi ke penanya saat dijawab (status terlihat di "Pertanyaan saya"), moderasi otomatis kata kasar. Belum diuji: Vercel asli, HP untuk tab admin.
