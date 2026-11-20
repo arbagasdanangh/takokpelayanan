@@ -42,3 +42,8 @@
 .jl-b{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:99px;font-size:.75rem;font-weight:700;white-space:nowrap}
 .jl-on{background:#d9f7e4;color:#0b6b35}.jl-off{background:#ffe3e3;color:#a11}
 .jl-n{background:#fff6dd;border-radius:10px;padding:6px 10px;color:#7a5200}
+
+/* Versi 106 */
+.cin{margin:8px 0;border:1px dashed #e0a800;border-radius:12px;padding:6px 10px;background:#fff9e6}
+.cin>summary{cursor:pointer;font-weight:700}.cin-n{border-top:1px solid #f0e2b0;padding:6px 0}.cin-h{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.cin-t{margin-top:2px;white-space:normal;word-break:break-word}#cin-i{width:100%;margin:6px 0}
