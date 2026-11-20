@@ -47,3 +47,8 @@
 .cin{margin:8px 0;border:1px dashed #e0a800;border-radius:12px;padding:6px 10px;background:#fff9e6}
 .cin>summary{cursor:pointer;font-weight:700}.cin-n{border-top:1px solid #f0e2b0;padding:6px 0}.cin-h{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .cin-t{margin-top:2px;white-space:normal;word-break:break-word}#cin-i{width:100%;margin:6px 0}
+
+/* Versi 107 */
+.cmp{display:grid;grid-template-columns:1fr 1fr;gap:8px}.cmp-c{background:#fff;border:1px solid var(--line,#d5e0f5);border-radius:12px;padding:8px;min-width:0}
+.cmp-c dl{margin:6px 0 0;font-size:.82rem}.cmp-c dt{font-weight:700;color:#1a46b5;margin-top:6px}.cmp-c dd{margin:0;word-break:break-word}
+@media (max-width:360px){.cmp{grid-template-columns:1fr}}
