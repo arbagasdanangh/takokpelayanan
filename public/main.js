@@ -118,7 +118,7 @@ function closeGM(fromPop) {
   top(); if (opener && opener.focus) { try { opener.focus(); } catch (e) {} }
 }
 /* riwayat Back kini dikelola nav.js */
-document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !root.hidden) closeGM(); });
+document.addEventListener("keydown", function (e) { if (e.key !== "Escape" || root.hidden) return; var A = window.ArenaMoba && window.ArenaMoba.cur && window.ArenaMoba.cur(); if (A && A.started && !A.over && !A.done && document.body.contains(A.c)) return; closeGM(); });
 $g("gmx").onclick = function () { closeGM(); };
 $g("gms").onclick = function () { G.sound = G.sound ? 0 : 1; save(); top(); if (G.sound) beep(660, 0.12); };
 function bar(t, mid) { return '<div class="gm-bar"><button type="button" class="btn" data-m="home">&larr; Menu</button><b>' + t + '</b><span class="sys">' + (mid || "") + '</span></div>'; }

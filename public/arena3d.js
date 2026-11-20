@@ -199,8 +199,9 @@ function die(S, u, src) {
     u.deaths++; u.deadT = 5 + u.lvl * 1.6; u.rm = 0; burst(S, u.x, 1.2, u.z, 26, 8, TC[u.team], 24, 0.9, 7);
     var sr = src && src.type === "hero" ? src : null; if (sr) sr.kills++; if (kt === 0 || kt === 1) S.kills[kt]++;
     reward(S, u, sr, 200 + u.lvl * 20, 120 + u.lvl * 25, 18);
+    if (sr && sr.player && u.team !== sr.team) { var nw = S.t; S.ks = (S.ks && nw - S.kt < 9) ? S.ks + 1 : 1; S.kt = nw; var SN = [0, 0, "DOUBLE KILL!", "TRIPLE KILL!", "MEGA KILL!", "RAMPAGE!"]; if (S.ks >= 2) { S.streak = SN[Math.min(5, S.ks)]; API.beep(520 + S.ks * 90, 0.2); S.shake = RM ? 0 : Math.max(S.shake, 0.6); } }
     var nm = (sr ? sr.name : (src && src.type === "tower" ? "Menara" : "Pasukan")), fb = !S.fb && kt >= 0; S.fb = S.fb || fb;
-    feed(S, nm + " mengalahkan " + u.name, kt); if (fb) banner(S, "FIRST BLOOD!", "k5"); else if (u.player) banner(S, "Anda dikalahkan", "d"); else if (sr && sr.player) banner(S, "Kamu mengalahkan " + u.name + "!", "k");
+    feed(S, nm + " mengalahkan " + u.name, kt); if (S.streak) { banner(S, S.streak, "k5"); S.streak = null; } else if (fb) banner(S, "FIRST BLOOD!", "k5"); else if (u.player) banner(S, "Anda dikalahkan", "d"); else if (sr && sr.player) banner(S, "Kamu mengalahkan " + u.name + "!", "k");
     if (u.player) { S.recall = 0; }
   }
   else if (u.type === "tower") {
@@ -586,7 +587,8 @@ function hud(S) {
   var e = S.el, me = S.me; if (!e) return;
   e.k0.textContent = S.kills[0]; e.k1.textContent = S.kills[1]; e.tm.textContent = fmt(S.t);
   e.tw.textContent = "Menara " + (6 - S.towersDown[1]) + " / " + (6 - S.towersDown[0]);
-  var f = me.dead ? 0 : me.hp / me.maxhp; e.hp.style.width = (f * 100).toFixed(1) + "%"; e.hpt.textContent = me.dead ? "Bangkit " + Math.ceil(me.deadT) + " d" : Math.ceil(me.hp) + " / " + Math.ceil(me.maxhp);
+  var f = me.dead ? 0 : me.hp / me.maxhp; if (S.w) S.w.classList.toggle("mb-low", !me.dead && f < 0.3);
+  e.hp.style.width = (f * 100).toFixed(1) + "%"; e.hpt.textContent = me.dead ? "Bangkit " + Math.ceil(me.deadT) + " d" : Math.ceil(me.hp) + " / " + Math.ceil(me.maxhp);
   var need = 90 + me.lvl * 60; e.xp.style.width = (me.lvl >= 9 ? 100 : clamp(me.xp / need, 0, 1) * 100).toFixed(1) + "%";
   e.lv.textContent = "Lv " + me.lvl + " · " + Math.floor(me.gold) + " emas · K/D " + me.kills + "/" + me.deaths;
   for (var i = 0; i < 3; i++) { var b = e.sk[i], cd = me.cd[i], mx = (me.cdMax && me.cdMax[i]) || me.def.sk[i].cd; b.style.setProperty("--p", clamp(cd / mx, 0, 1).toFixed(3)); b.firstElementChild && 0; var em = b.querySelector("em"); em.textContent = cd > 0 ? Math.ceil(cd) : ""; b.classList.toggle("rd", cd <= 0 && !me.dead); }
@@ -664,7 +666,7 @@ function play() {
     '<button type="button" class="kl-s mb-s2 rd" data-mbs="1" aria-label="Jurus 2: ' + H.sk[1].nm + ' (E)">' + IC.s2 + '<small>' + H.sk[1].nm.split(" ")[0] + '</small><em></em></button>' +
     '<button type="button" class="kl-s mb-s3 rd" data-mbs="2" aria-label="Jurus pamungkas: ' + H.sk[2].nm + ' (R)">' + IC.s3 + '<small>' + H.sk[2].nm.split(" ")[0] + '</small><em></em></button>' +
     '<button type="button" class="mb-sm mb-rc" data-mba="recall" aria-label="Pulang ke markas (B)">' + IC.home + '</button><button type="button" class="mb-sm mb-sp" data-mba="shop" aria-label="Toko item (P)">' + IC.shop + '</button></div>' +
-    '<div class="mb-dead" id="mbdd" hidden>Menunggu bangkit&hellip;</div>' +
+    '<button type="button" class="mb-sm mb-ps" data-mba="pause" aria-label="Jeda (Esc)">&#10074;&#10074;</button><div class="mb-jd" id="mbjd" hidden><b>Dijeda</b><button type="button" class="send" data-mba="resume">Lanjutkan</button><button type="button" class="btn" data-mba="snd">Suara: <span id="mbsn"></span></button><button type="button" class="btn" data-mba="quit">Keluar dari pertempuran</button></div><div class="mb-dead" id="mbdd" hidden>Menunggu bangkit&hellip;</div>' +
     '<div class="mb-shop" id="mbsh" hidden><b>Toko Arek</b><p class="mb-sh-n"></p>' + ITEMS.map(function (z) { return '<button type="button" data-buy="' + z.id + '"><b>' + z.nm + '</b><span>' + z.harga + '</span><small></small></button>'; }).join("") + '<button type="button" class="send" data-mba="shop">Tutup</button></div>' +
     '<div class="tg-ov kl-ov" id="mbo2"><b>' + H.nm + ' siap bertempur</b><small>Hancurkan Sarang Boyo di seberang peta. Ikuti pasukan, kumpulkan emas, jaga Tugu Pahlawan.</small><button type="button" class="send" data-mb="start">Mulai</button></div></div>');
   var c = $("mbc"), w = $("mbw"), S;
@@ -680,7 +682,7 @@ function play() {
 }
 function loop(S, ts) {
   if (S !== CUR || !document.body.contains(S.c)) { loseGL(S); return; }
-  var dt = S.last ? Math.min(0.05, (ts - S.last) / 1000) : 0.016; S.last = ts; if (document.hidden) dt = 0;
+  var dt = S.last ? Math.min(0.05, (ts - S.last) / 1000) : 0.016; S.last = ts; if (document.hidden || S.paused) dt = 0;
   if (dt > 0 && S.started) { S.fps.push(dt); if (S.fps.length >= 60) { var avg = S.fps.reduce(function (a, b) { return a + b; }, 0) / S.fps.length; S.fps = []; if (S.auto) { if (avg > 0.034 && S.q > 0) S.q--; else if (avg < 0.019 && S.q < S.qmax && S.t > 20) S.q++; } } }
   var cw = S.c.clientWidth || 360, ch = S.c.clientHeight || 520, dpr = Math.min(2, window.devicePixelRatio || 1), sc = S.q === 2 ? 1 : S.q === 1 ? 0.75 : 0.55;
   var base = Math.max(1.2, dpr) * sc, w = Math.max(160, Math.min(1000, Math.round(cw * base))), h = Math.max(220, Math.round(w * ch / cw));
@@ -724,7 +726,7 @@ function bindInput(S, w) {
   w.addEventListener("contextmenu", function (e) { e.preventDefault(); });
   /* tombol */
   w.addEventListener("pointerdown", function (e) {
-    var b = e.target.closest && e.target.closest("[data-mbs],[data-mba]"); if (!b || !S.started) return; e.preventDefault();
+    var b = e.target.closest && e.target.closest("[data-mbs],[data-mba]"); if (!b || !S.started || S.paused || /^(pause|resume|snd|quit)$/.test(b.dataset.mba || "")) return; e.preventDefault();
     if (b.dataset.mbs != null) doSkill(S, +b.dataset.mbs);
     else if (b.dataset.mba === "atk") { S.atk = true; b.classList.add("down"); var rel = function () { S.atk = false; b.classList.remove("down"); window.removeEventListener("pointerup", rel); window.removeEventListener("pointercancel", rel); }; window.addEventListener("pointerup", rel); window.addEventListener("pointercancel", rel); }
     else if (b.dataset.mba === "recall") doRecall(S);
@@ -738,10 +740,13 @@ function toggleShop(S) { S.shopOpen = !S.shopOpen; S.el.shop.hidden = !S.shopOpe
 var KM = {};
 function installKeys() {
   if (KEY_ON) return; KEY_ON = true;
+  document.addEventListener("visibilitychange", function () { if (document.hidden && CUR && CUR.started && !CUR.over) setPause(CUR, true); });
   function upd() { var S = CUR; if (!S) return; var x = (KM.d || KM.arrowright ? 1 : 0) - (KM.a || KM.arrowleft ? 1 : 0), z = (KM.s || KM.arrowdown ? 1 : 0) - (KM.w || KM.arrowup ? 1 : 0); if (x || z) { var l = Math.hypot(x, z); S.mv = {x: x / l, z: z / l}; S.goto = null; } else if (S.mv && S.kb) S.mv = null; S.kb = !!(x || z); S.atk = !!(KM.j || KM[" "]); }
   document.addEventListener("keydown", function (e) {
     var S = CUR; if (!S || !document.body.contains(S.c) || e.ctrlKey || e.metaKey || e.altKey) return; var k = e.key.toLowerCase();
     if (/^(input|textarea|select)$/i.test((e.target.tagName || ""))) return;
+    if (k === "escape" && S.started) { setPause(S, !S.paused); e.preventDefault(); return; }
+    if (S.paused) return;
     if (!S.started) { if (k === "enter" || k === " ") { S.begin(); e.preventDefault(); } return; }
     if ("wasdjp qer1 23b".indexOf(k) >= 0 || k.indexOf("arrow") === 0 || k === " ") e.preventDefault();
     if (e.repeat) { KM[k] = true; upd(); return; } KM[k] = true;
@@ -752,7 +757,20 @@ function installKeys() {
   window.addEventListener("blur", function () { KM = {}; upd(); });
 }
 
+function setPause(S, on) {
+  if (!S || !S.started || S.over || S.done) return; S.paused = on; S.mv = null; S.atk = false;
+  var jd = document.getElementById("mbjd"); if (jd) { jd.hidden = !on; var sn = document.getElementById("mbsn"); if (sn) { var g = API.G(); sn.textContent = g && g.sound ? "Nyala" : "Mati"; } }
+  S.w && S.w.classList.toggle("mb-paused", on);
+}
 document.addEventListener("click", function (e) {
+  var pb = e.target.closest && e.target.closest("[data-mba=pause],[data-mba=resume],[data-mba=snd],[data-mba=quit]");
+  if (pb && CUR) {
+    var a = pb.dataset.mba;
+    if (a === "pause") setPause(CUR, true); else if (a === "resume") setPause(CUR, false);
+    else if (a === "snd") { var gb = document.getElementById("gms"); if (gb) gb.click(); else { var gg = API.G(); if (gg) gg.sound = gg.sound ? 0 : 1; } setPause(CUR, true); }
+    else if (a === "quit") { if (confirm("Keluar dari pertempuran? Kemajuan pertandingan ini tidak disimpan.")) { CUR.done = true; menu(); } }
+    return;
+  }
   var b = e.target.closest && e.target.closest("[data-mb],[data-mbh],[data-mbq],[data-mbd],[data-g=\"moba3d\"]"); if (!b) return;
   if (b.dataset.g === "moba3d") menu();
   else if (b.dataset.mb === "go") play();

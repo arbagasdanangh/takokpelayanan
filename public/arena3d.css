@@ -33,3 +33,12 @@
 .mb-shop [data-buy] span{color:#ffd24a;font-weight:800}.mb-shop [data-buy] small{grid-column:1/3;color:#b9ceff}.mb-shop [data-buy]:disabled{opacity:.45;cursor:not-allowed}
 @media (max-width:420px){.mb-sk{width:210px;height:210px}.mb-s1{right:94px}.mb-rc{right:164px}}
 @media (prefers-reduced-motion:reduce){.mb-bn.on,.mb-feed div{animation:none;opacity:1}}
+
+/* Versi 96 */
+.mb-ps{right:6px;top:6px;width:34px;height:34px;font-size:.7rem;letter-spacing:-2px;z-index:3}
+.mb-jd{position:absolute;inset:0;z-index:5;display:grid;align-content:center;justify-items:center;gap:10px;background:rgba(4,14,24,.78);backdrop-filter:blur(3px);color:#fff}
+.mb-jd[hidden]{display:none}.mb-jd>b{font-size:1.5rem}.mb-jd .btn,.mb-jd .send{min-width:210px}
+.mb-w::after{content:"";position:absolute;inset:0;pointer-events:none;border-radius:inherit;background:radial-gradient(ellipse at center,transparent 58%,rgba(0,12,24,.45) 100%);z-index:1}
+.mb-w.mb-low::after{background:radial-gradient(ellipse at center,transparent 40%,rgba(220,20,20,.55) 100%);animation:mblow 1s ease-in-out infinite}
+@keyframes mblow{50%{opacity:.45}}
+@media (prefers-reduced-motion:reduce){.mb-w.mb-low::after{animation:none}}
