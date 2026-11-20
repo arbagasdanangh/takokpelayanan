@@ -26,3 +26,4 @@
 /* v93 Tanya Jawab Publik */
 .qa-i summary{cursor:pointer;list-style:none}.qa-i summary b{display:block;overflow-wrap:anywhere}.qa-i summary small,.qa-s small{display:block;color:var(--mut,#64748b);font-size:.8rem}
 .qa-a{margin-top:8px}.qa-a .chip{margin-top:8px}.qa-ad label{display:flex;flex-direction:column;gap:4px;font-size:.85rem;margin:8px 0}.qa-s{margin:0 0 8px}
+.qa-fl{display:block;color:#b45309;font-size:.8rem;margin:4px 0}#qa-m{margin:8px 0}

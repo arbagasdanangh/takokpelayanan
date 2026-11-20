@@ -85,6 +85,7 @@ function decor(c) {
   var h = '<button type="button" class="chip" data-rp="cat" data-no="' + no + '">\uD83D\uDCDD Catatan</button>';
   var tunggu = (t.status === "Diterima" || t.status === "Dibaca admin") && Date.now() - t.buka > 864e5;
   if (tunggu) h += '<button type="button" class="chip" data-rp="ing" data-key="' + String(t.kunci).replace(/"/g, "") + '">\uD83D\uDD14 Ingatkan pegawai</button>';
+  if (t.status === "Dibalas") h += '<button type="button" class="chip" data-rp="ok" data-key="' + String(t.kunci).replace(/"/g, "") + '">\u2705 Sudah beres</button>';
   var sig = h + "|" + (ST.note && ST.note[no] || "");
   if (act.dataset.rp === sig) return; act.dataset.rp = sig;
   [].forEach.call(act.querySelectorAll("[data-rp]"), function (x) { x.remove(); });
@@ -134,6 +135,7 @@ document.addEventListener("click", function (e) {
   if (a === "tall") { NT = 1e9; rapikan(); return; }
   if (a === "call") { NC[b.dataset.k] = 1e9; rapikan(); return; }
   if (a === "ing") { ingatkan(b); return; }
+  if (a === "ok") { if (!confirm("Tandai pertanyaan ini sudah beres? Bila nanti ada pertanyaan baru di loket yang sama, akan dibuat tiket baru.")) return; b.disabled = true; api("/api/pesan/beres", {kunci: b.dataset.key}).then(function (r) { toast("Terima kasih. Tiket " + r.tk + " ditandai selesai."); if (window.tick) window.tick(); }).catch(function (x) { toast(x.message || "Gagal."); b.disabled = false; }); return; }
   if (a === "cat") { catat(b.dataset.no); return; }
   if (a === "csv") { ekspor(); return; }
   if (a === "cmore") { NC[b.dataset.k] = (NC[b.dataset.k] || 5) + 10; rapikan(); return; }
