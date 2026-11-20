@@ -919,3 +919,13 @@ Belum ada: notifikasi ke penanya saat dijawab (status terlihat di "Pertanyaan sa
 - Disimpan di perangkat (localStorage `tk_ingat`), diperiksa tiap 15 detik selama aplikasi terbuka; yang terlewat saat aplikasi tertutup muncul begitu aplikasi dibuka lagi (ditandai "terlewat"). Bunyi: toast + pesan di Asisten + notifikasi sistem (bila izin diberikan) + getar.
 - Keterbatasan: tidak mengirim pengingat saat aplikasi benar-benar tertutup (butuh push server).
 - Berkas baru `bot-ingat.js`. Cache service worker: takok-v98.
+
+## Versi 99 - Jawaban panjang dilipat (Asisten)
+- Jawaban Asisten yang bagian teksnya lebih tinggi dari ±320 px dilipat dengan tombol **Baca selengkapnya / Lipat lagi** (hanya tampilan; tombol aksi di bawah jawaban tetap terlihat).
+- Perintah **/lipat** menyalakan atau mematikan fitur (tersimpan di perangkat, `tk_lipat`). Bawaan: nyala.
+- Berkas baru `bot-ringkas.js`. Cache service worker: takok-v99.
+
+## Versi 100 - Bagikan jawaban sebagai gambar (Asisten)
+- Tombol **Gambar** di bawah setiap jawaban Asisten (di samping Salin, Simpan, WhatsApp) membuat kartu PNG 1080 px berlogo (judul, isi jawaban maksimal 16 baris dan diringkas bila lebih, tanggal, alamat situs). Dibuat di perangkat memakai canvas.
+- Di HP yang mendukung, gambar dibagikan lewat menu bagikan (WhatsApp, dll.); selain itu gambar diunduh sebagai `jawaban-takok.png`.
+- Berkas baru `bot-gambar.js`. Alamat situs pada kartu ditulis di konstanta dalam berkas itu (`takokpelayanan.vercel.app`); ubah bila domain berganti. Cache service worker: takok-v100.
