@@ -912,3 +912,10 @@ Belum ada: notifikasi ke penanya saat dijawab (status terlihat di "Pertanyaan sa
 - Ketik **/kuis** di Asisten (muncul juga di menu "/"): 5 pertanyaan acak dari 10 soal tentang cara memakai layanan dan aplikasi (check-in 60 menit, QR dari nomor tiket, PIN/OTP rahasia, Tanya Jawab Publik, tombol Sudah beres, dll.). Pilihan jawaban diacak, setiap jawaban diberi penjelasan, ada skor akhir dan rekor terbaik (tersimpan di perangkat pengguna, bukan di server).
 - Berkas baru `bot-kuis.js`; soal ada di array `BANK` (mudah ditambah). Perhatikan: isi soal harus tetap sesuai aturan layanan yang berlaku.
 - Cache service worker: takok-v97.
+
+## Versi 98 - Pengingat pribadi di Asisten
+- **/ingatkan 30 bawa fotokopi KTP** (menit), **/ingatkan 2 jam ...**, **/ingatkan 1 hari ...**, atau **/ingatkan 14:30 berangkat** (jam hari ini; bila sudah lewat, besok). Maksimal 10 pengingat aktif, paling jauh 7 hari, minimal 1 menit.
+- **/pengingat** menampilkan daftar dan tombol Hapus.
+- Disimpan di perangkat (localStorage `tk_ingat`), diperiksa tiap 15 detik selama aplikasi terbuka; yang terlewat saat aplikasi tertutup muncul begitu aplikasi dibuka lagi (ditandai "terlewat"). Bunyi: toast + pesan di Asisten + notifikasi sistem (bila izin diberikan) + getar.
+- Keterbatasan: tidak mengirim pengingat saat aplikasi benar-benar tertutup (butuh push server).
+- Berkas baru `bot-ingat.js`. Cache service worker: takok-v98.
