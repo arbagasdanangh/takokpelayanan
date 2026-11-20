@@ -3158,6 +3158,34 @@ class handler(BaseHTTPRequestHandler):
             out = [{"id": x["id"], "q": x["q"], "a": x.get("a", ""), "st": x.get("st", "baru"), "t": x.get("t", 0), "ta": x.get("ta", 0), "v": int(x.get("v", 0)), "oleh": x.get("oleh", ""), "fl": x.get("fl", []), "kabar": x.get("kabar", ""), "dari": x.get("dari", "")} for x in rows]
             out.sort(key=lambda z: (0 if z["st"] == "baru" else 1, -z["t"]))
             return self.json({"daftar": out[:500]}, extra=ex)
+        if r in ("catatan", "catatan/tambah", "catatan/hapus"):
+            """Catatan internal per percakapan: hanya admin yang berhak atas loket itu; TIDAK PERNAH dikirim ke pemohon (kunci Redis terpisah: tnote:)."""
+            pid, k = int(b.get("pid") or 0), str(b.get("kunci", ""))
+            if not valid_key(k) or pid <= 0:
+                raise HttpError(400, "Data tidak valid.")
+            self.izin(k)
+            nk = "tnote:%s|%s" % (pid, k)
+            if r == "catatan/tambah":
+                isi = clean(str(b.get("isi", "")), 600)
+                if len(isi) < 2:
+                    raise HttpError(400, "Catatan terlalu pendek.")
+                if limited("rl:cat:%s" % (self.adm.get("u") or "s"), 60, 3600):
+                    raise HttpError(429, "Terlalu banyak catatan. Coba lagi nanti.")
+                if int(db().cmd("LLEN", nk) or 0) >= 50:
+                    raise HttpError(409, "Maksimal 50 catatan per percakapan. Hapus yang lama dulu.")
+                n = {"id": "N%d" % now_ms(), "t": now_ms(), "oleh": self.adm.get("nm") or self.adm.get("u") or "admin", "u": self.adm.get("u") or "", "isi": isi}
+                db().cmd("RPUSH", nk, json.dumps(n, ensure_ascii=False))
+            elif r == "catatan/hapus":
+                nid = str(b.get("id", ""))
+                for raw in db().cmd("LRANGE", nk, 0, -1) or []:
+                    o = parse(raw)
+                    if o and o.get("id") == nid:
+                        if not (self.adm.get("sup") or (o.get("u") and o.get("u") == self.adm.get("u"))):
+                            raise HttpError(403, "Hanya penulis catatan atau superuser yang dapat menghapus.")
+                        db().cmd("LREM", nk, 1, raw)
+                        break
+            rows = [o for o in (parse(x) for x in (db().cmd("LRANGE", nk, 0, -1) or [])) if o]
+            return self.json({"ok": True, "daftar": [{"id": o["id"], "t": o["t"], "oleh": o.get("oleh", ""), "isi": o.get("isi", ""), "milik": bool(self.adm.get("sup") or (o.get("u") and o.get("u") == self.adm.get("u")))} for o in rows]}, extra=ex)
         if r == "qa/dari-chat" and method == "POST":
             """Jadikan satu tanya-jawab di percakapan loket sebagai DRAF Tanya Jawab Publik (anonim, data pribadi disamarkan). Belum terbit sebelum admin memeriksanya."""
             pid, k = int(b.get("pid") or 0), str(b.get("kunci", ""))
