@@ -941,3 +941,24 @@ Belum ada: notifikasi ke penanya saat dijawab (status terlihat di "Pertanyaan sa
 - **Kolom pesan ke loket**: bila lokasi sedang tutup, muncul catatan bahwa pertanyaan tetap bisa dikirim dan perkiraan admin membalas saat layanan buka berikutnya.
 - **Asisten**: ketik **/buka** (atau "apakah loket buka sekarang?") untuk status semua lokasi.
 - Berkas baru `jam-layanan.js`. Cache service worker: takok-v102. Penting: isi kolom Jam layanan di data lokasi supaya fitur ini tampil (di data uji kosong).
+
+## Versi 103 - Kamus layanan Indonesia-Inggris (Asisten)
+- **/english** (alias /inggris, /en): 24 istilah perizinan (NIB, OSS, KBLI, NPWP, PBG/IMB, SLF, AMDAL, SKRD, dll.) beserta padanan Inggris, dan 8 frasa berguna di loket (bahasa Inggris + Indonesia) dengan tombol **Salin**. **/english kbli** mencari istilah (Indonesia atau Inggris).
+- Padanan istilah adalah terjemahan umum, bukan terjemahan resmi; mohon ditinjau petugas bila akan dipakai untuk dokumen resmi. Daftar ada di array `ISTILAH` dan `FRASA` pada `bot-english.js`.
+- Cache service worker: takok-v103.
+
+## Versi 104 - Hitung perkiraan tanggal selesai (Asisten)
+- **/estimasi 14** = 14 hari kerja dari hari ini; **/estimasi 5 hari kerja besok**; **/estimasi 30 hari** (kalender); **/estimasi 3 minggu dari 2026-12-01** (tanggal juga boleh 01/12 atau 1/12/2026). Alias: /hitung.
+- Hari kerja = Senin-Jumat dikurangi **libur umum** yang dicatat admin di tab "Libur & tutup" (kunci `*`); hari libur yang terlewati disebut di jawaban. Hari pengajuan tidak dihitung. Zona WIB. Disertai tombol **Pasang pengingat** (memakai /ingatkan).
+- Hanya perkiraan: lama layanan sebenarnya tergantung jenis izin dan kelengkapan berkas; libur nasional hanya terhitung jika sudah dicatat admin.
+- Berkas baru `bot-estimasi.js`. Cache service worker: takok-v104.
+
+## Versi 105 - Lokasi terdekat (Asisten)
+- **/terdekat** (juga "loket terdekat", "dimana SPP terdekat?"): meminta izin lokasi peramban lalu mengurutkan lokasi layanan dari yang terdekat (jarak garis lurus), lengkap dengan tautan **Buka peta** dan lencana Buka/Tutup (dari v102). Posisi pengguna hanya dipakai di perangkat, tidak dikirim ke server.
+- **Syarat data:** koordinat dibaca dari kolom *tautan peta* tiap lokasi yang diisi admin. Format yang terbaca: `.../@-7.25,112.75,17z`, `?q=-7.25,112.75`, `ll=`, `!3d-7.25!4d112.75`, atau teks `-7.25, 112.75`. Tautan pendek (maps.app.goo.gl) tidak berisi koordinat, jadi lokasi itu ditandai "koordinat belum tercatat". **Isi tautan peta lengkap di data lokasi** supaya semua lokasi ikut diurutkan.
+- Berkas baru `bot-terdekat.js`. Cache service worker: takok-v105.
+
+## Versi 106 - Catatan internal pada percakapan loket (admin)
+- Di panel percakapan admin ada kotak **🔒 Catatan internal (hanya admin)**: catatan serah terima antar-petugas (mis. "sudah telepon pemohon, menunggu denah"). Tiap catatan memuat nama penulis dan waktu (WIB); jumlahnya tampil di judul kotak. Maksimal 50 catatan per percakapan, 600 huruf per catatan.
+- **Keamanan:** disimpan di kunci Redis terpisah `tnote:{pid}|{loket}` dan tidak ikut dalam respons ke pemohon. Rute `/api/admin/catatan`, `catatan/tambah`, `catatan/hapus` mewajibkan login admin dan izin atas loket tersebut. Hanya penulis atau superuser yang bisa menghapus.
+- Berkas baru `catatan-internal.js`; `app.js` ditambah kotak di panel admin. Cache service worker: takok-v106.
