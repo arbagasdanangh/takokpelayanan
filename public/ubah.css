@@ -32,3 +32,13 @@
 /* Versi 99 */
 .bkr{overflow:hidden;position:relative}.bkr:not(.bko)::after{content:"";position:absolute;left:0;right:0;bottom:0;height:46px;background:linear-gradient(transparent,var(--surface,#fff));pointer-events:none}
 .bkb{display:inline-block;margin:6px 0 2px;font-weight:600}
+
+/* Versi 101 */
+.bpin{display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--accsoft,#e8f0ff);border-bottom:1px solid var(--line);font-size:.85rem}
+.bpin[hidden]{display:none}.bpin .bpt{flex:1;min-width:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.bmsg.bsm{outline:2px solid #fbbf24;outline-offset:1px}
+
+/* Versi 102 */
+.jl-b{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:99px;font-size:.75rem;font-weight:700;white-space:nowrap}
+.jl-on{background:#d9f7e4;color:#0b6b35}.jl-off{background:#ffe3e3;color:#a11}
+.jl-n{background:#fff6dd;border-radius:10px;padding:6px 10px;color:#7a5200}
