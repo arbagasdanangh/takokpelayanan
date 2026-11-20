@@ -790,6 +790,25 @@ def ntf_salur(situs, pid, teks, tpl, tk, loket, sisa="", jenis="antrean"):
         return "gagal"
 
 
+QA_KASAR = ("anjing", "bangsat", "bajingan", "goblok", "tolol", "kontol", "memek", "kampret", "brengsek", "sialan", "monyet", "idiot", "asu", "babi")
+QA_TPL = "Halo {nama}, pertanyaan Anda di Tanya Jawab Publik ({tiket}) sudah dijawab petugas. Buka {situs} lalu menu Tanya Jawab untuk membacanya. Takok Pelayanan Suroboyo"
+
+
+def qa_saring(q):
+    """Samarkan data pribadi (NIK 16 digit, nomor telepon, email) dan tandai kata kasar. Kembalian: (teks, daftar penanda)."""
+    import re
+    fl = []
+    q2 = re.sub(r"(?<!\d)\d{16}(?!\d)", "[NIK disamarkan]", q)
+    q2 = re.sub(r"(?<!\d)(?:\+?62|0)[\s.-]?8\d(?:[\s.-]?\d){6,10}(?!\d)", "[telepon disamarkan]", q2)
+    q2 = re.sub(r"[\w.+-]+@[\w-]+\.[\w.-]+", "[email disamarkan]", q2)
+    if q2 != q:
+        fl.append("pribadi")
+    kata = set(re.findall(r"[a-z]+", q.lower()))
+    if kata & set(QA_KASAR):
+        fl.append("kasar")
+    return q2, fl
+
+
 def pengingat_daftar(adm_ok):
     """Booking Terjadwal untuk besok yang boleh dikelola admin ini, dengan status saluran notifikasi pemohon."""
     import datetime as _dt
@@ -1686,6 +1705,20 @@ class handler(BaseHTTPRequestHandler):
                 return self.user_pesan(ses, ex)
             if path == "/pesan" and method == "POST":
                 return self.user_kirim(ses, b, ex)
+            if path == "/pesan/beres" and method == "POST":
+                k = str(b.get("kunci", ""))
+                if not valid_key(k):
+                    raise HttpError(400, "Data tidak valid.")
+                f = "%s|%s" % (ses["id"], k)
+                if not int(db().cmd("LLEN", "msgs:" + f) or 0):
+                    raise HttpError(404, "Percakapan tidak ditemukan.")
+                if limited("rl:beres:%s" % ses["id"], 30, 3600):
+                    raise HttpError(429, "Terlalu sering. Coba lagi nanti.")
+                tk = tiket_aktif(f)
+                if not int(db().cmd("HGET", "tla", f) or 0):
+                    raise HttpError(400, "Tiket belum dibalas, belum bisa ditandai beres.")
+                db().pipe([["HSET", "sel", f, now_ms()], ["HSET", "pberes", f, now_ms()], ["LPUSH", "pberes:log", json.dumps({"t": now_ms(), "k": k, "tk": tk["no"]})], ["LTRIM", "pberes:log", 0, 199]])
+                return self.json({"ok": True, "tk": tk["no"]}, extra=ex)
             if path == "/pesan/eskalasi" and method == "POST":
                 k = str(b.get("kunci", ""))
                 if not valid_key(k) or limited("rl:esk:%s" % ses["id"], 6, 3600):
@@ -2292,10 +2325,11 @@ class handler(BaseHTTPRequestHandler):
             raise HttpError(429, "Maksimal 5 pertanyaan per hari. Coba lagi besok.")
         if int(db().cmd("HLEN", "qa") or 0) >= 1500:
             raise HttpError(503, "Kotak pertanyaan penuh. Coba lagi nanti.")
+        q, fl = qa_saring(q)
         n = int(db().cmd("INCR", "qa:n"))
         qid = "Q%d" % n
-        db().cmd("HSET", "qa", qid, json.dumps({"id": qid, "q": q, "st": "baru", "pid": str(ses["id"]), "t": now_ms(), "v": 0}, ensure_ascii=False))
-        self.json({"ok": True, "id": qid}, extra=ex)
+        db().cmd("HSET", "qa", qid, json.dumps({"id": qid, "q": q, "st": "baru", "pid": str(ses["id"]), "t": now_ms(), "v": 0, "fl": fl}, ensure_ascii=False))
+        self.json({"ok": True, "id": qid, "disamarkan": "pribadi" in fl}, extra=ex)
 
     def user_qa_vote(self, ses, b, ex):
         qid = str(b.get("id", ""))
@@ -3121,9 +3155,47 @@ class handler(BaseHTTPRequestHandler):
         if r == "qa" and method == "GET":
             h = hall(db().cmd("HGETALL", "qa"))
             rows = [x for x in (parse(v, None) for v in h.values()) if isinstance(x, dict)]
-            out = [{"id": x["id"], "q": x["q"], "a": x.get("a", ""), "st": x.get("st", "baru"), "t": x.get("t", 0), "ta": x.get("ta", 0), "v": int(x.get("v", 0)), "oleh": x.get("oleh", "")} for x in rows]
+            out = [{"id": x["id"], "q": x["q"], "a": x.get("a", ""), "st": x.get("st", "baru"), "t": x.get("t", 0), "ta": x.get("ta", 0), "v": int(x.get("v", 0)), "oleh": x.get("oleh", ""), "fl": x.get("fl", []), "kabar": x.get("kabar", ""), "dari": x.get("dari", "")} for x in rows]
             out.sort(key=lambda z: (0 if z["st"] == "baru" else 1, -z["t"]))
             return self.json({"daftar": out[:500]}, extra=ex)
+        if r == "qa/dari-chat" and method == "POST":
+            """Jadikan satu tanya-jawab di percakapan loket sebagai DRAF Tanya Jawab Publik (anonim, data pribadi disamarkan). Belum terbit sebelum admin memeriksanya."""
+            pid, k = int(b.get("pid") or 0), str(b.get("kunci", ""))
+            if not valid_key(k):
+                raise HttpError(400, "Data tidak valid.")
+            self.izin(k)
+            msgs = [m for m in (parse(x) for x in (db().cmd("LRANGE", "msgs:%s|%s" % (pid, k), 0, -1) or [])) if m]
+            try:
+                mid = int(b.get("mid") or 0)
+            except (TypeError, ValueError):
+                mid = 0
+            pairs = []
+            for i, m in enumerate(msgs):
+                if m.get("dari") != "pemohon":
+                    continue
+                for n in msgs[i + 1:]:
+                    if n.get("dari") == "admin":
+                        pairs.append((m, n))
+                        break
+                    if n.get("dari") == "pemohon":
+                        break
+            pasang = next((x for x in pairs if x[0].get("id") == mid), None) if mid else (pairs[-1] if pairs else None)
+            if not pasang:
+                raise HttpError(400, "Belum ada pasangan pertanyaan pemohon dan jawaban admin pada percakapan ini.")
+            qm, am = pasang
+            src = "%s|%s|%s" % (pid, k, qm.get("id"))
+            if db().cmd("HGET", "qa:src", src):
+                raise HttpError(409, "Pasangan ini sudah dijadikan draf Tanya Jawab (%s)." % db().cmd("HGET", "qa:src", src))
+            q, f1 = qa_saring(clean(str(qm.get("isi", "")), 300))
+            a, f2 = qa_saring(clean(str(am.get("isi", "")), 1500))
+            if len(q) < 10:
+                raise HttpError(400, "Pertanyaan pemohon terlalu pendek untuk dijadikan Tanya Jawab.")
+            if int(db().cmd("HLEN", "qa") or 0) >= 1500:
+                raise HttpError(503, "Kotak pertanyaan penuh.")
+            qid = "Q%d" % int(db().cmd("INCR", "qa:n"))
+            db().pipe([["HSET", "qa", qid, json.dumps({"id": qid, "q": q, "a": a, "st": "baru", "t": now_ms(), "v": 0, "fl": sorted(set(f1 + f2)), "dari": "chat", "lk": k}, ensure_ascii=False)],
+                       ["HSET", "qa:src", src, qid]])
+            return self.json({"ok": True, "id": qid}, extra=ex)
         if r == "qa/jawab":
             qid = str(b.get("id", ""))
             o = parse(db().cmd("HGET", "qa", qid), None)
@@ -3132,9 +3204,15 @@ class handler(BaseHTTPRequestHandler):
             a, q = clean(str(b.get("a", "")), 1500), clean(str(b.get("q", o["q"])), 300)
             if len(a) < 5 or len(q) < 10:
                 raise HttpError(400, "Pertanyaan (min. 10 huruf) dan jawaban (min. 5 huruf) wajib diisi.")
+            baru = o.get("st") != "jawab"
             o.update({"q": q, "a": a, "st": "jawab", "ta": now_ms(), "oleh": self.adm.get("nm") or self.adm.get("u") or ""})
+            kabar = ""
+            if baru and o.get("pid") and not o.get("kabar"):
+                situs = "https://" + (self.headers.get("Host") or "")
+                kabar = ntf_salur(situs, str(o["pid"]), QA_TPL, "", qid, "Tanya Jawab Publik", jenis="qa")
+                o["kabar"] = kabar
             db().cmd("HSET", "qa", qid, json.dumps(o, ensure_ascii=False))
-            return self.json({"ok": True}, extra=ex)
+            return self.json({"ok": True, "kabar": kabar}, extra=ex)
         if r == "qa/tolak":
             qid = str(b.get("id", ""))
             o = parse(db().cmd("HGET", "qa", qid), None)
