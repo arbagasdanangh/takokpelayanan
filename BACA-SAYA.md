@@ -929,3 +929,15 @@ Belum ada: notifikasi ke penanya saat dijawab (status terlihat di "Pertanyaan sa
 - Tombol **Gambar** di bawah setiap jawaban Asisten (di samping Salin, Simpan, WhatsApp) membuat kartu PNG 1080 px berlogo (judul, isi jawaban maksimal 16 baris dan diringkas bila lebih, tanggal, alamat situs). Dibuat di perangkat memakai canvas.
 - Di HP yang mendukung, gambar dibagikan lewat menu bagikan (WhatsApp, dll.); selain itu gambar diunduh sebagai `jawaban-takok.png`.
 - Berkas baru `bot-gambar.js`. Alamat situs pada kartu ditulis di konstanta dalam berkas itu (`takokpelayanan.vercel.app`); ubah bila domain berganti. Cache service worker: takok-v100.
+
+## Versi 101 - Sematkan jawaban (Asisten)
+- Tombol **Sematkan** di bawah jawaban Asisten menaruh ringkasan jawaban di bilah tetap 📌 di atas percakapan. Satu sematan sekaligus; tombol **Lihat** menggulir ke jawaban aslinya (diberi garis kuning), **×** melepas.
+- Ringkasan tersimpan di perangkat (`tk_pin`, kedaluwarsa 3 hari) dan muncul lagi setelah aplikasi dimuat ulang.
+- Berkas baru `bot-pin.js`. Cache service worker: takok-v101.
+
+## Versi 102 - Status Buka/Tutup langsung + catatan di luar jam layanan
+- Kolom **Jam layanan** tiap lokasi (diisi admin di data lokasi) kini dibaca otomatis, zona **WIB**. Format yang dikenali: `Senin-Jumat 08.00-15.00`, `Senin-Kamis 08.00-15.30; Jumat 08.00-11.30`, `Sabtu 08:00 - 12:00`, `Setiap hari 08.00-16.00`. Teks yang tidak terbaca tidak diberi status (ditampilkan apa adanya).
+- **Kartu info lokasi**: lencana hijau "Buka sampai 15.00 WIB" atau merah "Tutup, buka Senin 08.00".
+- **Kolom pesan ke loket**: bila lokasi sedang tutup, muncul catatan bahwa pertanyaan tetap bisa dikirim dan perkiraan admin membalas saat layanan buka berikutnya.
+- **Asisten**: ketik **/buka** (atau "apakah loket buka sekarang?") untuk status semua lokasi.
+- Berkas baru `jam-layanan.js`. Cache service worker: takok-v102. Penting: isi kolom Jam layanan di data lokasi supaya fitur ini tampil (di data uji kosong).
