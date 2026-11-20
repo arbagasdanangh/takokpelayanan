@@ -962,3 +962,8 @@ Belum ada: notifikasi ke penanya saat dijawab (status terlihat di "Pertanyaan sa
 - Di panel percakapan admin ada kotak **🔒 Catatan internal (hanya admin)**: catatan serah terima antar-petugas (mis. "sudah telepon pemohon, menunggu denah"). Tiap catatan memuat nama penulis dan waktu (WIB); jumlahnya tampil di judul kotak. Maksimal 50 catatan per percakapan, 600 huruf per catatan.
 - **Keamanan:** disimpan di kunci Redis terpisah `tnote:{pid}|{loket}` dan tidak ikut dalam respons ke pemohon. Rute `/api/admin/catatan`, `catatan/tambah`, `catatan/hapus` mewajibkan login admin dan izin atas loket tersebut. Hanya penulis atau superuser yang bisa menghapus.
 - Berkas baru `catatan-internal.js`; `app.js` ditambah kotak di panel admin. Cache service worker: takok-v106.
+
+## Versi 107 - Bandingkan dua izin (Asisten)
+- **/bandingkan reklame vs parkir** (juga "dan", "atau", koma): dua kartu berdampingan berisi instansi, persyaratan, biaya, dan waktu, diambil dari **katalog izin** yang sama dengan menu Cari izin (`/api/izin`). Nama dicocokkan berdasarkan kata; bila ada pilihan lain yang mirip, disebutkan "Mungkin juga". Alias: /banding.
+- Jika katalog izin masih kosong (belum diunggah superuser di tab Izin), bot memberi tahu bahwa perbandingan belum bisa dilakukan. Dua kata kunci yang mengarah ke izin yang sama, atau yang tidak ditemukan, dijawab dengan petunjuk.
+- Berkas baru `bot-bandingkan.js`. Cache service worker: takok-v107.
