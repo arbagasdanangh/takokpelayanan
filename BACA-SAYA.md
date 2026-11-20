@@ -888,3 +888,27 @@ Pemohon (tile "Tanya Jawab Publik", `public/qa.js`): cari jawaban yang sudah dit
 Admin: tab **Tanya jawab publik** (grup Konten dan chatbot, terbuka untuk semua admin): saring status Baru/Terbit/Ditolak/Semua + tanggal, edit pertanyaan (agar data pribadi bisa dibuang), isi jawaban, Terbitkan/Simpan, Tolak, Hapus.
 Server: pemohon `GET /qa`, `POST /qa/tanya`, `POST /qa/vote`; admin `qa`, `qa/jawab`, `qa/tolak`, `qa/hapus`. Redis: hash `qa`, counter `qa:n`, set `qavote` per pertanyaan `qav:{id}`. Maks 1500 pertanyaan.
 Belum ada: notifikasi ke penanya saat dijawab (status terlihat di "Pertanyaan saya"), moderasi otomatis kata kasar. Belum diuji: Vercel asli, HP untuk tab admin.
+
+## Versi 94 - Penyempurna Tanya Jawab Publik
+- **Saran jawaban serupa**: saat pemohon mengetik pertanyaan, aplikasi menampilkan hingga 3 jawaban terbit yang mirip (pencocokan kata, di perangkat) agar tidak perlu bertanya.
+- **Penyamaran otomatis** NIK 16 digit, nomor HP, dan email pada pertanyaan (di server) sebelum disimpan; pemohon diberi tahu lewat toast.
+- **Penanda kata kasar** (daftar kata sederhana, bukan sensor): admin melihat tanda peringatan, keputusan tetap di admin (Tolak/edit).
+- **Kabar ke penanya**: saat admin pertama kali menerbitkan jawaban, penanya yang mengaktifkan notifikasi Telegram/WA dikabari (hanya nomor pertanyaan, tanpa isi). Status kabar tampil di kartu admin. WA teks bebas tetap terikat jendela 24 jam Meta.
+- Cache service worker: takok-v94.
+
+## Versi 95 - Jadikan Tanya Jawab (dari percakapan loket)
+- Di percakapan admin ada tombol **📢 Jadikan Tanya Jawab**: pertanyaan pemohon terakhir yang sudah dijawab admin dibuat menjadi **draf** di tab "Tanya jawab publik" (anonim, NIK/HP/email disamarkan otomatis). Draf belum terbit sampai admin memeriksa dan menekan Terbitkan.
+- Satu pasangan hanya bisa dijadikan draf sekali (kunci Redis `qa:src`). Hanya admin yang berhak atas loket tersebut.
+- Cache service worker: takok-v95.
+
+## Versi 96 - Tombol "Sudah beres" + penyempurna Arena 3D
+- **Pemohon**: tiket berstatus *Dibalas* kini punya tombol **✅ Sudah beres** (Tiket saya). Server menandai percakapan selesai (rute `/api/pesan/beres`, hanya bila admin sudah membalas); pesan berikutnya di loket yang sama membuka tiket baru. Log di Redis `pberes:log`.
+- **Arena 3D**: tombol **Jeda** (ikon II atau tombol Esc) dengan panel Lanjutkan / Suara / Keluar; game otomatis dijeda saat tab disembunyikan. Esc tidak lagi menutup Ruang Main selama pertempuran berjalan (main.js).
+- **Pengumuman beruntun**: Double / Triple / Mega Kill / Rampage bila pemain mengalahkan lawan beruntun dalam 9 detik (dengan suara dan getar layar).
+- **Efek layar**: vinyet halus, dan tepi layar memerah berdenyut saat nyawa di bawah 30%.
+- Cache service worker: takok-v96.
+
+## Versi 97 - Kuis Cak Takok (Asisten)
+- Ketik **/kuis** di Asisten (muncul juga di menu "/"): 5 pertanyaan acak dari 10 soal tentang cara memakai layanan dan aplikasi (check-in 60 menit, QR dari nomor tiket, PIN/OTP rahasia, Tanya Jawab Publik, tombol Sudah beres, dll.). Pilihan jawaban diacak, setiap jawaban diberi penjelasan, ada skor akhir dan rekor terbaik (tersimpan di perangkat pengguna, bukan di server).
+- Berkas baru `bot-kuis.js`; soal ada di array `BANK` (mudah ditambah). Perhatikan: isi soal harus tetap sesuai aturan layanan yang berlaku.
+- Cache service worker: takok-v97.
